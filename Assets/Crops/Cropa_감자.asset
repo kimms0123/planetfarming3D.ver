@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 87944e27539aaf4499e0037d176fa40f, type: 3}
+  m_Name: "Cropa_\uAC10\uC790"
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Farming.CropData
+  cropName: "\uAC10\uC790"
+  season: 0
+  icon: {fileID: 10901, guid: 0000000000000000f000000000000000, type: 0}
+  totalGrowthDays: 3
+  growthStagePrefabs:
+  - {fileID: 1199961213495498342, guid: e320f6a030aee824bb57e27031ae774e, type: 3}
+  - {fileID: 6024616547219601927, guid: 7dcfc0262ea40ce41892de4befc9a847, type: 3}
+  - {fileID: 8416037257017809515, guid: dcf17dca09b40da408d9055d29925728, type: 3}
+  expectedYield: 8
+  basePrice: 0.375
