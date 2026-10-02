@@ -72,7 +72,8 @@ public class WorldMapPainterEditor : Editor
                     if (tile == null)
                         tile = instance.AddComponent<FarmTile>();
 
-                    tile.SetVisualPrefabs(map.naturalVisualPrefab, map.tilledVisualPrefab, map.wateredVisualPrefab);
+                    tile.SetVisualPrefabs(map.naturalVisualPrefab, map.tilledVisualPrefab);
+                    tile.SetWateredTint(map.wateredTintMultiplier);
                     tile.SetCropScaleMultiplier(map.cropScaleMultiplier);
                     farmTileCount++;
                 }

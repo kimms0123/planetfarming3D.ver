@@ -47,10 +47,17 @@ namespace FarmingSystem.UI
 
         private void HandleSelectedChanged(int newIndex)
         {
+            Debug.Log($"[HotbarUI] 선택 변경 처리 시작. newIndex: {newIndex}, slots 배열 길이: {slots.Length}");
             for (int i = 0; i < slots.Length; i++)
             {
                 if (slots[i] != null)
+                {
                     slots[i].SetSelected(i == newIndex);
+                }
+                else
+                {
+                    Debug.LogWarning($"[HotbarUI] slots[{i}]가 null임 - Inspector에서 연결 안 됨");
+                }
             }
         }
 

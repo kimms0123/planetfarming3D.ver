@@ -12,9 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 87944e27539aaf4499e0037d176fa40f, type: 3}
   m_Name: "Cropa_\uAC10\uC790"
   m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Farming.CropData
-  cropName: "\uAC10\uC790"
-  season: 0
+  itemName: "\uAC10\uC790"
+  category: 3
   icon: {fileID: 10901, guid: 0000000000000000f000000000000000, type: 0}
+  maxStack: 99
+  season: 0
   totalGrowthDays: 3
   growthStagePrefabs:
   - {fileID: 1199961213495498342, guid: e320f6a030aee824bb57e27031ae774e, type: 3}

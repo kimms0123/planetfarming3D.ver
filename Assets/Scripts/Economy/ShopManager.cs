@@ -20,6 +20,7 @@ namespace FarmingSystem.Economy
     /// 3~4일 랜덤 간격으로 상인(우주선)이 방문하는 상점 시스템.
     /// GameClock의 날짜 변화를 구독해서 방문 여부를 판정하고,
     /// 방문 중일 때만 구매/판매가 가능하다.
+    /// 방문할 때마다 "오늘의 특별 상품"(판매 보너스가 붙는 작물)을 하나 무작위로 정한다.
     /// </summary>
     public class ShopManager : MonoBehaviour
     {
@@ -35,12 +36,20 @@ namespace FarmingSystem.Economy
         [Header("구매 목록 (씨앗 등, 나중에 도구/기타 추가 가능)")]
         [SerializeField] private List<ShopItemEntry> buyCatalog = new List<ShopItemEntry>();
 
+        [Header("오늘의 특별 상품 (판매 보너스)")]
+        [Tooltip("방문할 때마다 이 목록 중 하나를 무작위로 골라 판매 보너스를 준다. 비워두면 특별 상품 없음")]
+        [SerializeField] private CropData[] possibleSpecialCrops;
+        [SerializeField] private float specialSellBonusMultiplier = 1.5f;
+
         private int nextVisitDay;
         private int visitEndsOnDay = -1;
         private bool isShopOpen = false;
+        private CropData todaysSpecialCrop;
 
         public bool IsShopOpen => isShopOpen;
         public IReadOnlyList<ShopItemEntry> BuyCatalog => buyCatalog;
+        public CropData TodaysSpecialCrop => todaysSpecialCrop;
+        public float SpecialSellBonusMultiplier => specialSellBonusMultiplier;
 
         /// <summary>상점이 열리거나 닫힐 때 발행 -> 상인/우주선 등장 연출, 상점 UI가 구독</summary>
         public event Action<bool> OnShopAvailabilityChanged;
@@ -102,6 +111,7 @@ namespace FarmingSystem.Economy
         {
             isShopOpen = true;
             visitEndsOnDay = day + visitDurationDays - 1;
+            PickTodaysSpecialCrop();
             Debug.Log($"[상점] Day {day} - 상인이 도착했습니다! (Day {visitEndsOnDay}까지 머무름)");
             OnShopAvailabilityChanged?.Invoke(true);
         }
@@ -109,9 +119,22 @@ namespace FarmingSystem.Economy
         private void CloseShop(int day)
         {
             isShopOpen = false;
+            todaysSpecialCrop = null;
             Debug.Log($"[상점] Day {day} - 상인이 떠났습니다.");
             OnShopAvailabilityChanged?.Invoke(false);
             ScheduleNextVisit(day);
+        }
+
+        private void PickTodaysSpecialCrop()
+        {
+            if (possibleSpecialCrops == null || possibleSpecialCrops.Length == 0)
+            {
+                todaysSpecialCrop = null;
+                return;
+            }
+
+            todaysSpecialCrop = possibleSpecialCrops[UnityEngine.Random.Range(0, possibleSpecialCrops.Length)];
+            Debug.Log($"[상점] 오늘의 특별 상품: {todaysSpecialCrop.cropName} (판매가 x{specialSellBonusMultiplier})");
         }
 
         private void ScheduleNextVisit(int fromDay)
@@ -165,7 +188,7 @@ namespace FarmingSystem.Economy
 
         /// <summary>
         /// 인벤토리 slotIndex에 있는 작물을 quantity개 판매 시도.
-        /// 가격 = CropData.basePrice x 등급 배율 x 수량.
+        /// 가격 = CropData.basePrice x 등급 배율 x (오늘의 특별 상품이면 추가 보너스) x 수량.
         /// </summary>
         public bool TrySell(int slotIndex, int quantity)
         {
@@ -191,13 +214,15 @@ namespace FarmingSystem.Economy
             }
 
             int sellQuantity = Mathf.Min(quantity, slot.quantity);
-            float multiplier = ItemQualityUtility.GetPriceMultiplier(slot.quality);
-            int totalPrice = Mathf.RoundToInt(cropData.basePrice * multiplier * sellQuantity);
+            float qualityMultiplier = ItemQualityUtility.GetPriceMultiplier(slot.quality);
+            float specialMultiplier = (todaysSpecialCrop == cropData) ? specialSellBonusMultiplier : 1f;
+            int totalPrice = Mathf.RoundToInt(cropData.basePrice * qualityMultiplier * specialMultiplier * sellQuantity);
 
             int removed = InventoryManager.Instance.RemoveFromSlot(slotIndex, sellQuantity);
             CurrencyManager.Instance?.AddBells(totalPrice);
 
-            Debug.Log($"[판매 성공] {cropData.cropName} x{removed} ({slot.quality}, 배율 {multiplier}) -> {totalPrice}벨 획득");
+            string specialNote = specialMultiplier > 1f ? " (오늘의 특별 상품 보너스 적용!)" : "";
+            Debug.Log($"[판매 성공] {cropData.cropName} x{removed} ({slot.quality}, 배율 {qualityMultiplier}){specialNote} -> {totalPrice}벨 획득");
             return true;
         }
     }

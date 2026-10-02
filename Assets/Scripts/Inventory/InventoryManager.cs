@@ -23,6 +23,10 @@ namespace FarmingSystem.Inventory
     /// 스타듀밸리 방식 인벤토리: 전체 30칸(10칸 x 3줄) 중 앞 10칸(인덱스 0~9)이
     /// 곧 핫바다. 별도 배열이 아니라 완전히 같은 데이터라서, 핫바 UI와
     /// 전체 인벤토리 UI(Tab)는 항상 자동으로 동기화된다.
+    ///
+    /// 씨앗(SeedData)과 수확물(CropData)은 서로 다른 ScriptableObject 타입이라
+    /// 인벤토리 로직이 둘을 구분하기 위한 별도 플래그가 필요 없다 - 타입 자체가 구분 기준이다.
+    /// 작물이 늘어나도 이 클래스는 전혀 수정할 필요가 없다.
     /// </summary>
     public class InventoryManager : MonoBehaviour
     {
@@ -63,24 +67,23 @@ namespace FarmingSystem.Inventory
         public int TotalSlotCount => totalSlotCount;
         public int SelectedHotbarIndex => selectedHotbarIndex;
 
-        /// <summary>현재 핫바에서 선택된 슬롯의 아이템이 CropData(씨앗)일 때만 반환, 아니면 null</summary>
-        public FarmingSystem.Farming.CropData CurrentSeed
+        /// <summary>
+        /// 현재 핫바에서 선택된 슬롯의 아이템이 SeedData(씨앗)일 때만 반환, 아니면 null.
+        /// 수확물(CropData)이 선택되어 있으면 심을 수 없으므로 여기서 자연스럽게 걸러진다.
+        /// </summary>
+        public FarmingSystem.Farming.SeedData CurrentSeed
         {
             get
             {
                 InventorySlotData slot = GetSlot(selectedHotbarIndex);
                 if (slot == null || slot.IsEmpty) return null;
-                return slot.item as FarmingSystem.Farming.CropData;
+                return slot.item as FarmingSystem.Farming.SeedData;
             }
         }
 
-        /// <summary>도구가 바뀔 때 발행 -> ToolSlotUI가 구독</summary>
         public event Action<ToolType> OnToolChanged;
-        /// <summary>핫바 선택 슬롯이 바뀔 때 발행 -> HotbarUI가 구독</summary>
         public event Action<int> OnSelectedHotbarIndexChanged;
-        /// <summary>인벤토리(30칸 아무 곳이나) 내용물이 바뀔 때 발행 -> HotbarUI/InventoryUI가 구독</summary>
         public event Action OnInventoryChanged;
-        /// <summary>Tab 등으로 전체 인벤토리 창을 열고 닫을 때 발행 -> InventoryUI가 구독</summary>
         public event Action<bool> OnInventoryToggled;
 
         private bool isInventoryOpen = false;
@@ -104,7 +107,6 @@ namespace FarmingSystem.Inventory
             Debug.Log($"[InventoryManager] 초기화 완료. 전체 {totalSlotCount}칸, 핫바 {hotbarSize}칸, 도구 {ownedTools.Length}개");
         }
 
-        /// <summary>인스펙터의 Starting Items 목록을 슬롯 배열에 반영한다 (테스트/디버그용).</summary>
         private void ApplyStartingItems()
         {
             if (startingItems == null) return;
@@ -125,8 +127,6 @@ namespace FarmingSystem.Inventory
             }
         }
 
-        // ---------- 도구 ----------
-
         public void CycleTool(int direction)
         {
             if (ownedTools.Length == 0) return;
@@ -135,8 +135,6 @@ namespace FarmingSystem.Inventory
             Debug.Log($"[도구 전환] 현재 도구: {CurrentTool}");
             OnToolChanged?.Invoke(CurrentTool);
         }
-
-        // ---------- 핫바 선택 ----------
 
         public void SelectHotbarSlot(int index)
         {
@@ -150,16 +148,12 @@ namespace FarmingSystem.Inventory
             OnSelectedHotbarIndexChanged?.Invoke(selectedHotbarIndex);
         }
 
-        // ---------- 인벤토리 열기/닫기 ----------
-
         public void ToggleInventory()
         {
             isInventoryOpen = !isInventoryOpen;
             Debug.Log($"[인벤토리] {(isInventoryOpen ? "열림" : "닫힘")}");
             OnInventoryToggled?.Invoke(isInventoryOpen);
         }
-
-        // ---------- 슬롯 조회/조작 ----------
 
         public InventorySlotData GetSlot(int index)
         {
@@ -182,14 +176,14 @@ namespace FarmingSystem.Inventory
         }
 
         /// <summary>
-        /// 아이템을 인벤토리에 추가한다. 같은 아이템 + 같은 등급인 슬롯을 우선 채우고,
-        /// 없으면 빈 슬롯을 찾아 새로 놓는다. 다 못 넣으면 남은 수량을 반환한다 (인벤토리 꽉 참).
+        /// 아이템을 인벤토리에 추가한다. 같은 "아이템 에셋 자체(item 참조)" + 같은 등급인 슬롯을
+        /// 우선 채우고, 없으면 빈 슬롯을 찾아 새로 놓는다. SeedData와 CropData는 애초에 다른 에셋
+        /// 참조이므로, 같은 작물이어도 씨앗과 수확물이 한 슬롯에 잘못 섞일 일이 없다.
         /// </summary>
         public int AddItem(ItemData item, int quantity, ItemQuality quality = ItemQuality.Normal)
         {
             if (item == null || quantity <= 0) return quantity;
 
-            // 1) 같은 아이템 + 같은 등급 슬롯에 최대한 채우기
             for (int i = 0; i < slots.Length && quantity > 0; i++)
             {
                 if (slots[i].item == item && slots[i].quality == quality && slots[i].quantity < item.maxStack)
@@ -200,7 +194,6 @@ namespace FarmingSystem.Inventory
                 }
             }
 
-            // 2) 빈 슬롯에 나머지 배치
             for (int i = 0; i < slots.Length && quantity > 0; i++)
             {
                 if (slots[i].IsEmpty)
@@ -218,7 +211,6 @@ namespace FarmingSystem.Inventory
             return quantity;
         }
 
-        /// <summary>슬롯에서 수량만큼 제거. 부족하면 있는 만큼만 제거하고 실제 제거된 수량 반환.</summary>
         public int RemoveFromSlot(int index, int quantity)
         {
             InventorySlotData slot = GetSlot(index);

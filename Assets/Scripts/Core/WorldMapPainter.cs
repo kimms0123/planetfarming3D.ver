@@ -39,7 +39,8 @@ namespace FarmingSystem.Core
         [Header("FarmTile 비주얼 (Farmable 칸에 부착됨)")]
         public GameObject naturalVisualPrefab;   // 예: 3D_Tile_Ground_01
         public GameObject tilledVisualPrefab;    // 예: 3D_Tile_Farm_Field_01
-        public GameObject wateredVisualPrefab;   // 비워두면 tilled와 동일하게 처리됨
+        [Tooltip("물 준 상태일 때 곱해질 색상 (같은 tilledVisualPrefab에 틴트만 적용됨)")]
+        public Color wateredTintMultiplier = new Color(0.55f, 0.4f, 0.3f, 1f);
 
         [Header("작물 비주얼 설정")]
         [Tooltip("FarmTile.cropScaleMultiplier로 전달됨. 1 = 밭 블록과 동일 배율")]

@@ -13,7 +13,7 @@ namespace FarmingSystem.Farming
     /// <summary>
     /// 월드에 배치된 땅 블록 1칸의 상태를 관리한다.
     /// 호미질해도 오브젝트를 삭제/재생성하지 않고, 같은 오브젝트가 상태만 바꾸고
-    /// 자식 비주얼(모델)만 교체한다.
+    /// 자식 비주얼(모델)만 교체한다. 물 준 상태는 별도 프리팹 대신 색상 틴트로 표현한다.
     /// </summary>
     public class FarmTile : MonoBehaviour
     {
@@ -24,7 +24,8 @@ namespace FarmingSystem.Farming
         [Header("비주얼 프리팹")]
         [SerializeField] private GameObject naturalVisualPrefab;
         [SerializeField] private GameObject tilledVisualPrefab;
-        [SerializeField] private GameObject wateredVisualPrefab;
+        [Tooltip("물 준 상태일 때 곱해질 색상 (어둡게+갈색 톤으로). 흰색(1,1,1,1)이면 변화 없음")]
+        [SerializeField] private Color wateredTintMultiplier = new Color(0.55f, 0.4f, 0.3f, 1f);
 
         [Header("작물")]
         [SerializeField] private Transform cropAnchor;
@@ -33,6 +34,7 @@ namespace FarmingSystem.Farming
 
         private GameObject currentVisualObject;
         private bool isInitialized = false;
+        private bool isSubscribedToClock = false;
 
         public Vector2Int GridPosition { get; private set; }
         public TileState State => state;
@@ -41,8 +43,7 @@ namespace FarmingSystem.Farming
 
         private void OnEnable()
         {
-            if (GameClock.Instance != null)
-                GameClock.Instance.OnDayChanged += HandleDayChanged;
+            TrySubscribeToClock();
         }
 
         private void OnDisable()
@@ -53,11 +54,20 @@ namespace FarmingSystem.Farming
 
         private void Start()
         {
+            TrySubscribeToClock();
             if (!isInitialized)
                 RefreshVisual();
         }
 
-        /// <summary>WorldMapPainter가 생성 시점에 좌표를 부여할 때 호출</summary>
+        private void TrySubscribeToClock()
+        {
+            if (isSubscribedToClock) return;
+            if (GameClock.Instance == null) return;
+
+            GameClock.Instance.OnDayChanged += HandleDayChanged;
+            isSubscribedToClock = true;
+        }
+
         public void Setup(Vector2Int gridPosition)
         {
             GridPosition = gridPosition;
@@ -66,23 +76,22 @@ namespace FarmingSystem.Farming
             RefreshVisual();
         }
 
-        /// <summary>비주얼 프리팹을 코드에서 주입할 때 사용 (WorldMapPainter가 생성 시 호출)</summary>
-        public void SetVisualPrefabs(GameObject natural, GameObject tilled, GameObject watered)
+        public void SetVisualPrefabs(GameObject natural, GameObject tilled)
         {
             naturalVisualPrefab = natural;
             tilledVisualPrefab = tilled;
-            wateredVisualPrefab = watered;
         }
 
-        /// <summary>작물 크기 배율을 코드에서 주입 (WorldMapPainter가 생성 시 호출)</summary>
+        public void SetWateredTint(Color tint)
+        {
+            wateredTintMultiplier = tint;
+        }
+
         public void SetCropScaleMultiplier(float multiplier)
         {
             cropScaleMultiplier = multiplier;
         }
 
-        /// <summary>
-        /// 이 오브젝트 자신은 논리 컨테이너 역할만 하고, 실제 비주얼은 자식(currentVisualObject)만 담당한다.
-        /// </summary>
         private void DisableOwnRenderer()
         {
             Renderer ownRenderer = GetComponent<Renderer>();
@@ -90,7 +99,6 @@ namespace FarmingSystem.Farming
                 ownRenderer.enabled = false;
         }
 
-        /// <summary>밭 갈기. Natural 상태에서만 가능. 성공하면 true.</summary>
         public bool TryTill()
         {
             if (state != TileState.Natural)
@@ -105,17 +113,20 @@ namespace FarmingSystem.Farming
             return true;
         }
 
-        /// <summary>씨앗 심기. Tilled 상태이고 아직 작물이 없을 때만 가능.</summary>
-        public bool Plant(CropData cropData, Transform cropParent)
+        /// <summary>
+        /// 씨앗 심기. SeedData를 받아서, 그 씨앗이 자라날 작물(resultCrop)의 성장 데이터를 사용한다.
+        /// Tilled 상태이고 아직 작물이 없을 때만 가능.
+        /// </summary>
+        public bool Plant(SeedData seedData, Transform cropParent)
         {
             if (state != TileState.Tilled)
             {
                 Debug.Log($"[씨앗심기 실패] {name} - 갈아진 밭이 아님 (현재: {state})");
                 return false;
             }
-            if (cropData == null)
+            if (seedData == null || seedData.resultCrop == null)
             {
-                Debug.Log("[씨앗심기 실패] 장착된 씨앗(CropData)이 없음");
+                Debug.Log("[씨앗심기 실패] 장착된 씨앗이 없거나, 씨앗에 연결된 작물(resultCrop)이 비어있음");
                 return false;
             }
             if (CurrentCrop != null)
@@ -123,6 +134,8 @@ namespace FarmingSystem.Farming
                 Debug.Log($"[씨앗심기 실패] {name} - 이미 작물이 심어져 있음");
                 return false;
             }
+
+            CropData cropData = seedData.resultCrop;
 
             GameObject cropObj = new GameObject($"Crop_{cropData.cropName}");
             Transform anchor = cropAnchor != null ? cropAnchor : transform;
@@ -133,11 +146,10 @@ namespace FarmingSystem.Farming
             CurrentCrop = cropObj.AddComponent<CropInstance>();
             CurrentCrop.Initialize(cropData);
 
-            Debug.Log($"[씨앗심기 성공] {name} (좌표 {GridPosition}) - 씨앗이 심겼습니다: {cropData.cropName}");
+            Debug.Log($"[씨앗심기 성공] {name} (좌표 {GridPosition}) - {seedData.itemName}을(를) 심었습니다 -> {cropData.cropName}로 자람");
             return true;
         }
 
-        /// <summary>물 주기. 매일 다시 줘야 하며, 그날 물을 줘야만 다음날 성장이 발생한다.</summary>
         public bool Water()
         {
             if (state != TileState.Tilled)
@@ -157,11 +169,6 @@ namespace FarmingSystem.Farming
             return true;
         }
 
-        /// <summary>
-        /// 수확. 성장 완료된 작물이 있을 때만 가능. 성공 시 CropData를 반환하고 등급(quality)도 함께 넘긴다.
-        /// TODO: 지금은 등급을 임시로 랜덤 판정한다 - 수확 리듬게임 시스템이 완성되면
-        /// 그 결과(Perfect 비율 등)를 quality 인자로 그대로 대체하면 된다.
-        /// </summary>
         public CropData Harvest(out ItemQuality quality)
         {
             quality = ItemQuality.Normal;
@@ -188,7 +195,6 @@ namespace FarmingSystem.Farming
             return harvested;
         }
 
-        /// <summary>임시 등급 판정 (Normal 60%, Good 30%, Perfect 10%). 리듬게임 완성 전까지 사용.</summary>
         private ItemQuality RollHarvestQuality()
         {
             float roll = UnityEngine.Random.value;
@@ -197,11 +203,6 @@ namespace FarmingSystem.Farming
             return ItemQuality.Normal;
         }
 
-        /// <summary>
-        /// 하루가 바뀔 때 호출됨.
-        /// 1) 오늘 물을 줬다면 작물을 하루치 성장시킨다.
-        /// 2) 물 상태는 다음날을 위해 초기화한다.
-        /// </summary>
         private void HandleDayChanged(int day, Season season)
         {
             if (CurrentCrop != null)
@@ -222,30 +223,33 @@ namespace FarmingSystem.Farming
 
         private void RefreshVisual()
         {
-            GameObject targetPrefab = ChoosePrefab();
+            GameObject targetPrefab = state == TileState.Natural ? naturalVisualPrefab : tilledVisualPrefab;
             if (targetPrefab == null) return;
 
             if (currentVisualObject != null)
                 Destroy(currentVisualObject);
 
             currentVisualObject = Instantiate(targetPrefab, transform.position, transform.rotation, transform);
+
+            if (state == TileState.Tilled && isWatered)
+                ApplyWateredTint();
         }
 
-        private GameObject ChoosePrefab()
+        private void ApplyWateredTint()
         {
-            if (state == TileState.Natural)
-                return naturalVisualPrefab;
+            if (currentVisualObject == null) return;
 
-            if (isWatered && wateredVisualPrefab != null)
-                return wateredVisualPrefab;
-
-            return tilledVisualPrefab != null ? tilledVisualPrefab : naturalVisualPrefab;
+            Renderer[] renderers = currentVisualObject.GetComponentsInChildren<Renderer>();
+            foreach (Renderer r in renderers)
+            {
+                Material mat = r.material;
+                if (mat.HasProperty("_BaseColor"))
+                    mat.SetColor("_BaseColor", mat.GetColor("_BaseColor") * wateredTintMultiplier);
+                else if (mat.HasProperty("_Color"))
+                    mat.color = mat.color * wateredTintMultiplier;
+            }
         }
 
-        /// <summary>
-        /// 현재 타일 비주얼(currentVisualObject)의 실제 윗면 좌표를 Renderer.bounds 기반으로 계산한다.
-        /// 모델의 Pivot 위치에 의존하지 않으므로, 어떤 에셋을 갈아끼워도 작물이 항상 표면 위에 정확히 얹힌다.
-        /// </summary>
         private Vector3 GetSurfacePosition()
         {
             if (currentVisualObject != null)

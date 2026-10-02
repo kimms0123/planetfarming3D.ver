@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5479c011c2dfc8b4abd9e38b9063db59, type: 3}
+  m_Name: "Seed_\uAC10\uC790"
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Farming.SeedData
+  itemName: "\uAC10\uC790 \uC528\uC557"
+  category: 0
+  icon: {fileID: 219606616, guid: 0d72b3bfbf953594db262bab7221695a, type: 3}
+  maxStack: 99
+  resultCrop: {fileID: 0}

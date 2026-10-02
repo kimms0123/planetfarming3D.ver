@@ -69,13 +69,15 @@ namespace FarmingSystem.Player
                 return;
             }
 
-            // 2순위: 갈아진 빈 밭 + 핫바에 씨앗이 선택되어 있으면 심기
-            CropData selectedSeed = InventoryManager.Instance.CurrentSeed;
+            // 2순위: 갈아진 빈 밭 + 핫바에 씨앗(SeedData)이 선택되어 있으면 심기
+            // CurrentSeed는 슬롯의 아이템이 SeedData일 때만 값을 반환하므로,
+            // 수확물(CropData)이 핫바에 있을 땐 자연히 여기서 걸러진다.
+            SeedData selectedSeed = InventoryManager.Instance.CurrentSeed;
             if (tile.State == TileState.Tilled && tile.CurrentCrop == null && selectedSeed != null)
             {
                 if (tile.Plant(selectedSeed, cropParentContainer))
                 {
-                    Debug.Log($"[씨앗심기] {selectedSeed.cropName} 심기 성공");
+                    Debug.Log($"[씨앗심기] {selectedSeed.itemName} 심기 성공");
                     GameClock.Instance?.AdvanceMinutes(plantMinutes);
                     return;
                 }
