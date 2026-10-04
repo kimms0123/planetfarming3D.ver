@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
+using FarmingSystem.Core;
 
 namespace FarmingSystem.Inventory
 {
@@ -12,6 +13,9 @@ namespace FarmingSystem.Inventory
     {
         private void Update()
         {
+            // 상점 등 입력을 막는 UI가 열려 있으면 핫바/도구/인벤토리 입력 무시
+            if (UIInputBlocker.IsBlocked) return;
+
             HandleToolScroll();
             HandleHotbarNumberKeys();
             HandleInventoryToggle();
@@ -29,7 +33,7 @@ namespace FarmingSystem.Inventory
             InventoryManager.Instance.CycleTool(direction);
         }
 
-        // 1,2,...,9,0 순서로 핫바 인덱스 0~9에 대응 (숫자키 0이 10번째 슬롯)</summary>
+        // 1,2,...,9,0 순서로 핫바 인덱스 0~9에 대응 (숫자키 0이 10번째 슬롯)
         private void HandleHotbarNumberKeys()
         {
             if (InventoryManager.Instance == null) return;

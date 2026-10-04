@@ -1,4 +1,5 @@
-using UnityEngine;
+ï»¿using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using FarmingSystem.Core;
 using FarmingSystem.Farming;
@@ -7,25 +8,28 @@ using FarmingSystem.Inventory;
 namespace FarmingSystem.Player
 {
     /// <summary>
-    /// ¸¶¿ì½º ¿ìÅ¬¸¯ ÇÑ ¹øÀ¸·Î »óÈ²¿¡ ¸Â´Â ³ó»ç Çàµ¿À» ½ÇÇàÇÑ´Ù.
-    /// ¿ì¼±¼øÀ§: ¼öÈ® °¡´ÉÇÑ ÀÛ¹° ¼öÈ® > (°¥¾ÆÁø ºó ¹ç + ÇÖ¹Ù¿¡ ¾¾¾Ñ ¼±ÅÃµÊ) ¾¾¾Ñ ½É±â > ÀåÂø µµ±¸(È£¹Ì/¹°»Ñ¸®°³) Çàµ¿
-    /// ¾î¶² µµ±¸/¾¾¾ÑÀ» ¾µÁö´Â InventoryManager.Instance¿¡¼­ ¸Å¹ø Á¶È¸ÇÑ´Ù.
+    /// ë§ˆìš°ìŠ¤ ì¢Œí´ë¦­ ì‹œ í´ë¦­í•œ íƒ€ì¼ ìƒí™©ì— ë§ëŠ” ë†ì‚¬ í–‰ë™ì„ ì‹¤í–‰í•œë‹¤.
+    /// ìš°ì„ ìˆœìœ„: ìˆ˜í™• ê°€ëŠ¥í•œ ì‘ë¬¼ ìˆ˜í™• > (ê°ˆì•„ì§„ ë¹ˆ ë°­ + í•«ë°”ì— ì”¨ì•— ì„ íƒë¨) ì”¨ì•— ì‹¬ê¸° > í˜„ì¬ ë„êµ¬(í˜¸ë¯¸/ë¬¼ë¿Œë¦¬ê°œ) í–‰ë™
+    /// ì–´ë–¤ ë„êµ¬/ì”¨ì•—ì„ ë“¤ê³  ìˆëŠ”ì§€ëŠ” InventoryManager.Instanceì—ì„œ ë§¤ë²ˆ ì¡°íšŒí•œë‹¤.
+    /// ìƒì  ë“± UIê°€ ì—´ë ¤ ìˆê±°ë‚˜ ë§ˆìš°ìŠ¤ê°€ UI ìœ„ì— ìˆìœ¼ë©´ ì•„ë¬´ê²ƒë„ í•˜ì§€ ì•ŠëŠ”ë‹¤.
     /// </summary>
     public class FarmActionController : MonoBehaviour
     {
-        [Header("ÂüÁ¶")]
+        [Header("ì°¸ì¡°")]
         [SerializeField] private Transform cropParentContainer;
         [SerializeField] private Camera targetCamera;
 
-        [Header("»óÈ£ÀÛ¿ë ¼³Á¤")]
-        [Tooltip("ÇÃ·¹ÀÌ¾î·ÎºÎÅÍ ÀÌ °Å¸® ÀÌ³»ÀÇ ¶¥¸¸ »óÈ£ÀÛ¿ë °¡´É")]
+        [Header("ìƒí˜¸ì‘ìš© ì„¤ì •")]
+        [Tooltip("í”Œë ˆì´ì–´ë¡œë¶€í„° ì´ ê±°ë¦¬ ì´ë‚´ì˜ íƒ€ì¼ë§Œ ìƒí˜¸ì‘ìš© ê°€ëŠ¥")]
         [SerializeField] private float maxInteractDistance = 3f;
         [SerializeField] private LayerMask groundRaycastMask;
 
-        [Header("Çàµ¿º° ¼Ò¿ä ½Ã°£(ºĞ) - ±âÈ¹¼­ ±âÁØ")]
+        [Header("í–‰ë™ë³„ ì†Œìš” ì‹œê°„(ë¶„) - ê¸°íšì„œ ê¸°ì¤€")]
         [SerializeField] private int tillMinutes = 30;
         [SerializeField] private int plantMinutes = 30;
         [SerializeField] private int waterMinutes = 20;
+
+        private bool pointerOverUI;
 
         private void Awake()
         {
@@ -33,14 +37,24 @@ namespace FarmingSystem.Player
                 targetCamera = Camera.main;
         }
 
-        /// <summary>PlayerInput(Send Messages)ÀÌ Interact(¿ìÅ¬¸¯)°¡ ´­¸± ¶§ ÀÚµ¿ È£Ãâ</summary>
+        private void Update()
+        {
+            // OnInteract(ì…ë ¥ ì´ë²¤íŠ¸ ì²˜ë¦¬ ì¤‘)ì—ì„œ IsPointerOverGameObjectë¥¼ ì§ì ‘ ë¶€ë¥´ë©´
+            // Input Systemì´ ê²½ê³ ë¥¼ ë‚´ê³  ê°’ë„ ë¶€ì •í™•í•´ì„œ, ë§¤ í”„ë ˆì„ ë¯¸ë¦¬ ì €ì¥í•´ ë‘”ë‹¤
+            pointerOverUI = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+        }
+
+        /// <summary>PlayerInput(Send Messages)ì´ Interact(ì¢Œí´ë¦­)ë¥¼ ë°›ì„ ë•Œ ìë™ í˜¸ì¶œ</summary>
         public void OnInteract(InputValue value)
         {
             if (!value.isPressed) return;
 
+            // ìƒì  ë“± UIê°€ ì—´ë ¤ ìˆê±°ë‚˜, ë§ˆìš°ìŠ¤ê°€ UI(í•«ë°” ë“±) ìœ„ì— ìˆìœ¼ë©´ ë†ì‚¬ í–‰ë™ ì•ˆ í•¨
+            if (UIInputBlocker.IsBlocked || pointerOverUI) return;
+
             if (FarmGrid.Instance == null || targetCamera == null || InventoryManager.Instance == null)
             {
-                Debug.Log("[³ó»çÇàµ¿ ½ÇÆĞ] ÇÊ¿äÇÑ ¸Å´ÏÀú(FarmGrid/InventoryManager)°¡ ¾À¿¡ ¾øÀ½");
+                Debug.Log("[ë†ì‚¬í–‰ë™ ì‹¤íŒ¨] í•„ìš”í•œ ë§¤ë‹ˆì €(FarmGrid/InventoryManager)ê°€ ì”¬ì— ì—†ìŒ");
                 return;
             }
 
@@ -57,35 +71,51 @@ namespace FarmingSystem.Player
             if (!FarmGrid.Instance.TryGetTileAtWorldPosition(hit.point, out FarmTile tile))
                 return;
 
-            // 1¼øÀ§: ¼öÈ®
+            InventoryManager inventory = InventoryManager.Instance;
+
+            // 1ìˆœìœ„: ìˆ˜í™•
             if (tile.CurrentCrop != null && tile.CurrentCrop.IsReadyToHarvest)
             {
+                // ë“±ê¸‰ì€ ìˆ˜í™• ìˆœê°„ì— ì •í•´ì§€ë¯€ë¡œ, ì–´ë–¤ ë“±ê¸‰ì´ ë‚˜ì™€ë„ ë“¤ì–´ê°ˆ ê³µê°„ì´ ìˆì„ ë•Œë§Œ ìˆ˜í™•
+                // (ê³µê°„ ì—†ì´ ìˆ˜í™•í•˜ë©´ ëª» ë„£ì€ ìˆ˜í™•ë¬¼ì´ ì‚¬ë¼ì§€ê¸° ë•Œë¬¸)
+                CropData readyCrop = tile.CurrentCrop.Data;
+                int room = Mathf.Min(inventory.GetAddableAmount(readyCrop, ItemQuality.Normal),
+                           Mathf.Min(inventory.GetAddableAmount(readyCrop, ItemQuality.Good),
+                                     inventory.GetAddableAmount(readyCrop, ItemQuality.Perfect)));
+                if (room < readyCrop.expectedYield)
+                {
+                    Debug.Log($"[ìˆ˜í™• ë³´ë¥˜] ê°€ë°© ê³µê°„ ë¶€ì¡± ({readyCrop.expectedYield}ê°œ í•„ìš”, {room}ê°œ ê°€ëŠ¥)");
+                    return;
+                }
+
                 CropData harvested = tile.Harvest(out ItemQuality quality);
                 if (harvested != null)
                 {
-                    int notAdded = InventoryManager.Instance.AddItem(harvested, harvested.expectedYield, quality);
-                    Debug.Log($"[¼öÈ®] {harvested.cropName} x{harvested.expectedYield} ({quality}) ¼öÈ® ¿Ï·á, ÀÎº¥Åä¸®¿¡ ¸ø ³ÖÀº ¼ö·®: {notAdded}");
+                    int notAdded = inventory.AddItem(harvested, harvested.expectedYield, quality);
+                    Debug.Log($"[ìˆ˜í™•] {harvested.cropName} x{harvested.expectedYield} ({quality}) ìˆ˜í™• ì™„ë£Œ, ì¸ë²¤í† ë¦¬ì— ëª» ë„£ì€ ìˆ˜ëŸ‰: {notAdded}");
                 }
                 return;
             }
 
-            // 2¼øÀ§: °¥¾ÆÁø ºó ¹ç + ÇÖ¹Ù¿¡ ¾¾¾Ñ(SeedData)ÀÌ ¼±ÅÃµÇ¾î ÀÖÀ¸¸é ½É±â
-            // CurrentSeed´Â ½½·ÔÀÇ ¾ÆÀÌÅÛÀÌ SeedDataÀÏ ¶§¸¸ °ªÀ» ¹İÈ¯ÇÏ¹Ç·Î,
-            // ¼öÈ®¹°(CropData)ÀÌ ÇÖ¹Ù¿¡ ÀÖÀ» ¶© ÀÚ¿¬È÷ ¿©±â¼­ °É·¯Áø´Ù.
-            SeedData selectedSeed = InventoryManager.Instance.CurrentSeed;
+            // 2ìˆœìœ„: ê°ˆì•„ì§„ ë¹ˆ ë°­ + í•«ë°”ì— ì”¨ì•—(SeedData)ì´ ì„ íƒë˜ì–´ ìˆìœ¼ë©´ ì‹¬ê¸°
+            // CurrentSeedëŠ” ì„ íƒëœ ì•„ì´í…œì´ SeedDataì¼ ë•Œë§Œ ê°’ì„ ë°˜í™˜í•˜ë¯€ë¡œ,
+            // ìˆ˜í™•ë¬¼(CropData)ì„ í•«ë°”ì— ë“¤ê³  ìˆìœ¼ë©´ ì—¬ê¸°ì„œ ê±¸ëŸ¬ì§„ë‹¤.
+            SeedData selectedSeed = inventory.CurrentSeed;
             if (tile.State == TileState.Tilled && tile.CurrentCrop == null && selectedSeed != null)
             {
                 if (tile.Plant(selectedSeed, cropParentContainer))
                 {
-                    Debug.Log($"[¾¾¾Ñ½É±â] {selectedSeed.itemName} ½É±â ¼º°ø");
+                    // ì‹¬ì€ ì”¨ì•— 1ê°œ ì†Œëª¨
+                    inventory.RemoveFromSlot(inventory.SelectedHotbarIndex, 1);
+                    Debug.Log($"[ì”¨ì•—ì‹¬ê¸°] {selectedSeed.itemName} ì‹¬ê¸° ì„±ê³µ");
                     GameClock.Instance?.AdvanceMinutes(plantMinutes);
                     return;
                 }
             }
 
-            // 3¼øÀ§: ÀåÂø µµ±¸ Çàµ¿
-            ToolType currentTool = InventoryManager.Instance.CurrentTool;
-            Debug.Log($"[µµ±¸Çàµ¿ ½Ãµµ] Å¸ÀÏ: {tile.name}, State: {tile.State}, ÇöÀç µµ±¸: {currentTool}");
+            // 3ìˆœìœ„: í˜„ì¬ ë„êµ¬ í–‰ë™
+            ToolType currentTool = inventory.CurrentTool;
+            Debug.Log($"[ë„êµ¬í–‰ë™ ì‹œë„] íƒ€ì¼: {tile.name}, State: {tile.State}, í˜„ì¬ ë„êµ¬: {currentTool}");
 
             switch (currentTool)
             {

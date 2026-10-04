@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using FarmingSystem.Core;
 
 namespace FarmingSystem.Player
 {
@@ -34,7 +35,9 @@ namespace FarmingSystem.Player
 
         private void Update()
         {
-            Vector3 moveDir = CalculateCameraRelativeDirection(moveInput);
+            // 상점 등 UI가 입력을 막고 있으면 이동하지 않음 (중력은 계속 적용)
+            Vector2 input = UIInputBlocker.IsBlocked ? Vector2.zero : moveInput;
+            Vector3 moveDir = CalculateCameraRelativeDirection(input);
 
             if (moveDir.sqrMagnitude > 0.001f)
             {

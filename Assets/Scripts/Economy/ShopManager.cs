@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using FarmingSystem.Core;
@@ -12,32 +12,37 @@ namespace FarmingSystem.Economy
     {
         public ItemData item;
         public int price;
-        [Tooltip("-1ÀÌ¸é ¹«Á¦ÇÑ Àç°í")]
+        [Tooltip("-1ì´ë©´ ë¬´ì œí•œ ì¬ê³ ")]
         public int stock = -1;
     }
 
+    /// <summary>ìƒì  êµ¬ë§¤ íƒ­. ì•„ì´í…œì˜ ItemCategoryë¡œ ìë™ ë¶„ë¥˜ëœë‹¤.</summary>
+    public enum ShopTab { Seed, Fertilizer, Tool, Etc }
+
+    public enum BuyResult { Success, ShopClosed, InvalidItem, OutOfStock, NotEnoughMoney, NoInventorySpace }
+
     /// <summary>
-    /// 3~4ÀÏ ·£´ı °£°İÀ¸·Î »óÀÎ(¿ìÁÖ¼±)ÀÌ ¹æ¹®ÇÏ´Â »óÁ¡ ½Ã½ºÅÛ.
-    /// GameClockÀÇ ³¯Â¥ º¯È­¸¦ ±¸µ¶ÇØ¼­ ¹æ¹® ¿©ºÎ¸¦ ÆÇÁ¤ÇÏ°í,
-    /// ¹æ¹® ÁßÀÏ ¶§¸¸ ±¸¸Å/ÆÇ¸Å°¡ °¡´ÉÇÏ´Ù.
-    /// ¹æ¹®ÇÒ ¶§¸¶´Ù "¿À´ÃÀÇ Æ¯º° »óÇ°"(ÆÇ¸Å º¸³Ê½º°¡ ºÙ´Â ÀÛ¹°)À» ÇÏ³ª ¹«ÀÛÀ§·Î Á¤ÇÑ´Ù.
+    /// 3~4ì¼ ëœë¤ ê°„ê²©ìœ¼ë¡œ ìƒì¸(ìš°ì£¼ì„ )ì´ ë°©ë¬¸í•˜ëŠ” ìƒì  ì‹œìŠ¤í…œ.
+    /// GameClockì˜ ë‚ ì§œ ë³€í™”ë¥¼ êµ¬ë…í•´ì„œ ë°©ë¬¸ ì—¬ë¶€ë¥¼ íŒì •í•˜ê³ ,
+    /// ë°©ë¬¸ ì¤‘ì¼ ë•Œë§Œ êµ¬ë§¤/íŒë§¤ê°€ ê°€ëŠ¥í•˜ë‹¤.
+    /// ë°©ë¬¸í•  ë•Œë§ˆë‹¤ "ì˜¤ëŠ˜ì˜ íŠ¹ë³„ ìƒí’ˆ"(íŒë§¤ ë³´ë„ˆìŠ¤ê°€ ë¶™ëŠ” ì‘ë¬¼)ì„ í•˜ë‚˜ ë¬´ì‘ìœ„ë¡œ ì •í•œë‹¤.
     /// </summary>
     public class ShopManager : MonoBehaviour
     {
         public static ShopManager Instance { get; private set; }
 
-        [Header("¹æ¹® ÁÖ±â")]
-        [Tooltip("´ÙÀ½ ¹æ¹®±îÁö ÃÖ¼Ò/ÃÖ´ë ´ë±âÀÏ (¿¹: 3~4ÀÏ)")]
+        [Header("ë°©ë¬¸ ì£¼ê¸°")]
+        [Tooltip("ë‹¤ìŒ ë°©ë¬¸ê¹Œì§€ ìµœì†Œ/ìµœëŒ€ ëŒ€ê¸°ì¼ (ì˜ˆ: 3~4ì¼)")]
         [SerializeField] private int minVisitInterval = 3;
         [SerializeField] private int maxVisitInterval = 4;
-        [Tooltip("ÇÑ ¹ø ¹æ¹®ÇÏ¸é ¸çÄ¥°£ ¸Ó¹«´ÂÁö")]
+        [Tooltip("í•œ ë²ˆ ë°©ë¬¸í•˜ë©´ ë©°ì¹ ê°„ ë¨¸ë¬´ëŠ”ì§€")]
         [SerializeField] private int visitDurationDays = 1;
 
-        [Header("±¸¸Å ¸ñ·Ï (¾¾¾Ñ µî, ³ªÁß¿¡ µµ±¸/±âÅ¸ Ãß°¡ °¡´É)")]
+        [Header("êµ¬ë§¤ ëª©ë¡ (íƒ­ì€ ì•„ì´í…œì˜ Categoryë¡œ ìë™ ë¶„ë¥˜)")]
         [SerializeField] private List<ShopItemEntry> buyCatalog = new List<ShopItemEntry>();
 
-        [Header("¿À´ÃÀÇ Æ¯º° »óÇ° (ÆÇ¸Å º¸³Ê½º)")]
-        [Tooltip("¹æ¹®ÇÒ ¶§¸¶´Ù ÀÌ ¸ñ·Ï Áß ÇÏ³ª¸¦ ¹«ÀÛÀ§·Î °ñ¶ó ÆÇ¸Å º¸³Ê½º¸¦ ÁØ´Ù. ºñ¿öµÎ¸é Æ¯º° »óÇ° ¾øÀ½")]
+        [Header("ì˜¤ëŠ˜ì˜ íŠ¹ë³„ ìƒí’ˆ (íŒë§¤ ë³´ë„ˆìŠ¤)")]
+        [Tooltip("ë°©ë¬¸í•  ë•Œë§ˆë‹¤ ì´ ëª©ë¡ ì¤‘ í•˜ë‚˜ë¥¼ ë¬´ì‘ìœ„ë¡œ ê³¨ë¼ íŒë§¤ ë³´ë„ˆìŠ¤ë¥¼ ì¤€ë‹¤. ë¹„ì›Œë‘ë©´ íŠ¹ë³„ ìƒí’ˆ ì—†ìŒ")]
         [SerializeField] private CropData[] possibleSpecialCrops;
         [SerializeField] private float specialSellBonusMultiplier = 1.5f;
 
@@ -51,7 +56,7 @@ namespace FarmingSystem.Economy
         public CropData TodaysSpecialCrop => todaysSpecialCrop;
         public float SpecialSellBonusMultiplier => specialSellBonusMultiplier;
 
-        /// <summary>»óÁ¡ÀÌ ¿­¸®°Å³ª ´İÈú ¶§ ¹ßÇà -> »óÀÎ/¿ìÁÖ¼± µîÀå ¿¬Ãâ, »óÁ¡ UI°¡ ±¸µ¶</summary>
+        /// <summary>ìƒì ì´ ì—´ë¦¬ê±°ë‚˜ ë‹«í ë•Œ ë°œí–‰ -> ìƒì¸/ìš°ì£¼ì„  ë“±ì¥ ì—°ì¶œ, ìƒì  UIê°€ êµ¬ë…</summary>
         public event Action<bool> OnShopAvailabilityChanged;
 
         private void Awake()
@@ -81,6 +86,7 @@ namespace FarmingSystem.Economy
         {
             if (GameClock.Instance != null)
                 GameClock.Instance.OnDayChanged -= HandleDayChanged;
+            isSubscribed = false;
         }
 
         private bool isSubscribed = false;
@@ -92,7 +98,7 @@ namespace FarmingSystem.Economy
 
             GameClock.Instance.OnDayChanged += HandleDayChanged;
             isSubscribed = true;
-            Debug.Log("[ShopManager] GameClock ÀÌº¥Æ® ±¸µ¶ ¿Ï·á");
+            Debug.Log("[ShopManager] GameClock ì´ë²¤íŠ¸ êµ¬ë… ì™„ë£Œ");
         }
 
         private void HandleDayChanged(int day, Season season)
@@ -112,7 +118,7 @@ namespace FarmingSystem.Economy
             isShopOpen = true;
             visitEndsOnDay = day + visitDurationDays - 1;
             PickTodaysSpecialCrop();
-            Debug.Log($"[»óÁ¡] Day {day} - »óÀÎÀÌ µµÂøÇß½À´Ï´Ù! (Day {visitEndsOnDay}±îÁö ¸Ó¹«¸§)");
+            Debug.Log($"[ìƒì ] Day {day} - ìƒì¸ì´ ë„ì°©í–ˆìŠµë‹ˆë‹¤! (Day {visitEndsOnDay}ê¹Œì§€ ë¨¸ë¬´ë¦„)");
             OnShopAvailabilityChanged?.Invoke(true);
         }
 
@@ -120,7 +126,7 @@ namespace FarmingSystem.Economy
         {
             isShopOpen = false;
             todaysSpecialCrop = null;
-            Debug.Log($"[»óÁ¡] Day {day} - »óÀÎÀÌ ¶°³µ½À´Ï´Ù.");
+            Debug.Log($"[ìƒì ] Day {day} - ìƒì¸ì´ ë– ë‚¬ìŠµë‹ˆë‹¤.");
             OnShopAvailabilityChanged?.Invoke(false);
             ScheduleNextVisit(day);
         }
@@ -134,96 +140,179 @@ namespace FarmingSystem.Economy
             }
 
             todaysSpecialCrop = possibleSpecialCrops[UnityEngine.Random.Range(0, possibleSpecialCrops.Length)];
-            Debug.Log($"[»óÁ¡] ¿À´ÃÀÇ Æ¯º° »óÇ°: {todaysSpecialCrop.cropName} (ÆÇ¸Å°¡ x{specialSellBonusMultiplier})");
+            Debug.Log($"[ìƒì ] ì˜¤ëŠ˜ì˜ íŠ¹ë³„ ìƒí’ˆ: {todaysSpecialCrop.cropName} (íŒë§¤ê°€ x{specialSellBonusMultiplier})");
         }
 
         private void ScheduleNextVisit(int fromDay)
         {
             int interval = UnityEngine.Random.Range(minVisitInterval, maxVisitInterval + 1);
             nextVisitDay = fromDay + interval;
-            Debug.Log($"[»óÁ¡] ´ÙÀ½ ¹æ¹® ¿¹Á¤ÀÏ: Day {nextVisitDay} (Áö±İÀ¸·ÎºÎÅÍ {interval}ÀÏ ÈÄ)");
+            Debug.Log($"[ìƒì ] ë‹¤ìŒ ë°©ë¬¸ ì˜ˆì •ì¼: Day {nextVisitDay} (ì§€ê¸ˆìœ¼ë¡œë¶€í„° {interval}ì¼ í›„)");
         }
 
-        // ---------- ±¸¸Å ----------
+        // ---------- êµ¬ë§¤ ----------
 
-        /// <summary>±¸¸Å ¸ñ·ÏÀÇ index¹øÂ° ¾ÆÀÌÅÛÀ» quantity°³ ±¸¸Å ½Ãµµ.</summary>
-        public bool TryBuy(int catalogIndex, int quantity)
+        public static ShopTab GetTab(ItemData item)
+        {
+            if (item == null) return ShopTab.Etc;
+
+            switch (item.category)
+            {
+                case ItemCategory.Seed: return ShopTab.Seed;
+                case ItemCategory.Fertilizer: return ShopTab.Fertilizer;
+                case ItemCategory.Tool: return ShopTab.Tool;
+                default: return ShopTab.Etc;
+            }
+        }
+
+        /// <summary>í•´ë‹¹ íƒ­ì— ì†í•˜ëŠ” êµ¬ë§¤ ëª©ë¡ ì¸ë±ìŠ¤ë“¤ (ì¸ìŠ¤í™í„° ëª©ë¡ ìˆœì„œ ìœ ì§€)</summary>
+        public List<int> GetCatalogIndicesByTab(ShopTab tab)
+        {
+            var result = new List<int>();
+            for (int i = 0; i < buyCatalog.Count; i++)
+            {
+                ShopItemEntry entry = buyCatalog[i];
+                if (entry != null && entry.item != null && GetTab(entry.item) == tab)
+                    result.Add(i);
+            }
+            return result;
+        }
+
+        public ShopItemEntry GetEntry(int catalogIndex)
+        {
+            if (catalogIndex < 0 || catalogIndex >= buyCatalog.Count) return null;
+            return buyCatalog[catalogIndex];
+        }
+
+        /// <summary>ì§€ê¸ˆ ì‚´ ìˆ˜ ìˆëŠ” ìµœëŒ€ ìˆ˜ëŸ‰ = ì†Œì§€ê¸ˆ, ì¸ë²¤í† ë¦¬ ê³µê°„, ì¬ê³  ì¤‘ ê°€ì¥ ì‘ì€ ê°’</summary>
+        public int GetMaxBuyable(int catalogIndex)
+        {
+            ShopItemEntry entry = GetEntry(catalogIndex);
+            if (entry == null || entry.item == null) return 0;
+
+            int byMoney = entry.price <= 0
+                ? int.MaxValue
+                : (CurrencyManager.Instance != null ? CurrencyManager.Instance.CurrentBells / entry.price : 0);
+            int bySpace = InventoryManager.Instance != null ? InventoryManager.Instance.GetAddableAmount(entry.item) : 0;
+            int byStock = entry.stock < 0 ? int.MaxValue : entry.stock;
+
+            return Mathf.Min(byMoney, Mathf.Min(bySpace, byStock));
+        }
+
+        /// <summary>êµ¬ë§¤ ëª©ë¡ì˜ catalogIndexë²ˆì§¸ ì•„ì´í…œì„ quantityê°œ êµ¬ë§¤ ì‹œë„.</summary>
+        public BuyResult TryBuy(int catalogIndex, int quantity)
         {
             if (!isShopOpen)
             {
-                Debug.Log("[±¸¸Å ½ÇÆĞ] Áö±İÀº »óÀÎÀÌ ¾øÀ½");
-                return false;
+                Debug.Log("[êµ¬ë§¤ ì‹¤íŒ¨] ì§€ê¸ˆì€ ìƒì¸ì´ ì—†ìŒ");
+                return BuyResult.ShopClosed;
             }
-            if (catalogIndex < 0 || catalogIndex >= buyCatalog.Count)
+
+            ShopItemEntry entry = GetEntry(catalogIndex);
+            if (entry == null || entry.item == null || quantity <= 0) return BuyResult.InvalidItem;
+            if (CurrencyManager.Instance == null || InventoryManager.Instance == null) return BuyResult.InvalidItem;
+
+            if (entry.stock >= 0 && entry.stock < quantity)
             {
-                Debug.Log("[±¸¸Å ½ÇÆĞ] Àß¸øµÈ »óÇ° ÀÎµ¦½º");
-                return false;
+                Debug.Log($"[êµ¬ë§¤ ì‹¤íŒ¨] {entry.item.itemName} ì¬ê³  ë¶€ì¡± (ë‚¨ì€ ì¬ê³  {entry.stock})");
+                return BuyResult.OutOfStock;
             }
 
-            ShopItemEntry entry = buyCatalog[catalogIndex];
-            if (entry.stock == 0)
+            long totalPrice = (long)entry.price * quantity;
+            if (totalPrice > CurrencyManager.Instance.CurrentBells)
             {
-                Debug.Log($"[±¸¸Å ½ÇÆĞ] {entry.item.itemName} Àç°í ¾øÀ½");
-                return false;
+                Debug.Log($"[êµ¬ë§¤ ì‹¤íŒ¨] {entry.item.itemName} x{quantity} ({totalPrice}ë²¨) - ì¬í™” ë¶€ì¡±");
+                return BuyResult.NotEnoughMoney;
             }
 
-            int buyQuantity = entry.stock < 0 ? quantity : Mathf.Min(quantity, entry.stock);
-            int totalPrice = entry.price * buyQuantity;
-
-            if (CurrencyManager.Instance == null || !CurrencyManager.Instance.TrySpendBells(totalPrice))
+            // ê³µê°„ì„ ê²°ì œë³´ë‹¤ ë¨¼ì € í™•ì¸ - ëˆë§Œ ë¹ ì§€ê³  ì•„ì´í…œì´ ëœ ë“¤ì–´ì˜¤ëŠ” ìƒí™© ë°©ì§€
+            if (InventoryManager.Instance.GetAddableAmount(entry.item) < quantity)
             {
-                Debug.Log($"[±¸¸Å ½ÇÆĞ] {entry.item.itemName} x{buyQuantity} ({totalPrice}º§) - ÀçÈ­ ºÎÁ·");
-                return false;
+                Debug.Log($"[êµ¬ë§¤ ì‹¤íŒ¨] {entry.item.itemName} x{quantity} - ì¸ë²¤í† ë¦¬ ê³µê°„ ë¶€ì¡±");
+                return BuyResult.NoInventorySpace;
             }
 
-            int notAdded = InventoryManager.Instance != null ? InventoryManager.Instance.AddItem(entry.item, buyQuantity) : buyQuantity;
-            if (entry.stock > 0)
-                entry.stock -= (buyQuantity - notAdded);
+            if (!CurrencyManager.Instance.TrySpendBells((int)totalPrice)) return BuyResult.NotEnoughMoney;
 
-            Debug.Log($"[±¸¸Å ¼º°ø] {entry.item.itemName} x{buyQuantity - notAdded} ({totalPrice}º§ ÁöºÒ)");
-            return true;
+            InventoryManager.Instance.AddItem(entry.item, quantity);
+            if (entry.stock > 0) entry.stock -= quantity;
+
+            Debug.Log($"[êµ¬ë§¤ ì„±ê³µ] {entry.item.itemName} x{quantity} ({totalPrice}ë²¨ ì§€ë¶ˆ)");
+            return BuyResult.Success;
         }
 
-        // ---------- ÆÇ¸Å ----------
+        // ---------- íŒë§¤ ----------
+
+        /// <summary>ì§€ê¸ˆì€ ì‘ë¬¼(CropData)ë§Œ íŒë§¤ ê°€ëŠ¥</summary>
+        public static bool IsSellable(InventorySlotData slot)
+        {
+            return slot != null && !slot.IsEmpty && slot.item is CropData;
+        }
+
+        public bool IsTodaysSpecial(ItemData item)
+        {
+            return item != null && item == todaysSpecialCrop;
+        }
+
+        /// <summary>ê°œë‹¹ íŒë§¤ê°€(ì†Œìˆ˜ í¬í•¨) = basePrice x ë“±ê¸‰ ë°°ìœ¨ x (ì˜¤ëŠ˜ì˜ íŠ¹ë³„ ìƒí’ˆì´ë©´ ë³´ë„ˆìŠ¤)</summary>
+        public float GetSellUnitPrice(InventorySlotData slot)
+        {
+            if (!IsSellable(slot)) return 0f;
+
+            CropData crop = (CropData)slot.item;
+            float price = crop.basePrice * ItemQualityUtility.GetPriceMultiplier(slot.quality);
+            if (todaysSpecialCrop == crop) price *= specialSellBonusMultiplier;
+            return price;
+        }
 
         /// <summary>
-        /// ÀÎº¥Åä¸® slotIndex¿¡ ÀÖ´Â ÀÛ¹°À» quantity°³ ÆÇ¸Å ½Ãµµ.
-        /// °¡°İ = CropData.basePrice x µî±Ş ¹èÀ² x (¿À´ÃÀÇ Æ¯º° »óÇ°ÀÌ¸é Ãß°¡ º¸³Ê½º) x ¼ö·®.
+        /// ìŠ¬ë¡¯ í•˜ë‚˜ì—ì„œ quantityê°œ íŒ” ë•Œ ë°›ëŠ” ê¸ˆì•¡.
+        /// ë‹¨ê°€ x ìˆ˜ëŸ‰ì„ í•œ ë²ˆì— ë°˜ì˜¬ë¦¼í•´ì„œ, basePriceê°€ ì†Œìˆ˜ì—¬ë„ ë‹¨ê°€ê°€ ê¹ì´ì§€ ì•Šê²Œ í•œë‹¤.
         /// </summary>
-        public bool TrySell(int slotIndex, int quantity)
+        public int GetSellLineTotal(int slotIndex, int quantity)
+        {
+            InventorySlotData slot = InventoryManager.Instance != null ? InventoryManager.Instance.GetSlot(slotIndex) : null;
+            if (!IsSellable(slot) || quantity <= 0) return 0;
+
+            int sellQuantity = Mathf.Min(quantity, slot.quantity);
+            return Mathf.RoundToInt(GetSellUnitPrice(slot) * sellQuantity);
+        }
+
+        /// <summary>
+        /// ì—¬ëŸ¬ ìŠ¬ë¡¯ì„ í•œ ë²ˆì— íŒë§¤. key = ì¸ë²¤í† ë¦¬ ìŠ¬ë¡¯ ì¸ë±ìŠ¤, value = íŒë§¤ ìˆ˜ëŸ‰.
+        /// í•˜ë‚˜ë¼ë„ ê²€ì¦ì— ì‹¤íŒ¨í•˜ë©´ ì•„ë¬´ê²ƒë„ íŒ”ì§€ ì•Šê³  -1ì„ ë°˜í™˜í•œë‹¤. ì„±ê³µí•˜ë©´ ë°›ì€ ë²¨.
+        /// </summary>
+        public int TrySellBatch(IReadOnlyDictionary<int, int> cart)
         {
             if (!isShopOpen)
             {
-                Debug.Log("[ÆÇ¸Å ½ÇÆĞ] Áö±İÀº »óÀÎÀÌ ¾øÀ½");
-                return false;
+                Debug.Log("[íŒë§¤ ì‹¤íŒ¨] ì§€ê¸ˆì€ ìƒì¸ì´ ì—†ìŒ");
+                return -1;
             }
-            if (InventoryManager.Instance == null) return false;
+            if (InventoryManager.Instance == null || cart == null || cart.Count == 0) return -1;
 
-            InventorySlotData slot = InventoryManager.Instance.GetSlot(slotIndex);
-            if (slot == null || slot.IsEmpty)
+            InventoryManager inventory = InventoryManager.Instance;
+            long total = 0;
+
+            // 1) ì „ë¶€ ê²€ì¦í•˜ê³  ê¸ˆì•¡ ê³„ì‚° (ì•„ì§ ì•„ë¬´ê²ƒë„ ì œê±°í•˜ì§€ ì•ŠìŒ)
+            foreach (KeyValuePair<int, int> pair in cart)
             {
-                Debug.Log("[ÆÇ¸Å ½ÇÆĞ] ºó ½½·Ô");
-                return false;
+                InventorySlotData slot = inventory.GetSlot(pair.Key);
+                if (pair.Value <= 0 || !IsSellable(slot) || slot.quantity < pair.Value)
+                {
+                    Debug.Log($"[íŒë§¤ ì‹¤íŒ¨] ìŠ¬ë¡¯ {pair.Key + 1}ë²ˆ ê²€ì¦ ì‹¤íŒ¨ - íŒë§¤ ì·¨ì†Œ");
+                    return -1;
+                }
+                total += GetSellLineTotal(pair.Key, pair.Value);
             }
 
-            CropData cropData = slot.item as CropData;
-            if (cropData == null)
-            {
-                Debug.Log($"[ÆÇ¸Å ½ÇÆĞ] {slot.item.itemName}Àº ÆÇ¸Å °¡´ÉÇÑ ÀÛ¹°ÀÌ ¾Æ´Ô");
-                return false;
-            }
+            // 2) ì‹¤ì œ ì œê±° + ì§€ê¸‰
+            foreach (KeyValuePair<int, int> pair in cart)
+                inventory.RemoveFromSlot(pair.Key, pair.Value);
 
-            int sellQuantity = Mathf.Min(quantity, slot.quantity);
-            float qualityMultiplier = ItemQualityUtility.GetPriceMultiplier(slot.quality);
-            float specialMultiplier = (todaysSpecialCrop == cropData) ? specialSellBonusMultiplier : 1f;
-            int totalPrice = Mathf.RoundToInt(cropData.basePrice * qualityMultiplier * specialMultiplier * sellQuantity);
-
-            int removed = InventoryManager.Instance.RemoveFromSlot(slotIndex, sellQuantity);
-            CurrencyManager.Instance?.AddBells(totalPrice);
-
-            string specialNote = specialMultiplier > 1f ? " (¿À´ÃÀÇ Æ¯º° »óÇ° º¸³Ê½º Àû¿ë!)" : "";
-            Debug.Log($"[ÆÇ¸Å ¼º°ø] {cropData.cropName} x{removed} ({slot.quality}, ¹èÀ² {qualityMultiplier}){specialNote} -> {totalPrice}º§ È¹µæ");
-            return true;
+            CurrencyManager.Instance?.AddBells((int)total);
+            Debug.Log($"[íŒë§¤ ì„±ê³µ] {cart.Count}ê°œ ìŠ¬ë¡¯ ì¼ê´„ íŒë§¤ -> {total}ë²¨ íšë“");
+            return (int)total;
         }
     }
 }

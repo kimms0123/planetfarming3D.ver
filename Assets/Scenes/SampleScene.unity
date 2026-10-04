@@ -40425,8 +40425,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.UI.Shop.ShopBuyPanelUI
   panelRoot: {fileID: 1842830914}
+  merchantLineText: {fileID: 0}
+  tabs: []
   slotContainer: {fileID: 1769716475}
   slotPrefab: {fileID: 1804180958026468163, guid: 03adce4066df1e3418fb6e0e3ba3809a, type: 3}
+  detailRoot: {fileID: 0}
+  detailIcon: {fileID: 0}
+  detailNameText: {fileID: 0}
+  detailDescriptionText: {fileID: 0}
+  totalPriceText: {fileID: 0}
+  quantityInput: {fileID: 0}
+  minusButton: {fileID: 0}
+  plusButton: {fileID: 0}
+  buyButton: {fileID: 0}
+  cancelButton: {fileID: 0}
+  greetLine: "\uC624\uB298\uC740 \uC5B4\uB5A4 \uC528\uC557\uC774 \uD544\uC694\uD574?"
+  successLine: "\uC88B\uC740 \uC120\uD0DD\uC774\uC57C!"
+  notEnoughMoneyLine: "\uB3C8\uC774 \uC870\uAE08 \uBD80\uC871\uD55C \uAC83 \uAC19\uC740\uB370?"
+  noSpaceLine: "\uAC00\uBC29\uC5D0 \uACF5\uAC04\uC774 \uC5C6\uB294 \uAC83 \uAC19\uC544."
+  outOfStockLine: "\uBBF8\uC548, \uADF8\uAC74 \uB2E4 \uD314\uB838\uC5B4."
+  shopClosedLine: "\uC624\uB298\uC740 \uC774\uB9CC \uAC00\uBD10\uC57C \uD574."
 --- !u!1001 &1847444716
 PrefabInstance:
   m_ObjectHideFlags: 0

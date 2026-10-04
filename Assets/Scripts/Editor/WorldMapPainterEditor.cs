@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEditor;
 using FarmingSystem.Core;
 using FarmingSystem.Farming;
@@ -12,12 +12,12 @@ public class WorldMapPainterEditor : Editor
 
         WorldMapPainter map = (WorldMapPainter)target;
 
-        if (GUILayout.Button("ÀüÃ¼ ¸Ê ¹èÄ¡ (Generate World)"))
+        if (GUILayout.Button("ï¿½ï¿½Ã¼ ï¿½ï¿½ ï¿½ï¿½Ä¡ (Generate World)"))
         {
             GenerateWorld(map);
         }
 
-        if (GUILayout.Button("ÀüÃ¼ ¸Ê »èÁ¦"))
+        if (GUILayout.Button("ï¿½ï¿½Ã¼ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½"))
         {
             ClearWorld(map);
         }
@@ -27,7 +27,7 @@ public class WorldMapPainterEditor : Editor
     {
         if (map.defaultFarmablePrefab == null)
         {
-            Debug.LogWarning("[WorldMapPainter] Default Farmable PrefabÀÌ ºñ¾îÀÖ½À´Ï´Ù.");
+            Debug.LogWarning("[WorldMapPainter] Default Farmable Prefabï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ö½ï¿½ï¿½Ï´ï¿½.");
             return;
         }
 
@@ -86,7 +86,7 @@ public class WorldMapPainterEditor : Editor
             }
         }
 
-        Debug.Log($"[WorldMapPainter] ¸Ê ¹èÄ¡ ¿Ï·á - FarmTile(³ó»ç °¡´É) {farmTileCount}Ä­, NonFarmable {nonFarmableCount}Ä­, ÃÑ {farmTileCount + nonFarmableCount}Ä­");
+        Debug.Log($"[WorldMapPainter] ï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½Ï·ï¿½ - FarmTile(ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½) {farmTileCount}Ä­, NonFarmable {nonFarmableCount}Ä­, ï¿½ï¿½ {farmTileCount + nonFarmableCount}Ä­");
 
         EditorUtility.SetDirty(map.gameObject);
     }
@@ -112,6 +112,6 @@ public class WorldMapPainterEditor : Editor
         {
             Undo.DestroyObjectImmediate(map.transform.GetChild(i).gameObject);
         }
-        Debug.Log($"[WorldMapPainter] ±âÁ¸ ºí·Ï {count}°³ »èÁ¦ ¿Ï·á");
+        Debug.Log($"[WorldMapPainter] ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ {count}ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ï·ï¿½");
     }
 }

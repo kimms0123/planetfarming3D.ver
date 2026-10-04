@@ -1,5 +1,5 @@
+using System;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TMPro;
 using FarmingSystem.Economy;
@@ -7,49 +7,53 @@ using FarmingSystem.Economy;
 namespace FarmingSystem.UI.Shop
 {
     /// <summary>
-    /// 구매 목록 1칸. 좌클릭 = 1개 구매, 우클릭 = 10개 구매.
+    /// 구매 목록 1칸. 클릭하면 "선택"만 되고,
+    /// 실제 구매는 하단 상세창에서 수량을 정한 뒤 [구매] 버튼으로 한다.
     /// </summary>
-    public class ShopBuySlotUI : MonoBehaviour, IPointerClickHandler
+    public class ShopBuySlotUI : MonoBehaviour
     {
         [Header("UI 요소")]
         [SerializeField] private Image itemIcon;
         [SerializeField] private TextMeshProUGUI itemNameText;
         [SerializeField] private TextMeshProUGUI priceText;
+        [Tooltip("선택 사항. 재고 제한 상품일 때만 '재고 n' / '품절' 표시")]
+        [SerializeField] private TextMeshProUGUI stockText;
+        [SerializeField] private GameObject selectedFrame;
+        [SerializeField] private Button button;
+        [Tooltip("선택 사항. 품절이면 흐리게")]
+        [SerializeField] private CanvasGroup canvasGroup;
 
-        private int catalogIndex = -1;
+        public int CatalogIndex { get; private set; } = -1;
 
-        public void SetEntry(int index, ShopItemEntry entry)
+        public void SetEntry(int catalogIndex, ShopItemEntry entry, Action<ShopBuySlotUI> onClick)
         {
-            catalogIndex = index;
+            CatalogIndex = catalogIndex;
 
-            if (entry == null || entry.item == null)
-            {
-                if (itemIcon != null) itemIcon.enabled = false;
-                if (itemNameText != null) itemNameText.text = "";
-                if (priceText != null) priceText.text = "";
-                return;
-            }
+            itemIcon.enabled = entry.item.icon != null;
+            itemIcon.sprite = entry.item.icon;
+            itemNameText.text = entry.item.itemName;
+            priceText.text = ShopUIUtil.Money(entry.price);
+            RefreshStock(entry);
+            SetSelected(false);
 
-            if (itemIcon != null)
-            {
-                itemIcon.enabled = entry.item.icon != null;
-                itemIcon.sprite = entry.item.icon;
-            }
-            if (itemNameText != null)
-                itemNameText.text = entry.item.itemName;
-            if (priceText != null)
-                priceText.text = entry.stock < 0 ? $"{entry.price}벨" : $"{entry.price}벨 (재고 {entry.stock})";
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(() => onClick?.Invoke(this));
         }
 
-        public void OnPointerClick(PointerEventData eventData)
+        public void RefreshStock(ShopItemEntry entry)
         {
-            if (catalogIndex < 0 || ShopManager.Instance == null) return;
+            if (stockText != null)
+            {
+                stockText.gameObject.SetActive(entry.stock >= 0);
+                stockText.text = entry.stock == 0 ? "품절" : $"재고 {entry.stock}";
+            }
+            if (canvasGroup != null)
+                canvasGroup.alpha = entry.stock == 0 ? 0.4f : 1f;
+        }
 
-            int quantity = eventData.button == PointerEventData.InputButton.Right ? 10 : 1;
-            bool success = ShopManager.Instance.TryBuy(catalogIndex, quantity);
-
-            if (success)
-                Debug.Log($"[ShopBuySlotUI] 슬롯 {catalogIndex}번 구매 클릭 처리 (수량 {quantity})");
+        public void SetSelected(bool on)
+        {
+            if (selectedFrame != null) selectedFrame.SetActive(on);
         }
     }
 }

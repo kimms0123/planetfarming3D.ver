@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using FarmingSystem.Core;
 using FarmingSystem.Economy;
+using FarmingSystem.Inventory;
 
 namespace FarmingSystem.UI.Shop
 {
@@ -18,6 +20,10 @@ namespace FarmingSystem.UI.Shop
         {
             if (ShopManager.Instance == null || !ShopManager.Instance.IsShopOpen) return;
             if (player == null || Keyboard.current == null || dialogueUI == null) return;
+
+            // 이미 상점/다른 UI가 열려 있거나, 인벤토리(Tab)를 보고 있을 때는 무시
+            if (UIInputBlocker.IsBlocked) return;
+            if (InventoryManager.Instance != null && InventoryManager.Instance.IsInventoryOpen) return;
 
             float distance = Vector3.Distance(transform.position, player.position);
             if (distance <= interactRange && Keyboard.current.eKey.wasPressedThisFrame)

@@ -179,6 +179,7 @@ namespace FarmingSystem.Inventory
         /// 아이템을 인벤토리에 추가한다. 같은 "아이템 에셋 자체(item 참조)" + 같은 등급인 슬롯을
         /// 우선 채우고, 없으면 빈 슬롯을 찾아 새로 놓는다. SeedData와 CropData는 애초에 다른 에셋
         /// 참조이므로, 같은 작물이어도 씨앗과 수확물이 한 슬롯에 잘못 섞일 일이 없다.
+        /// 반환값 = 공간이 없어서 못 넣은 수량.
         /// </summary>
         public int AddItem(ItemData item, int quantity, ItemQuality quality = ItemQuality.Normal)
         {
@@ -209,6 +210,23 @@ namespace FarmingSystem.Inventory
             Debug.Log($"[아이템 획득] {item.itemName} ({quality}) 추가 시도, 못 넣은 수량: {quantity}");
             OnInventoryChanged?.Invoke();
             return quantity;
+        }
+
+        /// <summary>
+        /// 이 아이템(+등급)을 최대 몇 개까지 더 넣을 수 있는지 계산만 한다. 실제로 넣지는 않음.
+        /// 상점 구매 가능 수량, 수확 전 공간 확인 등에 사용.
+        /// </summary>
+        public int GetAddableAmount(ItemData item, ItemQuality quality = ItemQuality.Normal)
+        {
+            if (item == null || slots == null) return 0;
+
+            int room = 0;
+            foreach (InventorySlotData slot in slots)
+            {
+                if (slot.IsEmpty) room += item.maxStack;
+                else if (slot.item == item && slot.quality == quality) room += Mathf.Max(0, item.maxStack - slot.quantity);
+            }
+            return room;
         }
 
         public int RemoveFromSlot(int index, int quantity)
