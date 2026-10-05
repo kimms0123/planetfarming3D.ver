@@ -149,6 +149,12 @@ namespace FarmingSystem.Economy
             nextVisitDay = fromDay + interval;
             Debug.Log($"[상점] 다음 방문 예정일: Day {nextVisitDay} (지금으로부터 {interval}일 후)");
         }
+        [ContextMenu("디버그: 지금 상점 열기")]
+        private void DebugOpenShop()
+        {
+            if (!isShopOpen && GameClock.Instance != null)
+                OpenShop(GameClock.Instance.CurrentDay);
+        }
 
         // ---------- 구매 ----------
 
