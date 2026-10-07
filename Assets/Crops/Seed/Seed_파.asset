@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5479c011c2dfc8b4abd9e38b9063db59, type: 3}
   m_Name: "Seed_\uD30C"
   m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Farming.SeedData
-  itemName: New Item
+  itemName: "\uD30C\uB77C\uD30C\uB77C"
   category: 0
-  icon: {fileID: 0}
+  icon: {fileID: -219740689, guid: 0d72b3bfbf953594db262bab7221695a, type: 3}
   maxStack: 99
   description: 
-  resultCrop: {fileID: 0}
+  resultCrop: {fileID: 11400000, guid: fcc9180da8f98c14c8a4c3b40a859448, type: 2}

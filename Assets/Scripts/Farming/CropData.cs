@@ -13,7 +13,10 @@ namespace FarmingSystem.Farming
     public class CropData : ItemData
     {
         [Header("작물 전용 정보")]
+        [Tooltip("이 작물을 심고 키울 수 있는 계절")]
         public Season season = Season.Spring;
+        [Tooltip("여러 계절에 걸쳐 자라는 작물이면 추가 계절을 넣는다 (예: 봄+여름). 보통은 비워둠")]
+        public Season[] additionalSeasons;
 
         [Header("성장")]
         [Tooltip("총 재배일 (작물 DB 시트 기준)")]
@@ -21,6 +24,10 @@ namespace FarmingSystem.Farming
 
         [Tooltip("성장 단계별로 보여줄 모델. 배열 순서대로 씨앗->새싹->...->수확 직전")]
         public GameObject[] growthStagePrefabs;
+
+        [Header("시듦")]
+        [Tooltip("계절이 지나 시들었을 때 보여줄 모델 (선택). 비워두면 현재 모델을 갈색으로 칠해서 표현")]
+        public GameObject witheredPrefab;
 
         [Header("수확")]
         [Tooltip("기대 수확량 (기본 개수, Perfect 비율에 따라 배율 적용은 리듬게임 시스템에서 처리)")]
@@ -34,6 +41,16 @@ namespace FarmingSystem.Farming
         /// 그대로 쓸 수 있도록 ItemData.itemName의 별칭으로 제공.
         /// </summary>
         public string cropName => itemName;
+
+        /// <summary>이 계절에 심거나 키울 수 있는지</summary>
+        public bool CanGrowIn(Season s)
+        {
+            if (season == s) return true;
+            if (additionalSeasons != null)
+                foreach (Season extra in additionalSeasons)
+                    if (extra == s) return true;
+            return false;
+        }
 
         /// <summary>현재 성장일수를 기준으로 몇 번째 비주얼 스테이지인지 계산 (Day0=Stage0, 1:1 매칭)</summary>
         public int GetStageIndex(int currentGrowthDay)

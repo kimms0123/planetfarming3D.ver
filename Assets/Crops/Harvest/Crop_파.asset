@@ -14,11 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Farming.CropData
   itemName: "\uD30C"
   category: 1
-  icon: {fileID: 0}
+  icon: {fileID: 1116641164, guid: 0d72b3bfbf953594db262bab7221695a, type: 3}
   maxStack: 99
-  description: 
-  season: 0
+  description: "\uC5B4\uB514\uB4E0\uC9C0 \uD65C\uC6A9 \uAC00\uB2A5\uD55C \uD30C\uD30C\uD30C\uD30C\uD30C\uD30C\uD30C\uD30C\uD30C\uB77C\uD30C\uB77C"
+  season: 1
+  additionalSeasons: 
   totalGrowthDays: 3
-  growthStagePrefabs: []
+  growthStagePrefabs:
+  - {fileID: 2733591665097962047, guid: e15c553f8b8909d43914956b79d6dce4, type: 3}
+  - {fileID: 4962127811227045187, guid: 913b21d8e3c364140be92a1c0522d40a, type: 3}
+  - {fileID: 1126787214047240160, guid: a292acbdf3f959d428eadbefdc238304, type: 3}
+  witheredPrefab: {fileID: 4999489101322916426, guid: 6249dfe884f4917498b2f7830de4a8f7, type: 3}
   expectedYield: 8
   basePrice: 1

@@ -49,7 +49,7 @@ namespace FarmingSystem.Player
         [ColorUsage(true, true)] [SerializeField] private Color actionColor = new Color(1.6f, 1.6f, 1.5f, 0.9f);
         [ColorUsage(true, true)] [SerializeField] private Color harvestColor = new Color(2.0f, 1.6f, 0.4f, 0.9f);
         [ColorUsage(true, true)] [SerializeField] private Color noActionColor = new Color(1.6f, 0.45f, 0.4f, 0.7f);
-        [ColorUsage(true, true)] [SerializeField] private Color outOfRangeColor = new Color(0.6f, 0.6f, 0.6f, 0.35f);
+        [ColorUsage(true, true)] [SerializeField] private Color outOfRangeColor = new Color(0.5f, 0.75f, 1.2f, 0.6f);
         [Tooltip("거리 밖 타일도 회색으로 표시할지 (Alt로 마우스 선택할 때만 해당)")]
         [SerializeField] private bool showOutOfRange = true;
 

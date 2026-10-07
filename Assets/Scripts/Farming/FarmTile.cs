@@ -14,6 +14,7 @@ namespace FarmingSystem.Farming
     /// 월드에 배치된 땅 블록 1칸의 상태를 관리한다.
     /// 호미질해도 오브젝트를 삭제/재생성하지 않고, 같은 오브젝트가 상태만 바꾸고
     /// 자식 비주얼(모델)만 교체한다. 물 준 상태는 별도 프리팹 대신 색상 틴트로 표현한다.
+    /// 하루가 바뀔 때 심어진 작물이 새 계절에 맞지 않으면 시들게 하고, 시든 작물은 ClearWitheredCrop()으로 제거한다.
     /// </summary>
     public class FarmTile : MonoBehaviour
     {
@@ -137,6 +138,12 @@ namespace FarmingSystem.Farming
 
             CropData cropData = seedData.resultCrop;
 
+            if (SeasonUtil.TryGetCurrentSeason(out Season currentSeason) && !cropData.CanGrowIn(currentSeason))
+            {
+                Debug.Log($"[씨앗심기 실패] {cropData.cropName}은(는) {currentSeason}에 심을 수 없음 (가능 계절: {cropData.season})");
+                return false;
+            }
+
             GameObject cropObj = new GameObject($"Crop_{cropData.cropName}");
             Transform anchor = cropAnchor != null ? cropAnchor : transform;
             cropObj.transform.SetParent(cropParent != null ? cropParent : anchor);
@@ -195,6 +202,23 @@ namespace FarmingSystem.Farming
             return harvested;
         }
 
+        /// <summary>시든 작물 제거. 지금은 맨손(아무 도구)으로 가능, 나중에 낫 전용으로 바꿀 예정.</summary>
+        public bool ClearWitheredCrop()
+        {
+            if (CurrentCrop == null || !CurrentCrop.IsWithered)
+            {
+                Debug.Log($"[시든 작물 제거 실패] {name} - 시든 작물이 없음");
+                return false;
+            }
+
+            string cropName = CurrentCrop.Data.cropName;
+            Destroy(CurrentCrop.gameObject);
+            CurrentCrop = null;
+            RefreshVisual();
+            Debug.Log($"[시든 작물 제거] {name} (좌표 {GridPosition}) - 시든 {cropName}을(를) 치웠습니다. 밭은 갈린 상태로 남아 바로 다시 심을 수 있어요.");
+            return true;
+        }
+
         private ItemQuality RollHarvestQuality()
         {
             float roll = UnityEngine.Random.value;
@@ -205,9 +229,14 @@ namespace FarmingSystem.Farming
 
         private void HandleDayChanged(int day, Season season)
         {
-            if (CurrentCrop != null)
+            if (CurrentCrop != null && !CurrentCrop.IsWithered)
             {
-                if (isWatered)
+                // 계절이 지나 이 작물의 계절이 아니면 시듦 (그날은 성장하지 않음)
+                if (!CurrentCrop.Data.CanGrowIn(season))
+                {
+                    CurrentCrop.Wither();
+                }
+                else if (isWatered)
                 {
                     CurrentCrop.Grow();
                 }

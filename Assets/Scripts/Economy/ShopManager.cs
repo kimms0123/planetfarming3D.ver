@@ -46,6 +46,10 @@ namespace FarmingSystem.Economy
         [SerializeField] private CropData[] possibleSpecialCrops;
         [SerializeField] private float specialSellBonusMultiplier = 1.5f;
 
+        [Header("테스트용")]
+        [Tooltip("켜면 게임 시작하자마자 상인이 와 있음 (테스트 끝나면 꺼두기)")]
+        [SerializeField] private bool debugOpenOnStart = false;
+
         private int nextVisitDay;
         private int visitEndsOnDay = -1;
         private bool isShopOpen = false;
@@ -79,7 +83,18 @@ namespace FarmingSystem.Economy
             TrySubscribe();
 
             if (GameClock.Instance != null)
+            {
                 ScheduleNextVisit(GameClock.Instance.CurrentDay);
+                if (debugOpenOnStart) OpenShop(GameClock.Instance.CurrentDay);
+            }
+        }
+
+        /// <summary>플레이 중 ShopManager 컴포넌트 ⋮ 메뉴에서 실행</summary>
+        [ContextMenu("디버그: 지금 상점 열기")]
+        private void DebugOpenShop()
+        {
+            if (!isShopOpen && GameClock.Instance != null)
+                OpenShop(GameClock.Instance.CurrentDay);
         }
 
         private void OnDisable()
@@ -148,12 +163,6 @@ namespace FarmingSystem.Economy
             int interval = UnityEngine.Random.Range(minVisitInterval, maxVisitInterval + 1);
             nextVisitDay = fromDay + interval;
             Debug.Log($"[상점] 다음 방문 예정일: Day {nextVisitDay} (지금으로부터 {interval}일 후)");
-        }
-        [ContextMenu("디버그: 지금 상점 열기")]
-        private void DebugOpenShop()
-        {
-            if (!isShopOpen && GameClock.Instance != null)
-                OpenShop(GameClock.Instance.CurrentDay);
         }
 
         // ---------- 구매 ----------

@@ -4,7 +4,8 @@ namespace FarmingSystem.Core
     {
         Spring,
         Summer,
-        Autumn
+        Autumn,
+        Winter   
     }
 
     public enum TimeBlock

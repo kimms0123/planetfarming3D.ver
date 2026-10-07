@@ -18,7 +18,12 @@ namespace FarmingSystem.Core
         [Header("현재 상태 (읽기 전용, 디버그용)")]
         [SerializeField] private int currentHour = 6;
         [SerializeField] private int currentMinute = 0;
-        [SerializeField] private int currentDay = 1; // 1 ~ 35 (기획서 5주 달력 기준)
+        [Tooltip("게임 시작부터 센 누적 날짜 (1부터). 계절·연도·날짜는 이 값으로 계산")]
+        [SerializeField] private int currentDay = 1;
+
+        [Header("달력")]
+        [Tooltip("한 계절(한 달)의 길이. 봄→여름→가을→겨울→다시 봄으로 순환")]
+        [SerializeField] private int daysPerSeason = 27;
 
         private float minuteAccumulator = 0f;
         private bool isSleeping = false;
@@ -27,6 +32,13 @@ namespace FarmingSystem.Core
         public int CurrentMinute => currentMinute;
         public int CurrentDay => currentDay;
         public Season CurrentSeason => GetSeasonForDay(currentDay);
+        public int DaysPerSeason => daysPerSeason;
+        /// <summary>몇 번째 해인지 (1년 = 4계절)</summary>
+        public int CurrentYear => (currentDay - 1) / (daysPerSeason * SeasonCount) + 1;
+        /// <summary>이번 계절의 며칠째인지 (1 ~ daysPerSeason)</summary>
+        public int DayOfSeason => (currentDay - 1) % daysPerSeason + 1;
+
+        private const int SeasonCount = 4;
 
         /// 매 분 갱신 (UI 시계 갱신용)</summary>
         public event Action<int, int> OnMinuteChanged;
@@ -95,20 +107,94 @@ namespace FarmingSystem.Core
         {
             Season prevSeason = CurrentSeason;
             currentDay++;
-            Debug.Log($"날짜가 지났습니다. 현재 Day {currentDay} ({CurrentSeason})");
+            Debug.Log($"날짜가 지났습니다. {CurrentYear}년차 {GetSeasonDisplayName(CurrentSeason)} {DayOfSeason}일 (누적 Day {currentDay})");
             OnDayChanged?.Invoke(currentDay, CurrentSeason);
 
             if (CurrentSeason != prevSeason)
                 OnSeasonChanged?.Invoke(CurrentSeason);
         }
 
-        /// 기획서 캘린더 기준 계절 계산 (봄 1~14 / 여름 15~21 / 가을 22~35, 이후는 가을 유지)</summary>
+        /// <summary>누적 날짜 → 계절. 27일마다 봄 → 여름 → 가을 → 겨울 → 다시 봄</summary>
         private Season GetSeasonForDay(int day)
         {
-            if (day <= 14) return Season.Spring;
-            if (day <= 21) return Season.Summer;
-            return Season.Autumn;
+            int seasonIndex = ((day - 1) / daysPerSeason) % SeasonCount;
+            switch (seasonIndex)
+            {
+                case 0: return Season.Spring;
+                case 1: return Season.Summer;
+                case 2: return Season.Autumn;
+                default: return Season.Winter;
+            }
         }
+
+        private static int SeasonToIndex(Season season)
+        {
+            switch (season)
+            {
+                case Season.Summer: return 1;
+                case Season.Autumn: return 2;
+                case Season.Winter: return 3;
+                default: return 0;
+            }
+        }
+
+        /// <summary>오늘 이후(오늘 포함 안 함)로 가장 가까운, 해당 계절이 시작되는 날</summary>
+        public int GetNextSeasonStartDay(Season season)
+        {
+            int yearLength = daysPerSeason * SeasonCount;
+            int yearStart = (CurrentYear - 1) * yearLength + 1;
+            int start = yearStart + SeasonToIndex(season) * daysPerSeason;
+            while (start <= currentDay) start += yearLength;
+            return start;
+        }
+
+        public static string GetSeasonDisplayName(Season season)
+        {
+            switch (season)
+            {
+                case Season.Spring: return "봄";
+                case Season.Summer: return "여름";
+                case Season.Autumn: return "가을";
+                case Season.Winter: return "겨울";
+                default: return season.ToString();
+            }
+        }
+
+        // ---------- 디버그 (GameClockEditor의 버튼에서 호출) ----------
+
+        /// <summary>
+        /// 디버그: 지정한 날의 06:00으로 이동.
+        /// 앞으로 갈 때는 하루씩 넘겨서 매일의 이벤트(작물 성장·시듦, 상인 방문)가 실제처럼 처리되고,
+        /// 뒤로 갈 때는 그 날로 바로 옮긴 뒤 이벤트를 한 번만 보낸다 (계절 판정용).
+        /// </summary>
+        public void DebugJumpToDay(int targetDay)
+        {
+            targetDay = Mathf.Max(1, targetDay);
+            Season prevSeason = CurrentSeason;
+
+            if (targetDay > currentDay)
+            {
+                while (currentDay < targetDay)
+                    AdvanceDay();
+            }
+            else
+            {
+                currentDay = targetDay;
+                Debug.Log($"[디버그] Day {currentDay} ({CurrentSeason})로 되돌림");
+                OnDayChanged?.Invoke(currentDay, CurrentSeason);
+                if (CurrentSeason != prevSeason)
+                    OnSeasonChanged?.Invoke(CurrentSeason);
+            }
+
+            currentHour = 6;
+            currentMinute = 0;
+            minuteAccumulator = 0f;
+            OnMinuteChanged?.Invoke(currentHour, currentMinute);
+            Debug.Log($"[디버그] Day {currentDay} ({CurrentSeason}) 06:00으로 이동");
+        }
+
+        /// <summary>디버그: 앞으로 다가올 해당 계절의 첫날로 이동 (지나가는 날들은 실제처럼 처리)</summary>
+        public void DebugJumpToSeason(Season season) => DebugJumpToDay(GetNextSeasonStartDay(season));
 
         public TimeBlock GetCurrentTimeBlock()
         {

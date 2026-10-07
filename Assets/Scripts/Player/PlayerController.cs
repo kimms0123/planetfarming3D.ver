@@ -18,6 +18,7 @@ namespace FarmingSystem.Player
         private CharacterController controller;
         private Vector3 verticalVelocity;
         private Vector2 moveInput;
+        private Quaternion? pendingFacing; // 이동하지 않을 때 돌아볼 방향 (농사 행동 등)
 
         public Vector3 FacingDirection { get; private set; } = Vector3.forward;
 
@@ -47,9 +48,30 @@ namespace FarmingSystem.Player
                 transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotationSpeed * Time.deltaTime);
 
                 FacingDirection = moveDir;
+                pendingFacing = null; // 움직이기 시작하면 이동 방향이 우선
+            }
+            else if (pendingFacing.HasValue)
+            {
+                transform.rotation = Quaternion.Slerp(transform.rotation, pendingFacing.Value, rotationSpeed * Time.deltaTime);
+                if (Quaternion.Angle(transform.rotation, pendingFacing.Value) < 1f)
+                {
+                    transform.rotation = pendingFacing.Value;
+                    pendingFacing = null;
+                }
             }
 
             ApplyGravity();
+        }
+
+        /// <summary>제자리에서 특정 지점을 바라보도록 부드럽게 몸을 돌린다 (밭 갈기·물주기 등).</summary>
+        public void FaceTowards(Vector3 worldPoint)
+        {
+            Vector3 dir = worldPoint - transform.position;
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 0.0001f) return;
+
+            FacingDirection = dir.normalized;
+            pendingFacing = Quaternion.LookRotation(FacingDirection, Vector3.up);
         }
 
         private Vector3 CalculateCameraRelativeDirection(Vector2 input)
