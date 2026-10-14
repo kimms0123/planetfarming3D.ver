@@ -72,7 +72,7 @@ namespace FarmingSystem.Player
             if (targetCamera == null)
                 targetCamera = Camera.main;
             playerController = GetComponent<PlayerController>();
-            if (playerController == null) playerController = FindFirstObjectByType<PlayerController>();
+            if (playerController == null) playerController = FindAnyObjectByType<PlayerController>();
             if (playerController == null)
                 Debug.LogWarning("[FarmActionController] 씬에서 PlayerController를 찾지 못함 - 거리 계산이 이 오브젝트 기준으로 됨");
             else if (playerController.gameObject != gameObject)
