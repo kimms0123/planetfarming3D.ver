@@ -66,6 +66,12 @@ namespace FarmingSystem.EditorTools
             DrawDefaultInspector();
 
             EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField("추천 배치로 되돌리기 (크기·지역·산·강, 프리팹은 유지)", EditorStyles.miniBoldLabel);
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("보통 (56×50)")) ApplyLayout(gen, 56, 50);
+            if (GUILayout.Button("넓게 (84×72)")) ApplyLayout(gen, 84, 72);
+            if (GUILayout.Button("모동숲급 (112×96)")) ApplyLayout(gen, 112, 96);
+            EditorGUILayout.EndHorizontal();
             if (GUILayout.Button("FarmGrid 설정 다시 연결")) ConnectFarmGrid(gen);
 
             // 값을 바꾸면 미리보기를 바로 다시 계산
@@ -74,6 +80,15 @@ namespace FarmingSystem.EditorTools
                 gen.Preview();
                 SceneView.RepaintAll();
             }
+        }
+
+        private static void ApplyLayout(IslandMapGenerator gen, int w, int d)
+        {
+            Undo.RecordObject(gen, "추천 배치");
+            gen.ApplyRecommendedLayout(w, d);
+            EditorUtility.SetDirty(gen);
+            gen.Preview();
+            SceneView.RepaintAll();
         }
 
         // 씬의 FarmGrid를 생성된 맵에 맞게 자동 설정

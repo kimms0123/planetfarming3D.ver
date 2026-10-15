@@ -152,23 +152,26 @@ namespace FarmingSystem.Player
             }
         }
 
+        // 테두리 위치·크기 계산
+        // - 가로·세로 위치와 크기: 칸의 블록 콜라이더 (모든 모드에서 실제 칸과 정확히 일치)
+        // - 높이: 콜라이더 윗면과 지금 보이는 밭 모델 윗면 중 높은 쪽 (갈린 밭이 살짝 솟아 있어도 위에 뜨게)
+        // 예전엔 콜라이더를 타일 자신에서만 찾았는데, 맵 생성기 블록은 콜라이더가 자식에 있어서 못 찾고
+        // 기본값(타일 기준점, 크기 1)으로 계산 → 매끈한 지면 모드에서 테두리가 땅 속에 묻혀 안 보였음
         private void CalculateTarget(FarmTile tile)
         {
-            Bounds bounds = new Bounds(tile.transform.position, Vector3.one);
-            bool found = false;
+            Bounds ground = tile.GetGroundBounds();
+            float topY = ground.max.y;
 
             foreach (Renderer r in tile.GetComponentsInChildren<Renderer>())
             {
                 if (!r.enabled || r == highlightRenderer) continue;
                 // 작물 모델은 제외 (작물 꼭대기에 테두리가 뜨지 않도록)
                 if (tile.CurrentCrop != null && r.transform.IsChildOf(tile.CurrentCrop.transform)) continue;
-
-                if (!found) { bounds = r.bounds; found = true; }
-                else bounds.Encapsulate(r.bounds);
+                topY = Mathf.Max(topY, r.bounds.max.y);
             }
 
-            targetPosition = new Vector3(bounds.center.x, bounds.max.y + heightOffset, bounds.center.z);
-            targetScale = new Vector3(bounds.size.x * sizeMultiplier, 1f, bounds.size.z * sizeMultiplier);
+            targetPosition = new Vector3(ground.center.x, topY + heightOffset, ground.center.z);
+            targetScale = new Vector3(ground.size.x * sizeMultiplier, 1f, ground.size.z * sizeMultiplier);
         }
 
         private void SetColor(Color color)

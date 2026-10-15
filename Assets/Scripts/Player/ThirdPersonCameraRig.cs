@@ -12,22 +12,22 @@ namespace FarmingSystem.Player
         RightDrag  // 우클릭을 누른 채 드래그할 때만 회전 (커서 항상 보임)
     }
 
-    /// <summary>
-    /// 3인칭 카메라 1개로 플레이어 주변을 도는 카메라 리그.
-    ///
-    /// 구조:  CameraRig (이 스크립트)
-    ///         └─ CameraPivot   ← 플레이어 위치(+높이)를 따라가고, 좌우(yaw)·상하(pitch)로 회전
-    ///             └─ Main Camera ← Pivot 뒤쪽 일정 거리에 고정, 항상 Pivot을 바라봄
-    ///
-    /// Pivot은 플레이어의 "위치만" 따라가고 회전은 따라가지 않는다.
-    /// (플레이어 자식으로 두면 캐릭터가 방향을 틀 때마다 카메라도 같이 휙 돌아가기 때문)
-    ///
-    /// - 마우스 좌우 → Pivot 좌우 회전 (360도)
-    /// - 마우스 상하 → Pivot 상하 각도 (최소~최대 각도로 제한)
-    /// - 각도와 위치 모두 부드러운 보간을 적용하고, 거리는 항상 일정하게 유지
-    /// - (선택) 벽·물체에 카메라가 파묻히면 그 앞까지 당겨옴
-    /// - 상점·인벤토리가 열리거나 Alt를 누르면 커서가 나타나고 회전이 멈춤
-    /// </summary>
+    //
+    // 3인칭 카메라 1개로 플레이어 주변을 도는 카메라 리그.
+    //
+    // 구조:  CameraRig (이 스크립트)
+    //         └─ CameraPivot   ← 플레이어 위치(+높이)를 따라가고, 좌우(yaw)·상하(pitch)로 회전
+    //             └─ Main Camera ← Pivot 뒤쪽 일정 거리에 고정, 항상 Pivot을 바라봄
+    //
+    // Pivot은 플레이어의 "위치만" 따라가고 회전은 따라가지 않는다.
+    // (플레이어 자식으로 두면 캐릭터가 방향을 틀 때마다 카메라도 같이 휙 돌아가기 때문)
+    //
+    // - 마우스 좌우 → Pivot 좌우 회전 (360도)
+    // - 마우스 상하 → Pivot 상하 각도 (최소~최대 각도로 제한)
+    // - 각도와 위치 모두 부드러운 보간을 적용하고, 거리는 항상 일정하게 유지
+    // - 벽·땅·물체에 카메라가 파묻히면 그 앞까지 당겨오고, 올려다볼 때는 캐릭터 쪽으로 다가옴
+    // - 상점·인벤토리가 열리거나 Alt를 누르면 커서가 나타나고 회전이 멈춤
+    //
     public class ThirdPersonCameraRig : MonoBehaviour
     {
         [Header("구성")]
@@ -45,10 +45,16 @@ namespace FarmingSystem.Player
         [Header("각도")]
         [Tooltip("시작 좌우 각도 (0 = 월드 +Z 방향을 바라봄)")]
         [SerializeField] private float yaw = 0f;
-        [Tooltip("시작 상하 각도. 0 = 수평, 90 = 바로 위에서 내려다봄")]
+        [Tooltip("시작 상하 각도. 0 = 수평, 90 = 바로 위에서 내려다봄, 음수 = 아래에서 올려다봄(하늘 보기)")]
         [SerializeField] private float pitch = 30f;
-        [SerializeField] private float minPitch = 10f;
-        [SerializeField] private float maxPitch = 65f;
+        [Tooltip("올려다볼 수 있는 한계 (음수일수록 하늘을 더 많이 봄)")]
+        [SerializeField] private float minPitch = -25f;
+        [Tooltip("내려다볼 수 있는 한계 (클수록 더 높이서 내려다봄)")]
+        [SerializeField] private float maxPitch = 80f;
+        [Tooltip("이 각도보다 낮게(올려다보게) 내리면 카메라가 캐릭터 쪽으로 다가옴 (땅에 파묻히지 않게)")]
+        [SerializeField] private float zoomInBelowPitch = 10f;
+        [Tooltip("가장 많이 올려다볼 때 거리 배율 (0.4 = 기본 거리의 40%까지 다가옴)")]
+        [SerializeField, Range(0.2f, 1f)] private float lowPitchDistanceScale = 0.4f;
         [SerializeField] private bool invertPitch = false;
 
         [Header("감도 (마우스 1픽셀당 각도)")]
@@ -62,8 +68,8 @@ namespace FarmingSystem.Player
         [SerializeField] private float followSharpness = 12f;
 
         [Header("벽 충돌 (선택)")]
-        [Tooltip("카메라가 파고들면 안 되는 레이어 (건물, 나무 등). Nothing이면 충돌 처리 안 함")]
-        [SerializeField] private LayerMask collisionMask = 0;
+        [Tooltip("카메라가 파고들면 안 되는 레이어 (땅, 건물, 나무 등). 기본 = Ignore Raycast(투명 벽)를 뺀 전부. 플레이어 자신은 자동으로 무시")]
+        [SerializeField] private LayerMask collisionMask = ~(1 << 2);
         [SerializeField] private float collisionRadius = 0.3f;
         [SerializeField] private float minDistance = 1.5f;
 
@@ -129,19 +135,31 @@ namespace FarmingSystem.Player
 
         private float CalculateDistance(float dt)
         {
+            // 올려다볼수록 카메라를 캐릭터 쪽으로 당김 (낮은 각도에서 카메라가 땅 밑으로 들어가는 것 방지)
             float wanted = distance;
+            if (pitch < zoomInBelowPitch)
+            {
+                float t = Mathf.InverseLerp(zoomInBelowPitch, minPitch, pitch);
+                wanted *= Mathf.Lerp(1f, lowPitchDistanceScale, t);
+            }
 
+            // 벽·땅·나무에 막히면 그 앞까지 당김 (플레이어 자신의 콜라이더는 무시)
             if (collisionMask.value != 0)
             {
                 Vector3 back = pivot.rotation * Vector3.back;
-                if (Physics.SphereCast(pivot.position, collisionRadius, back, out RaycastHit hit,
-                                       distance, collisionMask, QueryTriggerInteraction.Ignore))
+                RaycastHit[] hits = Physics.SphereCastAll(pivot.position, collisionRadius, back, wanted,
+                                                          collisionMask, QueryTriggerInteraction.Ignore);
+                float nearest = wanted;
+                foreach (RaycastHit hit in hits)
                 {
-                    wanted = Mathf.Max(minDistance, hit.distance);
+                    if (target != null && hit.collider.transform.IsChildOf(target)) continue;
+                    if (hit.distance <= 0f) continue; // 시작점부터 겹친 콜라이더 (캐릭터 발밑 블록 등)는 무시
+                    nearest = Mathf.Min(nearest, hit.distance);
                 }
+                wanted = Mathf.Max(minDistance, nearest);
             }
 
-            // 벽에 막힐 때는 즉시 당기고(파묻힘 방지), 풀릴 때는 부드럽게 원래 거리로
+            // 막힐 때는 즉시 당기고(파묻힘 방지), 풀릴 때는 부드럽게 원래 거리로
             if (wanted < currentDistance) return wanted;
             return Mathf.Lerp(currentDistance, wanted, SmoothFactor(followSharpness, dt));
         }

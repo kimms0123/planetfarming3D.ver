@@ -38,15 +38,15 @@ namespace FarmingSystem.Player
         [SerializeField] private Camera targetCamera;
 
         [Header("상호작용 설정")]
-        [Tooltip("플레이어로부터 이 거리 이내의 타일만 상호작용 가능")]
+        [Tooltip("플레이어에서 타일 가장자리까지의 거리. 이 안에 있는 칸이면 십자선으로 가리켜 행동 가능")]
         [SerializeField] private float maxInteractDistance = 3f;
         [SerializeField] private LayerMask groundRaycastMask;
 
         [Header("시선 기반 대상 선택 (커서가 잠겨 있을 때)")]
         [Tooltip("디버그: Scene 뷰에 시선(카메라 → 화면 가운데)을 선으로 그림. 초록 = 땅에 닿음, 빨강 = 못 닿음")]
         [SerializeField] private bool drawDebugRay = true;
-        [Tooltip("시선이 닿은 곳이 상호작용 거리보다 이 값 이내로만 멀면, 같은 방향의 손 닿는 칸으로 당겨서 선택 (0이면 끔)")]
-        [SerializeField] private float reachAssist = 2f;
+        [Tooltip("땅을 갈 때 이 레이어의 물체(나무·바위·건물)가 칸 위에 있으면 막음")]
+        [SerializeField] private LayerMask obstacleMask;
         [Tooltip("클릭했는데 아무 일도 없을 때 콘솔에 이유 출력 (테스트용)")]
         [SerializeField] private bool logWhyNoAction = true;
         [Tooltip("행동할 때 캐릭터가 대상 타일 쪽으로 몸을 돌릴지")]
@@ -71,6 +71,7 @@ namespace FarmingSystem.Player
         {
             if (targetCamera == null)
                 targetCamera = Camera.main;
+            if (obstacleMask.value == 0) obstacleMask = LayerMask.GetMask("FarmingBlocker");
             playerController = GetComponent<PlayerController>();
             if (playerController == null) playerController = FindAnyObjectByType<PlayerController>();
             if (playerController == null)
@@ -125,12 +126,19 @@ namespace FarmingSystem.Player
 
             if (!TryGetTargetTile(out FarmTile tile, out Vector3 hitPoint, out bool inRange))
             {
-                if (logWhyNoAction) Debug.Log($"[농사행동 없음] 시선이 밭 타일에 닿지 않음 - 맞은 곳: {lastRayHitInfo} / 사용 중인 카메라: {(targetCamera != null ? targetCamera.name : "없음")}");
+                if (logWhyNoAction)
+                {
+                    // 땅에는 맞았는데 밭이 아닌 경우 = 돌길·경사로처럼 원래 농사 못 짓는 땅
+                    if (lastRayHitInfo.Contains("NonFarmableGround"))
+                        Debug.Log($"[농사행동 없음] 농사를 지을 수 없는 땅 (돌길·경사로) - 맞은 곳: {lastRayHitInfo}. 길 밖의 땅을 바라보세요");
+                    else
+                        Debug.Log($"[농사행동 없음] 시선이 밭 타일에 닿지 않음 - 맞은 곳: {lastRayHitInfo} / 사용 중인 카메라: {(targetCamera != null ? targetCamera.name : "없음")}");
+                }
                 return;
             }
             if (!inRange)
             {
-                if (logWhyNoAction) Debug.Log($"[농사행동 없음] 대상 칸이 너무 멂 (거리 {HorizontalDistance(tile.transform.position):0.0}m, 허용 {maxInteractDistance}m) - 시선을 더 아래로 내려보세요");
+                if (logWhyNoAction) Debug.Log($"[농사행동 없음] 대상 칸이 너무 멂 (가장자리까지 {DistanceToTileEdge(tile):0.0}m, 허용 {maxInteractDistance}m) - 더 가까이 가거나 시선을 더 아래로 내려보세요");
                 return;
             }
 
@@ -139,7 +147,7 @@ namespace FarmingSystem.Player
 
             // 실제로 뭔가 하는 경우에만 캐릭터가 그 칸을 바라보게 돌림
             if (action != FarmActionType.None && turnTowardsTarget && playerController != null)
-                playerController.FaceTowards(tile.transform.position);
+                playerController.FaceTowards(tile.Center);
 
             switch (action)
             {
@@ -182,7 +190,9 @@ namespace FarmingSystem.Player
                     break;
 
                 case FarmActionType.None:
-                    if (IsSeedOutOfSeason(tile, out string seasonInfo))
+                    if (inventory.CurrentTool == ToolType.Hoe && tile.State == TileState.Natural && !IsTileClear(tile))
+                        Debug.Log($"[밭갈기 불가] {tile.name} 위에 나무·바위·건물 같은 장애물이 있음");
+                    else if (IsSeedOutOfSeason(tile, out string seasonInfo))
                         Debug.Log($"[씨앗심기 불가] {seasonInfo}");
                     else if (tile.CurrentCrop != null && tile.CurrentCrop.IsReadyToHarvest)
                         Debug.Log($"[수확 보류] 가방 공간 부족 ({tile.CurrentCrop.Data.cropName} {tile.CurrentCrop.Data.expectedYield}개를 넣을 자리가 없음)");
@@ -214,49 +224,67 @@ namespace FarmingSystem.Player
             hitPoint = Vector3.zero;
             inRange = false;
 
-            if (FarmGrid.Instance == null || targetCamera == null) return false;
+            if (targetCamera == null) return false;
 
+            // 십자선이 가리키는 블록 = 대상. 다른 칸으로 당기거나 좌표를 보정하지 않음
+            // (예전엔 조금 멀면 플레이어 쪽 칸으로 당겨와서, 십자선과 다른 칸이 잡히거나 시선을 살짝만 틀어도 결과가 바뀌었음)
             Ray ray = targetCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
-            Vector3 hitPosition;
-
-            // 선 길이는 자동 계산: 카메라~플레이어 거리 + 손 닿는 거리 + 여유
-            // (예전 버전의 짧은 값이 인스펙터에 남아 선이 땅까지 못 닿던 문제를 막기 위해 고정값을 쓰지 않음)
-            float rayLength = Vector3.Distance(ray.origin, PlayerTransform.position) + maxInteractDistance + reachAssist + 5f;
+            float rayLength = Vector3.Distance(ray.origin, PlayerTransform.position) + maxInteractDistance + 10f;
             bool physicsHit = RaycastIgnoringSelf(ray, rayLength, out RaycastHit hit);
 
             if (drawDebugRay)
                 Debug.DrawRay(ray.origin, ray.direction * (physicsHit ? hit.distance : rayLength), physicsHit ? Color.green : Color.red);
 
-            if (physicsHit)
-            {
-                hitPosition = hit.point;
-            }
-            else
-            {
-                // 대비책: 플레이어 발 높이의 수평면과 시선이 만나는 점 (FarmGrid는 좌표로 타일을 찾으므로 콜라이더 없이도 됨)
-                Plane ground = new Plane(Vector3.up, PlayerTransform.position);
-                if (!ground.Raycast(ray, out float enter) || enter > rayLength) return false;
-                hitPosition = ray.GetPoint(enter);
-            }
+            if (!physicsHit) return false;
 
-            Vector3 point = hitPosition;
-            float distance = HorizontalDistance(point);
+            tile = hit.collider.GetComponentInParent<FarmTile>();
+            if (tile == null && !ResolveTile(hit.point, out tile)) return false;
 
-            // 손 닿는 거리보다 조금만 멀면, 같은 방향으로 손 닿는 칸까지 당겨옴
-            // (완전히 앞을 보면 여전히 거리 밖 → 고개를 숙여야 하는 규칙은 유지)
-            if (distance > maxInteractDistance && distance <= maxInteractDistance + reachAssist)
-            {
-                Vector3 dir = point - PlayerTransform.position;
-                dir.y = 0f;
-                point = PlayerTransform.position + dir.normalized * (maxInteractDistance * 0.9f);
-                point.y = hitPosition.y;
-            }
-
-            if (!FarmGrid.Instance.TryGetTileAtWorldPosition(point, out tile)) return false;
-
-            hitPoint = point;
-            inRange = HorizontalDistance(tile.transform.position) <= maxInteractDistance;
+            hitPoint = hit.point;
+            inRange = DistanceToTileEdge(tile) <= maxInteractDistance;
             return true;
+        }
+
+        // 플레이어에서 타일의 가장 가까운 가장자리까지의 수평 거리 (타일 위에 서 있으면 0)
+        // 칸 가운데 기준으로 재면 칸이 큰 맵에서는 바로 옆 칸도 멀다고 나와서 가장자리 기준으로 잼
+        private float DistanceToTileEdge(FarmTile tile)
+        {
+            Bounds b = tile.GetGroundBounds();
+            Vector3 p = PlayerTransform.position;
+            float dx = Mathf.Max(0f, Mathf.Abs(p.x - b.center.x) - b.extents.x);
+            float dz = Mathf.Max(0f, Mathf.Abs(p.z - b.center.z) - b.extents.z);
+            return Mathf.Sqrt(dx * dx + dz * dz);
+        }
+
+        // 이 칸 위에 나무·바위·건물이 없는지 (칸 윗면 바로 위의 상자 공간에 장애물 레이어가 겹치는지 검사)
+        // 예전 FarmPlacementValidator는 시선이 맞은 "점"에서 바닥을 다시 검사해서
+        // 블록 모서리(둥글게 깎인 부분)를 보면 경사로 판정되거나, 내 캐릭터 몸에 막혀 실패하는 경우가 있었음
+        // 이제 FarmTile이 붙은 칸 = 이미 농사 가능한 땅이므로 장애물만 확인
+        private bool IsTileClear(FarmTile tile)
+        {
+            Bounds b = tile.GetGroundBounds();
+            Vector3 center = new Vector3(b.center.x, b.max.y + 0.6f, b.center.z);
+            Vector3 half = new Vector3(b.extents.x * 0.8f, 0.5f, b.extents.z * 0.8f);
+            return !Physics.CheckBox(center, half, Quaternion.identity, obstacleMask, QueryTriggerInteraction.Ignore);
+        }
+
+        // 월드 위치 → 그 자리의 밭 타일
+        // 1) 위에서 아래로 선을 쏴서 맞은 블록의 FarmTile (보이는 칸과 정확히 일치)
+        // 2) 못 찾으면 FarmGrid 좌표 계산으로 대신
+        private bool ResolveTile(Vector3 point, out FarmTile tile)
+        {
+            tile = null;
+            Ray down = new Ray(point + Vector3.up * 20f, Vector3.down);
+            RaycastHit[] hits = Physics.RaycastAll(down, 40f, groundRaycastMask, QueryTriggerInteraction.Ignore);
+            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+            foreach (RaycastHit h in hits)
+            {
+                if (IsPlayerCollider(h.collider)) continue;
+                tile = h.collider.GetComponentInParent<FarmTile>();
+                if (tile != null) return true;
+                break; // 가장 위에 있는 땅이 밭이 아니면 (길, 나무 등) 좌표 계산으로 넘어감
+            }
+            return FarmGrid.Instance != null && FarmGrid.Instance.TryGetTileAtWorldPosition(point, out tile);
         }
 
         private string lastRayHitInfo = "아무것도 없음";
@@ -317,10 +345,11 @@ namespace FarmingSystem.Player
 
             Ray ray = targetCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
             if (!Physics.Raycast(ray, out RaycastHit hit, 100f, groundRaycastMask)) return false;
-            if (!FarmGrid.Instance.TryGetTileAtWorldPosition(hit.point, out tile)) return false;
+            tile = hit.collider.GetComponentInParent<FarmTile>();
+            if (tile == null && !ResolveTile(hit.point, out tile)) return false;
 
             hitPoint = hit.point;
-            inRange = HorizontalDistance(hit.point) <= maxInteractDistance;
+            inRange = DistanceToTileEdge(tile) <= maxInteractDistance;
             return true;
         }
 
@@ -350,8 +379,7 @@ namespace FarmingSystem.Player
             switch (inventory.CurrentTool)
             {
                 case ToolType.Hoe:
-                    bool canTill = FarmPlacementValidator.Instance == null || FarmPlacementValidator.Instance.CanTillAt(hitPoint);
-                    return tile.State == TileState.Natural && canTill ? FarmActionType.Till : FarmActionType.None;
+                    return tile.State == TileState.Natural && IsTileClear(tile) ? FarmActionType.Till : FarmActionType.None;
 
                 case ToolType.WateringCan:
                     return tile.State == TileState.Tilled && !tile.IsWatered ? FarmActionType.Water : FarmActionType.None;

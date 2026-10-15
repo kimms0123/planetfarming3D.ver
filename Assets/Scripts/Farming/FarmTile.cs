@@ -93,11 +93,65 @@ namespace FarmingSystem.Farming
             cropScaleMultiplier = multiplier;
         }
 
+        // 원래 블록 모델 숨기기 (자연 상태 비주얼이 대신 나타나므로)
+        // 예전엔 자기 자신의 Renderer만 껐는데, 맵 생성기가 만든 블록은 모델이 "자식"에 있어서 안 꺼졌다.
+        // 그래서 원래 블록 + 자연 비주얼 + (갈면) 밭 블록이 같은 자리에 겹쳐 깜빡이거나, 갈아도 잔디가 그대로 보였음
+        // 자연 비주얼이 없으면(매끈한 지면 모드) 원래 모델을 그대로 둔다 (생성기가 이미 숨겨둠)
         private void DisableOwnRenderer()
         {
-            Renderer ownRenderer = GetComponent<Renderer>();
-            if (ownRenderer != null)
-                ownRenderer.enabled = false;
+            if (naturalVisualPrefab == null)
+            {
+                Renderer ownRenderer = GetComponent<Renderer>();
+                if (ownRenderer != null) ownRenderer.enabled = false;
+                return;
+            }
+
+            foreach (Renderer r in GetComponentsInChildren<Renderer>())
+            {
+                if (CurrentCrop != null && r.transform.IsChildOf(CurrentCrop.transform)) continue;
+                r.enabled = false;
+            }
+        }
+
+        // 이 칸 땅의 실제 범위 (블록 콜라이더 기준, 작물·밭 모델 제외)
+        // 블록 모델의 기준점(pivot)이 칸 가운데가 아닐 수 있어서 transform.position 대신 이걸 써야
+        // 하이라이트 위치·거리 계산이 실제로 보이는 칸과 맞는다
+        public Bounds GetGroundBounds()
+        {
+            bool found = false;
+            Bounds b = new Bounds(transform.position, Vector3.one);
+
+            foreach (Collider c in GetComponentsInChildren<Collider>())
+            {
+                if (!c.enabled || c.isTrigger) continue;
+                if (CurrentCrop != null && c.transform.IsChildOf(CurrentCrop.transform)) continue;
+                if (currentVisualObject != null && c.transform.IsChildOf(currentVisualObject.transform)) continue;
+                if (!found) { b = c.bounds; found = true; }
+                else b.Encapsulate(c.bounds);
+            }
+
+            // 콜라이더가 없으면 보이는 모델 크기로 대신
+            if (!found)
+            {
+                foreach (Renderer r in GetComponentsInChildren<Renderer>())
+                {
+                    if (!r.enabled) continue;
+                    if (CurrentCrop != null && r.transform.IsChildOf(CurrentCrop.transform)) continue;
+                    if (!found) { b = r.bounds; found = true; }
+                    else b.Encapsulate(r.bounds);
+                }
+            }
+            return b;
+        }
+
+        // 칸 윗면 가운데 (거리 계산, 캐릭터가 바라볼 방향, 작물 위치 기준)
+        public Vector3 Center
+        {
+            get
+            {
+                Bounds b = GetGroundBounds();
+                return new Vector3(b.center.x, b.max.y, b.center.z);
+            }
         }
 
         public bool TryTill()
@@ -290,14 +344,14 @@ namespace FarmingSystem.Farming
                     foreach (Renderer r in renderers)
                         maxY = Mathf.Max(maxY, r.bounds.max.y);
 
-                    Vector3 pos = transform.position;
+                    Vector3 pos = Center;
                     pos.y = maxY;
                     return pos;
                 }
             }
 
-            Debug.LogWarning($"[표면 계산 실패] {name} - currentVisualObject에 Renderer가 없어 기본 위치 사용");
-            return transform.position;
+            Debug.LogWarning($"[표면 계산 실패] {name} - currentVisualObject에 Renderer가 없어 블록 윗면 위치 사용");
+            return Center;
         }
     }
 }
