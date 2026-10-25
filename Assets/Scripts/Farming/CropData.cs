@@ -1,6 +1,7 @@
 using UnityEngine;
 using FarmingSystem.Core;
 using FarmingSystem.Inventory;
+using FarmingSystem.Rhythm;
 
 namespace FarmingSystem.Farming
 {
@@ -35,6 +36,16 @@ namespace FarmingSystem.Farming
 
         [Tooltip("기준 판매가 (작물 DB 시트: (총재배일 x 작물계수) / 기대수확량)")]
         public float basePrice = 1f;
+
+        [Header("수확 리듬게임")]
+        [Tooltip("이 작물의 방향키 패턴 (예: 감자 ← → ← → ↓). 노트 수만큼 반복해서 사용. 비우면 랜덤")]
+        public ArrowDirection[] harvestPattern;
+        [Tooltip("템포 배율 (1 = 기본, 0.8 = 느림(호박), 1.2 = 빠름(당근))")]
+        [Range(0.6f, 1.5f)] public float harvestTempo = 1f;
+        [Tooltip("작물이 흔들리는 크기 배율 (1 = 기본, 1.5 = 크게(호박), 0.7 = 묵직하게(감자))")]
+        [Range(0.3f, 2f)] public float harvestShakeScale = 1f;
+        [Tooltip("작물 가치에 따른 난이도 보정 (일반 -0.15, 중급 0, 고급 +0.15, 희귀 +0.3)")]
+        [Range(-0.5f, 0.5f)] public float harvestDifficultyOffset = 0f;
 
         /// <summary>
         /// 기존 코드(FarmTile, CropInstance, FarmActionController)가 cropData.cropName으로 참조하던 부분을

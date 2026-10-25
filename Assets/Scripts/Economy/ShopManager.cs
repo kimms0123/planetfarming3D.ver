@@ -275,6 +275,8 @@ namespace FarmingSystem.Economy
             if (!IsSellable(slot)) return 0f;
 
             CropData crop = (CropData)slot.item;
+            // 쓰레기 등급은 작물·특별 상품 보너스와 상관없이 1벨 고정
+            if (ItemQualityUtility.IsFixedPrice(slot.quality)) return ItemQualityUtility.TrashUnitPrice;
             float price = crop.basePrice * ItemQualityUtility.GetPriceMultiplier(slot.quality);
             if (todaysSpecialCrop == crop) price *= specialSellBonusMultiplier;
             return price;

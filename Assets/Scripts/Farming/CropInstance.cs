@@ -16,6 +16,8 @@ namespace FarmingSystem.Farming
         public CropData Data { get; private set; }
         public int CurrentGrowthDay { get; private set; }
         public bool IsWithered { get; private set; }
+        // 다 자란 뒤 수확하지 않고 지난 날 수 (수확 리듬게임 난이도에 반영: 오래 둘수록 어려움)
+        public int DaysSinceReady { get; private set; }
         public bool IsReadyToHarvest => !IsWithered && CurrentGrowthDay >= Data.totalGrowthDays;
 
         private GameObject currentStageObject;
@@ -76,6 +78,12 @@ namespace FarmingSystem.Farming
             }
 
             Debug.Log($"[시듦] {Data.cropName} - 계절이 지나 시들었습니다. 클릭해서 제거하세요.");
+        }
+
+        // 다 자란 상태로 하루가 지남 (FarmTile이 하루가 바뀔 때 호출)
+        public void MarkReadyDayPassed()
+        {
+            if (IsReadyToHarvest) DaysSinceReady++;
         }
 
         [ContextMenu("디버그: 지금 시들게 하기")]

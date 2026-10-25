@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 using FarmingSystem.Core;
 using FarmingSystem.Farming;
 using FarmingSystem.Inventory;
+using FarmingSystem.Rhythm;
 
 namespace FarmingSystem.Player
 {
@@ -91,7 +92,11 @@ namespace FarmingSystem.Player
 
             UpdateHover();
 
-            if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+            // 좌클릭 = 모든 농사 행동. E = 수확 가능한 작물을 보고 있을 때만 수확 (기획서 "[E] 수확하기")
+            bool click = Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
+            bool harvestKey = HoveredAction == FarmActionType.Harvest && HoveredInRange &&
+                              Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame;
+            if (click || harvestKey)
                 TryInteract();
         }
 
@@ -153,6 +158,14 @@ namespace FarmingSystem.Player
             {
                 case FarmActionType.Harvest:
                     {
+                        // 씬에 수확 리듬게임이 있으면 리듬게임 결과로 등급 결정
+                        if (HarvestRhythmGame.Instance != null)
+                        {
+                            StartRhythmHarvest(tile);
+                            break;
+                        }
+
+                        // 없으면 예전처럼 임시 랜덤 등급
                         CropData harvested = tile.Harvest(out ItemQuality quality);
                         if (harvested != null)
                         {
@@ -198,6 +211,40 @@ namespace FarmingSystem.Player
                         Debug.Log($"[수확 보류] 가방 공간 부족 ({tile.CurrentCrop.Data.cropName} {tile.CurrentCrop.Data.expectedYield}개를 넣을 자리가 없음)");
                     break;
             }
+        }
+
+        // 수확 리듬게임 시작 → 끝나면 그 결과 등급·수확량으로 실제 수확
+        // 리듬게임 판정마다 작물이 흔들리고 마지막에 뽑히는 연출은 리듬게임 쪽에서 처리
+        // 포기(Esc)하면 아무 일도 없고 작물은 그대로 남음
+        private void StartRhythmHarvest(FarmTile tile)
+        {
+            HarvestRhythmGame game = HarvestRhythmGame.Instance;
+            CropData crop = tile.CurrentCrop.Data;
+
+            // 가장 잘했을 때(최상급) 수확량까지 받을 자리가 있는지 미리 확인 (끝나고 넘친 수확물이 사라지지 않게)
+            int maxYield = Mathf.Max(1, Mathf.RoundToInt(crop.expectedYield * game.MaxYieldMultiplier));
+            if (!HasRoomForHarvest(crop, maxYield))
+            {
+                Debug.Log($"[수확 보류] 가방 공간 부족 (최대 {maxYield}개 자리가 필요)");
+                return;
+            }
+
+            HarvestContext ctx = HarvestContext.Build(tile);
+            Transform cropTransform = tile.CurrentCrop.transform;
+
+            bool started = game.Play(ctx, cropTransform, cropTransform.position, result =>
+            {
+                if (result.Cancelled || tile == null || tile.CurrentCrop == null) return;
+
+                CropData harvested = tile.Harvest(result.Quality);
+                if (harvested == null) return;
+
+                int amount = result.GetYield(harvested.expectedYield);
+                int notAdded = InventoryManager.Instance.AddItem(harvested, amount, result.Quality);
+                Debug.Log($"[수확] {harvested.cropName} x{amount} ({ItemQualityUtility.GetDisplayName(result.Quality)}, 점수 {result.ScoreRatio:P0}{(result.AllPerfect ? ", ALL PERFECT" : "")}) 수확 완료, 인벤토리에 못 넣은 수량: {notAdded}");
+            });
+
+            if (!started) Debug.Log("[수확] 리듬게임이 이미 진행 중");
         }
 
         /// <summary>거리·방향 계산의 기준이 되는 플레이어 위치 (스크립트가 다른 오브젝트에 붙어 있어도 안전)</summary>
@@ -402,13 +449,17 @@ namespace FarmingSystem.Player
             return true;
         }
 
-        private static bool HasRoomForHarvest(CropData crop)
+        private static bool HasRoomForHarvest(CropData crop) => HasRoomForHarvest(crop, crop.expectedYield);
+
+        private static bool HasRoomForHarvest(CropData crop, int amount)
         {
             InventoryManager inventory = InventoryManager.Instance;
-            int room = Mathf.Min(inventory.GetAddableAmount(crop, ItemQuality.Normal),
-                       Mathf.Min(inventory.GetAddableAmount(crop, ItemQuality.Good),
-                                 inventory.GetAddableAmount(crop, ItemQuality.Perfect)));
-            return room >= crop.expectedYield;
+            // 어떤 등급이 나와도 들어갈 수 있게 4등급 모두 확인
+            int room = Mathf.Min(Mathf.Min(inventory.GetAddableAmount(crop, ItemQuality.Normal),
+                                           inventory.GetAddableAmount(crop, ItemQuality.Good)),
+                                 Mathf.Min(inventory.GetAddableAmount(crop, ItemQuality.Perfect),
+                                           inventory.GetAddableAmount(crop, ItemQuality.Trash)));
+            return room >= amount;
         }
     }
 }

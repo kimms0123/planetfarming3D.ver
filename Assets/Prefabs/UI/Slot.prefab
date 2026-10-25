@@ -280,7 +280,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 1749111297, guid: 0d72b3bfbf953594db262bab7221695a, type: 3}
+  m_Sprite: {fileID: 820663290, guid: 83741490e3cbba241aaa0a7e06d14778, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -306,5 +306,5 @@ MonoBehaviour:
   itemIcon: {fileID: 1536251564948523378}
   quantityText: {fileID: 68937406869055253}
   selectedHighlight: {fileID: 0}
-  normalSlotSprite: {fileID: 1749111297, guid: 0d72b3bfbf953594db262bab7221695a, type: 3}
-  selectedSlotSprite: {fileID: 791128188, guid: 0d72b3bfbf953594db262bab7221695a, type: 3}
+  normalSlotSprite: {fileID: 820663290, guid: 83741490e3cbba241aaa0a7e06d14778, type: 3}
+  selectedSlotSprite: {fileID: -672367519, guid: 83741490e3cbba241aaa0a7e06d14778, type: 3}

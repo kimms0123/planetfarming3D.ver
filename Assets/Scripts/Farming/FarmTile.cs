@@ -230,10 +230,16 @@ namespace FarmingSystem.Farming
             return true;
         }
 
+        // 예전 방식: 등급을 임시 랜덤으로 정해서 수확 (리듬게임이 씬에 없을 때 대비용)
         public CropData Harvest(out ItemQuality quality)
         {
-            quality = ItemQuality.Normal;
+            quality = RollHarvestQuality();
+            return Harvest(quality);
+        }
 
+        // 리듬게임 결과처럼 이미 정해진 등급으로 수확
+        public CropData Harvest(ItemQuality quality)
+        {
             if (CurrentCrop == null)
             {
                 Debug.Log($"[수확 실패] {name} - 심어진 작물이 없음");
@@ -246,7 +252,6 @@ namespace FarmingSystem.Farming
             }
 
             CropData harvested = CurrentCrop.Data;
-            quality = RollHarvestQuality();
             Destroy(CurrentCrop.gameObject);
             CurrentCrop = null;
 
@@ -283,6 +288,9 @@ namespace FarmingSystem.Farming
 
         private void HandleDayChanged(int day, Season season)
         {
+            // 다 자란 채로 하루가 지났으면 방치 일수 +1 (오늘 자라서 다 자란 경우는 아래 Grow 이후라 포함 안 됨)
+            if (CurrentCrop != null) CurrentCrop.MarkReadyDayPassed();
+
             if (CurrentCrop != null && !CurrentCrop.IsWithered)
             {
                 // 계절이 지나 이 작물의 계절이 아니면 시듦 (그날은 성장하지 않음)
