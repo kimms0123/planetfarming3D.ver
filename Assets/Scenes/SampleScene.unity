@@ -58584,7 +58584,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\uAD6C\uB9E4\uD558\uAE30"
+  m_text: "\uD310\uB9E4\uD558\uAE30"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 99ccb23af8238a548af9cee75555b137, type: 2}
   m_sharedMaterial: {fileID: 8496798332843639327, guid: 99ccb23af8238a548af9cee75555b137, type: 2}
@@ -251718,6 +251718,114 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 467287593}
   m_SourcePrefab: {fileID: 100100000, guid: 2e1ecf6b062fbd248a32028e6ef85fcd, type: 3}
+--- !u!1 &639671313
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 639671315}
+  - component: {fileID: 639671314}
+  m_Layer: 0
+  m_Name: HarvestRhythmGame
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &639671314
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 639671313}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 264254887a86da142bc2e9b76ffaaade, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Rhythm.HarvestRhythmGame
+  difficultyModel: {fileID: 0}
+  minDifficulty: 0
+  maxDifficulty: 1
+  minBpm: 80
+  maxBpm: 120
+  minNotes: 6
+  maxNotes: 16
+  easyApproachTime: 1.4
+  hardApproachTime: 0.8
+  easyPerfectWindow: 0.08
+  hardPerfectWindow: 0.06
+  easyGoodWindow: 0.18
+  hardGoodWindow: 0.12
+  earlyIgnoreWindow: 0.3
+  audioOffset: 0
+  allowWASD: 1
+  perfectPoints: 100
+  goodPoints: 60
+  topGradeRequiresAllPerfect: 1
+  topGradeRatio: 0.95
+  highGradeRatio: 0.8
+  normalGradeRatio: 0.5
+  topGradeYield: 1.2
+  highGradeYield: 1
+  normalGradeYield: 0.8
+  trashGradeYield: 0.5
+  pauseWorld: 1
+  resultShowSeconds: 2.5
+  dimColor: {r: 0, g: 0, b: 0, a: 0.15}
+  judgeRadius: 85
+  approachStartScale: 2.2
+  judgeRingColor: {r: 1, g: 0.35, b: 0.45, a: 0.95}
+  approachColor: {r: 0.45, g: 0.95, b: 1, a: 0.95}
+  perfectColor: {r: 1, g: 0.82, b: 0.2, a: 1}
+  goodColor: {r: 0.45, g: 0.85, b: 1, a: 1}
+  missColor: {r: 1, g: 0.42, b: 0.42, a: 1}
+  font: {fileID: 11400000, guid: 99ccb23af8238a548af9cee75555b137, type: 2}
+  metronomeVolume: 0.45
+  sfxVolume: 0.7
+  tickClip: {fileID: 0}
+  accentTickClip: {fileID: 0}
+  perfectClip: {fileID: 0}
+  goodClip: {fileID: 0}
+  missClip: {fileID: 0}
+  popClip: {fileID: 0}
+  focusCamera: 1
+  focusBlend: 0.65
+  focusDistanceScale: 0.6
+  focusPitch: 28
+  arrowUpSprite: {fileID: -1798766083, guid: 5d4607f5039acf74abfe8eb883b6c42c, type: 3}
+  arrowDownSprite: {fileID: 902226129, guid: 5d4607f5039acf74abfe8eb883b6c42c, type: 3}
+  arrowLeftSprite: {fileID: -2079413079, guid: 5d4607f5039acf74abfe8eb883b6c42c, type: 3}
+  arrowRightSprite: {fileID: -2079413079, guid: 5d4607f5039acf74abfe8eb883b6c42c, type: 3}
+  keySprite: {fileID: -1538735643, guid: 5d4607f5039acf74abfe8eb883b6c42c, type: 3}
+  keyHighlightSprite: {fileID: 815781648, guid: 5d4607f5039acf74abfe8eb883b6c42c, type: 3}
+  hudPanelSprite: {fileID: -490711392, guid: 5d4607f5039acf74abfe8eb883b6c42c, type: 3}
+  progressBackSprite: {fileID: 1933050344, guid: 5d4607f5039acf74abfe8eb883b6c42c, type: 3}
+  progressFillSprite: {fileID: -1609101068, guid: 5d4607f5039acf74abfe8eb883b6c42c, type: 3}
+  guideSprite: {fileID: 1933050344, guid: 5d4607f5039acf74abfe8eb883b6c42c, type: 3}
+  resultWindowSprite: {fileID: -461766483, guid: 5d4607f5039acf74abfe8eb883b6c42c, type: 3}
+  focusCornerSprite: {fileID: -909792160, guid: 5d4607f5039acf74abfe8eb883b6c42c, type: 3}
+  logInput: 1
+  debugHotkey: 102
+  debugDifficulty: 0.4
+--- !u!4 &639671315
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 639671313}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 466.23343, y: 206.85594, z: 9.95427}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &639709186 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 7407277059092317233, guid: 09fcd8699d3665941a8ef6696320e444, type: 3}
@@ -395848,7 +395956,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1010851942
 RectTransform:
   m_ObjectHideFlags: 0
@@ -494108,7 +494216,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\uD314\uAE30\n"
+  m_text: "\uAD6C\uB9E4\uD558\uAE30"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 99ccb23af8238a548af9cee75555b137, type: 2}
   m_sharedMaterial: {fileID: 8496798332843639327, guid: 99ccb23af8238a548af9cee75555b137, type: 2}
@@ -817540,7 +817648,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &2018223402
 RectTransform:
   m_ObjectHideFlags: 0
@@ -871408,3 +871516,4 @@ SceneRoots:
   - {fileID: 1660997020}
   - {fileID: 1876682173}
   - {fileID: 893187613}
+  - {fileID: 639671315}

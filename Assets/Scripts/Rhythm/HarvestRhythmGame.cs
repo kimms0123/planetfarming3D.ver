@@ -6,6 +6,8 @@ using UnityEngine.InputSystem;
 using TMPro;
 using FarmingSystem.Core;
 using FarmingSystem.Inventory;
+using FarmingSystem.Player;
+using FarmingSystem.UI;
 
 namespace FarmingSystem.Rhythm
 {
@@ -95,6 +97,10 @@ namespace FarmingSystem.Rhythm
         [SerializeField] private Color dimColor = new Color(0f, 0f, 0f, 0.15f);
         [Tooltip("판정 원 반지름 (1920x1080 기준)")]
         [SerializeField] private float judgeRadius = 85f;
+        [Tooltip("켜면 접근 원을 한 번에 하나만 보여줌. 다음 원은 앞 노트 박자가 지난 뒤부터 줄어들기 시작 (노트 간격 = 줄어드는 시간)")]
+        [SerializeField] private bool oneRingAtATime = true;
+        [Tooltip("원 하나만 보일 때, 노트 간격이 아주 짧아도 원이 줄어드는 최소 시간(초). 너무 짧으면 원이 번쩍하고 사라짐")]
+        [SerializeField] private float minRingTime = 0.3f;
         [Tooltip("접근 원이 처음 나타날 때 크기 (판정 원의 배수)")]
         [SerializeField] private float approachStartScale = 2.2f;
         [SerializeField] private Color judgeRingColor = new Color(1f, 0.35f, 0.45f, 0.95f);
@@ -102,6 +108,10 @@ namespace FarmingSystem.Rhythm
         [SerializeField] private Color perfectColor = new Color(1f, 0.82f, 0.2f);
         [SerializeField] private Color goodColor = new Color(0.45f, 0.85f, 1f);
         [SerializeField] private Color missColor = new Color(1f, 0.42f, 0.42f);
+        [Tooltip("위쪽 오른쪽 '남은 노트' 판 표시")]
+        [SerializeField] private bool showRemainingNotes = false;
+        [Tooltip("리듬게임 동안 숨길 UI (핫바·십자선은 자동으로 숨김. 그 외에 더 숨길 게 있으면 여기에 추가)")]
+        [SerializeField] private GameObject[] hideDuringPlay;
         [Tooltip("한글이 □로 나오면 프로젝트에서 쓰는 한글 TMP 폰트 에셋을 넣기")]
         [SerializeField] private TMP_FontAsset font;
 
@@ -115,10 +125,52 @@ namespace FarmingSystem.Rhythm
         [SerializeField] private AudioClip missClip;
         [SerializeField] private AudioClip popClip;
 
+        [Header("카메라 강조 (기획서 4장: 화면 전환 없이 작물만 조금 강조)")]
+        [Tooltip("리듬게임 동안 카메라가 작물 쪽으로 살짝 다가감")]
+        [SerializeField] private bool focusCamera = true;
+        [Tooltip("카메라가 바라보는 점을 플레이어에서 작물 쪽으로 얼마나 옮길지 (0 = 플레이어, 1 = 작물)")]
+        [SerializeField, Range(0f, 1f)] private float focusBlend = 0.65f;
+        [Tooltip("카메라 거리 배율 (0.6 = 평소 거리의 60%까지 다가감)")]
+        [SerializeField, Range(0.3f, 1f)] private float focusDistanceScale = 0.6f;
+        [Tooltip("강조 중 내려다보는 각도 (도). 음수면 지금 각도 유지")]
+        [SerializeField] private float focusPitch = 28f;
+
+        [Header("디자이너 UI 이미지 (비우면 코드가 그린 기본 모양을 씀)")]
+        [Tooltip("방향키 아이콘 (Arrow_Up / Down / Left / Right). 4개 다 넣어야 적용")]
+        [SerializeField] private Sprite arrowUpSprite;
+        [SerializeField] private Sprite arrowDownSprite;
+        [SerializeField] private Sprite arrowLeftSprite;
+        [SerializeField] private Sprite arrowRightSprite;
+        [Tooltip("방향키 패드 키 바탕 (Slot_Light)")]
+        [SerializeField] private Sprite keySprite;
+        [Tooltip("눌러야 할 키 바탕 (Slot_Dark). 비우면 키 바탕을 주황색으로 칠함")]
+        [SerializeField] private Sprite keyHighlightSprite;
+        [Tooltip("위쪽 '수확 목표'·'남은 노트' 판 (Panel_Long, 9-슬라이스 테두리 필요)")]
+        [SerializeField] private Sprite hudPanelSprite;
+        [Tooltip("진행 바 바탕 (Pill_Grey)")]
+        [SerializeField] private Sprite progressBackSprite;
+        [Tooltip("진행 바 채움 (Pill_Green)")]
+        [SerializeField] private Sprite progressFillSprite;
+        [Tooltip("아래 안내 문구 판 (Pill_Grey)")]
+        [SerializeField] private Sprite guideSprite;
+        [Tooltip("결과창 (Window_Header, 9-슬라이스 테두리 필요)")]
+        [SerializeField] private Sprite resultWindowSprite;
+        [Tooltip("작물 강조 모서리 (Corner_TL_A, 왼쪽 위 모양 1개만 넣으면 돌려서 4개로 씀)")]
+        [SerializeField] private Sprite focusCornerSprite;
+
         [Header("디버그")]
+        [Tooltip("키를 누를 때마다 콘솔에 판정 이유를 출력 (어떤 키 → 몇 번 노트 → 오차 몇 초 → 판정)")]
+        [SerializeField] private bool logInput = true;
+        [Tooltip("플레이 중 이 키를 누르면 테스트 플레이 시작 (게임 창에 포커스가 있어서 바로 키 입력 가능)")]
+        [SerializeField] private Key debugHotkey = Key.F9;
         [SerializeField, Range(0f, 1f)] private float debugDifficulty = 0.4f;
 
         public bool IsPlaying { get; private set; }
+        private readonly List<CanvasGroup> hiddenGroups = new List<CanvasGroup>();
+        private readonly List<float> hiddenAlphas = new List<float>();
+        private GameObject debugCrop;          // 테스트 플레이용 임시 작물
+        private int keyPressCount;            // 이번 판에 들어온 방향키 입력 수 (진단용)
+        private bool pausedWorldThisSession;  // 이번 판에 실제로 시간을 멈췄는지
         // 가장 잘했을 때의 수확량 배율 (가방 공간 미리 확인용)
         public float MaxYieldMultiplier => Mathf.Max(Mathf.Max(topGradeYield, highGradeYield), Mathf.Max(normalGradeYield, trashGradeYield));
 
@@ -157,6 +209,8 @@ namespace FarmingSystem.Rhythm
         private int lastCountdown = int.MinValue;
         private CropReactionController reaction;
         private Transform cropTransform;
+        private Vector3 judgeWorldPoint;        // 판정 원이 따라갈 작물 가운데 (월드 좌표)
+        private ThirdPersonCameraRig focusedRig;
         private float judgePulse;              // 판정 원이 잠깐 커지는 연출
         private float keyFlash;                // 누른 키 반짝임
         private ArrowDirection keyFlashDir;
@@ -171,6 +225,10 @@ namespace FarmingSystem.Rhythm
         private readonly Image[] progressStars = new Image[4];
         private readonly Image[] keyBacks = new Image[4];
         private readonly Image[] keyArrows = new Image[4];
+        private readonly Image[] keyShadows = new Image[4];
+        private readonly Image[] focusCorners = new Image[4];
+        private float cornerAnim;              // 모서리가 바깥에서 안으로 모여드는 연출 (0 → 1)
+        private bool CustomArrows => arrowUpSprite != null && arrowDownSprite != null && arrowLeftSprite != null && arrowRightSprite != null;
         private GameObject hudRoot, resultPanel;
         private TextMeshProUGUI resultTitle, resultBody;
         private readonly Image[] resultStars = new Image[4];
@@ -193,9 +251,40 @@ namespace FarmingSystem.Rhythm
                 return;
             }
             Instance = this;
+            ResolveFont();
             BuildAudio();
             BuildUI();
             canvas.gameObject.SetActive(false);
+        }
+
+        // 폰트 정하기: Font 칸이 비어 있으면 씬에서 이미 쓰는 TMP 폰트(한글 폰트)를 찾아 씀
+        // 넣은 폰트에 리듬게임에서 쓰는 글자가 없으면(정적 폰트) 콘솔에 빠진 글자와 해결 방법을 알려줌
+        private void ResolveFont()
+        {
+            if (font == null)
+            {
+                foreach (TextMeshProUGUI t in FindObjectsByType<TextMeshProUGUI>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                {
+                    if (t.font == null || t.font.name.StartsWith("LiberationSans")) continue;
+                    font = t.font;
+                    break;
+                }
+                if (font != null) Debug.Log($"[HarvestRhythmGame] Font 칸이 비어 있어서 씬에서 쓰는 폰트 '{font.name}'를 자동으로 사용");
+                else Debug.LogWarning("[HarvestRhythmGame] 한글 폰트를 못 찾았어요. 인스펙터 Font 칸에 한글 TMP 폰트 에셋을 넣어주세요");
+            }
+
+            if (font != null)
+            {
+                const string used = "준비수확목표남은노트개콤보원이판정과겹칠때방향키입력포기완료등급량최대점최상급상기본쓰레기정확도";
+                // tryAddCharacter = true: Dynamic 폰트면 빠진 글자를 이 자리에서 바로 추가해 봄
+                if (!font.HasCharacters(used, out uint[] missing, true, true) && missing != null && missing.Length > 0)
+                {
+                    var sb = new System.Text.StringBuilder();
+                    foreach (uint code in missing) sb.Append(char.ConvertFromUtf32((int)code));
+                    Debug.LogWarning($"[HarvestRhythmGame] 폰트 '{font.name}'에 없는 글자: {sb}\n" +
+                                     "→ 폰트 에셋 선택 → Inspector의 Atlas Population Mode를 Dynamic으로 바꾸거나, Font Asset Creator로 한글 범위를 다시 만들어주세요");
+                }
+            }
         }
 
         private void OnDestroy()
@@ -236,8 +325,74 @@ namespace FarmingSystem.Rhythm
             var ctx = HarvestContext.CreateDebug(UnityEngine.Random.Range(int.MinValue, int.MaxValue));
             Camera cam = Camera.main;
             Vector3 anchor = cam != null ? cam.transform.position + cam.transform.forward * 6f : Vector3.zero;
-            Begin(ctx, debugDifficulty, null, anchor, r =>
+
+            // 흔들림까지 확인할 수 있게 플레이어 앞 땅 위에 임시 작물(초록 캡슐)을 세움. 끝나면 지워짐
+            Transform crop = SpawnDebugCrop(ref anchor);
+            Begin(ctx, debugDifficulty, crop, anchor, r =>
                 Debug.Log($"[리듬게임 테스트 결과] P{r.Perfect} G{r.Good} M{r.Miss} 점수 {r.ScoreRatio:P0} → {ItemQualityUtility.GetDisplayName(r.Quality)}, 수확량 x{r.YieldMultiplier}{(r.AllPerfect ? " ALL PERFECT" : "")}{(r.Cancelled ? " (포기)" : "")}"));
+        }
+
+        private Transform SpawnDebugCrop(ref Vector3 anchor)
+        {
+            if (debugCrop != null) Destroy(debugCrop);
+            PlayerController player = FindAnyObjectByType<PlayerController>();
+            Camera cam = Camera.main;
+            if (player == null || cam == null) return null;
+
+            Vector3 fwd = cam.transform.forward;
+            fwd.y = 0f;
+            fwd = fwd.sqrMagnitude > 0.001f ? fwd.normalized : player.transform.forward;
+            Vector3 pos = player.transform.position + fwd * 2.5f;
+            if (Physics.Raycast(pos + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 20f, ~0, QueryTriggerInteraction.Ignore))
+                pos = hit.point;
+
+            debugCrop = new GameObject("TestCrop (리듬게임 테스트용)");
+            debugCrop.transform.position = pos;
+            GameObject body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            Destroy(body.GetComponent<Collider>());
+            body.transform.SetParent(debugCrop.transform, false);
+            body.transform.localScale = new Vector3(0.6f, 0.7f, 0.6f);
+            body.transform.localPosition = new Vector3(0f, 0.7f, 0f); // 바닥이 땅에 닿게 (기울어질 때 뿌리 쪽이 고정)
+            Renderer r = body.GetComponent<Renderer>();
+            if (r != null) r.material.color = new Color(0.4f, 0.75f, 0.3f);
+
+            anchor = pos + Vector3.up * 0.7f;
+            return debugCrop.transform;
+        }
+
+        // 리듬게임 동안 핫바·십자선 등을 숨김 (CanvasGroup 투명도만 바꿔서, 스크립트 동작에는 영향 없음)
+        private void HideGameplayUI()
+        {
+            hiddenGroups.Clear();
+            hiddenAlphas.Clear();
+            var targets = new List<GameObject>();
+            foreach (HotbarUI h in FindObjectsByType<HotbarUI>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)) targets.Add(h.gameObject);
+            foreach (CrosshairUI c in FindObjectsByType<CrosshairUI>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)) targets.Add(c.gameObject);
+            if (hideDuringPlay != null) foreach (GameObject g in hideDuringPlay) if (g != null) targets.Add(g);
+
+            foreach (GameObject g in targets)
+            {
+                if (g == null) continue;
+                CanvasGroup cg = g.GetComponent<CanvasGroup>();
+                if (cg == null) cg = g.AddComponent<CanvasGroup>();
+                if (hiddenGroups.Contains(cg)) continue;
+                hiddenGroups.Add(cg);
+                hiddenAlphas.Add(cg.alpha);
+                cg.alpha = 0f;
+                cg.blocksRaycasts = false;
+            }
+        }
+
+        private void ShowGameplayUI()
+        {
+            for (int i = 0; i < hiddenGroups.Count; i++)
+            {
+                if (hiddenGroups[i] == null) continue;
+                hiddenGroups[i].alpha = hiddenAlphas[i];
+                hiddenGroups[i].blocksRaycasts = true;
+            }
+            hiddenGroups.Clear();
+            hiddenAlphas.Clear();
         }
 
         // =====================================================================
@@ -284,9 +439,16 @@ namespace FarmingSystem.Rhythm
             popupText.text = "";
             Canvas.ForceUpdateCanvases();
 
-            judgeRoot.anchoredPosition = ComputeCenter(crop, worldAnchor);
+            judgeWorldPoint = GetCropCenter(crop, worldAnchor);
+            cornerAnim = 0f;
+            judgeRoot.anchoredPosition = ProjectToCanvas(judgeWorldPoint);
+
+            // 카메라가 작물 쪽으로 살짝 다가감 (게임 시간이 멈춰도 카메라는 실제 시간으로 움직임)
+            focusedRig = focusCamera ? ThirdPersonCameraRig.Instance : null;
+            if (focusedRig != null) focusedRig.BeginFocus(judgeWorldPoint, focusBlend, focusDistanceScale, focusPitch);
             goalIcon.sprite = ctx.Crop != null && ctx.Crop.icon != null ? ctx.Crop.icon : null;
             goalIcon.enabled = goalIcon.sprite != null;
+            goalIcon.transform.parent.gameObject.SetActive(goalIcon.enabled); // 아이콘이 없으면 흰 동그라미도 숨김
             foreach (Ring r in rings) { r.Image.gameObject.SetActive(false); r.NoteIndex = -1; }
             RefreshHud();
 
@@ -297,21 +459,45 @@ namespace FarmingSystem.Rhythm
             phase = Phase.Playing;
             IsPlaying = true;
             UIInputBlocker.Block(this);
+            HideGameplayUI();
+            keyPressCount = 0;
+            pausedWorldThisSession = false;
             if (pauseWorld)
             {
-                previousTimeScale = Time.timeScale;
-                Time.timeScale = 0f;
+                // Input System이 Fixed Update에서 입력을 처리하면, 시간을 멈추는 순간 키 입력도 같이 멈춰서 전부 MISS가 됨
+                // → 그 경우엔 시간을 멈추지 않음 (플레이어 조작은 어차피 막혀 있음)
+                if (InputSystem.settings != null && InputSystem.settings.updateMode == InputSettings.UpdateMode.ProcessEventsInFixedUpdate)
+                {
+                    Debug.LogWarning("[HarvestRhythmGame] Input System이 'Process Events In Fixed Update'라서 리듬게임 중 시간을 멈추지 않아요.\n" +
+                                     "→ Edit > Project Settings > Input System Package > Update Mode를 'Process Events In Dynamic Update'로 바꾸면 시간 멈춤이 다시 적용돼요");
+                }
+                else
+                {
+                    previousTimeScale = Time.timeScale;
+                    Time.timeScale = 0f;
+                    pausedWorldThisSession = true;
+                }
             }
             return true;
         }
 
         private void Update()
         {
-            if (!IsPlaying) return;
+            if (!IsPlaying)
+            {
+                // 플레이 중 F9 = 테스트 플레이 (게임 창에 포커스가 있는 상태라 바로 키 입력 가능)
+                if (debugHotkey != Key.None && Keyboard.current != null && Keyboard.current[debugHotkey].wasPressedThisFrame)
+                    DebugPlay();
+                return;
+            }
             float dt = Time.unscaledDeltaTime;
 
             UpdateSongTime();
             UpdateEffects(dt);
+
+            // 카메라가 움직이는 동안에도 판정 원이 작물 위에 붙어 있도록 매 프레임 다시 계산
+            if (phase != Phase.Result) judgeRoot.anchoredPosition = ProjectToCanvas(judgeWorldPoint);
+            UpdateFocusCorners(dt);
 
             switch (phase)
             {
@@ -398,17 +584,29 @@ namespace FarmingSystem.Rhythm
 
             keyFlash = 0.15f;
             keyFlashDir = pressed;
+            keyPressCount++;
 
             if (currentIndex >= pattern.Notes.Count) return;
             HarvestNote note = pattern.Notes[currentIndex];
             double offset = songTime - note.Time;
-            if (offset < -earlyIgnoreWindow) return; // 너무 이름 → 무시
+            if (offset < -earlyIgnoreWindow)
+            {
+                if (logInput) Debug.Log($"[리듬 입력] {Arrow(pressed)} 누름 → {note.Number}번 노트까지 {-offset:0.00}초 남음 (너무 일찍, 무시)");
+                return;
+            }
 
             double abs = Math.Abs(offset);
-            if (pressed != note.Direction) Judge(currentIndex, 2);          // 방향 틀림
-            else if (abs <= pattern.PerfectWindow) Judge(currentIndex, 0);
-            else if (abs <= pattern.GoodWindow) Judge(currentIndex, 1);
-            else Judge(currentIndex, 2);
+            int j;
+            string reason;
+            if (pressed != note.Direction) { j = 2; reason = "방향 틀림"; }
+            else if (abs <= pattern.PerfectWindow) { j = 0; reason = ""; }
+            else if (abs <= pattern.GoodWindow) { j = 1; reason = ""; }
+            else { j = 2; reason = offset < 0 ? "빠름" : "늦음"; }
+
+            if (logInput)
+                Debug.Log($"[리듬 입력] {Arrow(pressed)} 누름 → {note.Number}번 노트({Arrow(note.Direction)}), 오차 {offset:+0.000;-0.000}초 " +
+                          $"(Perfect ±{pattern.PerfectWindow:0.00} / Good ±{pattern.GoodWindow:0.00}) → {(j == 0 ? "PERFECT" : j == 1 ? "GOOD" : "MISS")} {reason}");
+            Judge(currentIndex, j, reason);
         }
 
         private bool TryReadDirection(out ArrowDirection dir)
@@ -427,11 +625,17 @@ namespace FarmingSystem.Rhythm
         private void CheckLateMisses()
         {
             while (currentIndex < pattern.Notes.Count && songTime - pattern.Notes[currentIndex].Time > pattern.GoodWindow)
-                Judge(currentIndex, 2);
+            {
+                if (logInput) Debug.Log($"[리듬 입력] {pattern.Notes[currentIndex].Number}번 노트({Arrow(pattern.Notes[currentIndex].Direction)}) 놓침 - 판정 시간 안에 키 입력 없음");
+                Judge(currentIndex, 2, "놓침");
+            }
         }
 
         // 0 = Perfect, 1 = Good, 2 = Miss
-        private void Judge(int index, int j)
+        private static string Arrow(ArrowDirection d) => d == ArrowDirection.Up ? "↑" : d == ArrowDirection.Down ? "↓" : d == ArrowDirection.Left ? "←" : "→";
+
+        // 0 = Perfect, 1 = Good, 2 = Miss. reason = MISS 밑에 작게 보여줄 이유 (방향 틀림 / 빠름 / 늦음 / 놓침)
+        private void Judge(int index, int j, string reason = "")
         {
             if (judged[index]) return;
             judged[index] = true;
@@ -446,11 +650,12 @@ namespace FarmingSystem.Rhythm
 
             // 연출: 판정 원 확대(Perfect 크게), 판정 문구, 효과음, 작물 흔들림
             judgePulse = j == 0 ? 1f : j == 1 ? 0.5f : 0f;
-            popupText.text = j == 0 ? "PERFECT!" : j == 1 ? "GOOD" : "MISS";
+            popupText.text = j == 0 ? "PERFECT!" : j == 1 ? "GOOD"
+                           : string.IsNullOrEmpty(reason) ? "MISS" : $"MISS\n<size=45%>{reason}</size>";
             popupText.color = j == 0 ? perfectColor : j == 1 ? goodColor : missColor;
             popupLife = 0.6f;
             sfxSource.PlayOneShot(j == 0 ? Pick(perfectClip, genPerfect) : j == 1 ? Pick(goodClip, genGood) : Pick(missClip, genMiss), sfxVolume);
-            if (reaction != null) reaction.React(j);
+            if (reaction != null) reaction.React(j, pattern.Notes[index].Direction); // 노트 방향을 따라 작물이 움직임
 
             RefreshHud();
         }
@@ -526,7 +731,18 @@ namespace FarmingSystem.Rhythm
             if (canvas != null) canvas.gameObject.SetActive(false);
 
             UIInputBlocker.Unblock(this);
-            if (pauseWorld) Time.timeScale = previousTimeScale <= 0f ? 1f : previousTimeScale;
+            ShowGameplayUI();
+            if (debugCrop != null) { Destroy(debugCrop); debugCrop = null; }
+            if (focusedRig != null) focusedRig.EndFocus();
+            focusedRig = null;
+            if (pausedWorldThisSession) Time.timeScale = previousTimeScale <= 0f ? 1f : previousTimeScale;
+            pausedWorldThisSession = false;
+
+            // 진단: 키 입력이 한 번도 안 들어왔는데 끝났으면 원인 안내
+            if (!cancelled && keyPressCount == 0 && result.NoteCount > 0)
+                Debug.LogWarning("[HarvestRhythmGame] 이번 판에 방향키 입력이 한 번도 안 들어왔어요 (그래서 전부 MISS).\n" +
+                                 "→ 1) Game 창을 클릭해서 포커스를 준 뒤 시작했는지 (인스펙터 메뉴로 시작하면 키보드가 Inspector에 가 있음. 대신 플레이 중 F9로 시작해 보세요)\n" +
+                                 "→ 2) Edit > Project Settings > Player > Active Input Handling이 'Input System Package' 또는 'Both'인지");
 
             if (cancelled) Debug.Log($"[수확 리듬게임] {context?.CropName} 포기 - 작물은 그대로 남아 있음");
             else Debug.Log($"[수확 리듬게임] 결과 P{result.Perfect} G{result.Good} M{result.Miss}, 점수 {result.ScoreRatio:P0} → {ItemQualityUtility.GetDisplayName(result.Quality)}, 수확량 x{result.YieldMultiplier}");
@@ -543,6 +759,16 @@ namespace FarmingSystem.Rhythm
         // =====================================================================
 
         // 접근 원: 다가오는 노트마다 하나씩, 판정 원을 향해 줄어듦 (먼저 올 노트가 진하게, 뒤 노트는 흐리게)
+        // 이 노트의 접근 원이 줄어드는 시간
+        // 원 하나만 모드: 앞 노트와의 간격만큼 (앞 노트 박자가 지나는 순간 나타나서 이 노트 박자에 딱 닿음)
+        private float NoteApproach(int i)
+        {
+            float approach = pattern.ApproachTime;
+            if (!oneRingAtATime || i <= 0) return approach;
+            float gap = (float)(pattern.Notes[i].Time - pattern.Notes[i - 1].Time);
+            return Mathf.Clamp(gap, Mathf.Min(minRingTime, approach), approach);
+        }
+
         private void UpdateNoteVisuals()
         {
             float approach = pattern.ApproachTime;
@@ -550,13 +776,17 @@ namespace FarmingSystem.Rhythm
             for (int i = currentIndex; i < pattern.Notes.Count && ringIdx < rings.Count; i++)
             {
                 if (judged[i]) continue;
+                // 원 하나만 모드: 지금 노트(아직 안 친 첫 노트)만 표시
+                if (oneRingAtATime && i != currentIndex) break;
+
+                float a = NoteApproach(i);
                 double t = pattern.Notes[i].Time - songTime;
-                if (t > approach) break;
+                if (t > a) break;
 
                 Ring r = rings[ringIdx++];
                 r.NoteIndex = i;
-                float progress = Mathf.Clamp01((float)(t / approach));
-                float appear = Mathf.Clamp01((float)((approach - t) / (approach * 0.2f)));
+                float progress = Mathf.Clamp01((float)(t / a));
+                float appear = Mathf.Clamp01((float)((a - t) / (a * 0.15f)));
                 r.Image.gameObject.SetActive(true);
                 r.Image.rectTransform.localScale = Vector3.one * Mathf.Lerp(1f, approachStartScale, progress);
                 Color c = approachColor;
@@ -566,27 +796,31 @@ namespace FarmingSystem.Rhythm
             for (; ringIdx < rings.Count; ringIdx++) rings[ringIdx].Image.gameObject.SetActive(false);
 
             // 판정 원 안의 방향키 = 지금 눌러야 할 노트, 옆의 작은 화살표 = 다음 노트
-            bool hasCurrent = currentIndex < pattern.Notes.Count && pattern.Notes[currentIndex].Time - songTime <= approach;
-            arrowImage.enabled = arrowShadow.enabled = hasCurrent;
-            if (hasCurrent)
-            {
-                float rot = DirToAngle(pattern.Notes[currentIndex].Direction);
-                arrowImage.rectTransform.localEulerAngles = new Vector3(0f, 0f, rot);
-                arrowShadow.rectTransform.localEulerAngles = new Vector3(0f, 0f, rot);
-            }
+            bool hasCurrent = currentIndex < pattern.Notes.Count && pattern.Notes[currentIndex].Time - songTime <= NoteApproach(currentIndex);
+            arrowImage.enabled = hasCurrent;
+            arrowShadow.enabled = hasCurrent && !CustomArrows; // 디자이너 화살표는 자체 테두리·빛이 있어서 그림자 안 씀
+            if (hasCurrent) SetArrow(arrowImage, pattern.Notes[currentIndex].Direction);
+            if (hasCurrent && !CustomArrows) arrowShadow.rectTransform.localEulerAngles = arrowImage.rectTransform.localEulerAngles;
             int next = currentIndex + 1;
             bool hasNext = hasCurrent && next < pattern.Notes.Count && pattern.Notes[next].Time - songTime <= approach * 1.5f;
             nextArrow.enabled = hasNext;
-            if (hasNext) nextArrow.rectTransform.localEulerAngles = new Vector3(0f, 0f, DirToAngle(pattern.Notes[next].Direction));
+            if (hasNext) SetArrow(nextArrow, pattern.Notes[next].Direction);
 
             // 방향키 패드: 눌러야 할 키를 주황색으로
             for (int k = 0; k < 4; k++)
             {
                 bool expected = hasCurrent && (int)pattern.Notes[currentIndex].Direction == k;
                 bool flashing = keyFlash > 0f && (int)keyFlashDir == k;
-                keyBacks[k].color = flashing ? Color.white : expected ? KeyHighlight : KeyColor;
-                keyBacks[k].rectTransform.localScale = Vector3.one * (flashing ? 0.92f : expected ? 1.06f : 1f);
-                keyArrows[k].color = expected ? Color.white : new Color(0.35f, 0.35f, 0.35f);
+                if (keySprite != null)
+                {
+                    // 디자이너 키: 눌러야 할 키는 Slot_Dark로 바꾸고(없으면 주황 틴트), 누른 키는 살짝 눌림
+                    keyBacks[k].sprite = expected && keyHighlightSprite != null ? keyHighlightSprite : keySprite;
+                    keyBacks[k].color = expected && keyHighlightSprite == null ? KeyHighlight : Color.white;
+                }
+                else keyBacks[k].color = flashing ? Color.white : expected ? KeyHighlight : KeyColor;
+                keyBacks[k].rectTransform.localScale = Vector3.one * (flashing ? 0.92f : expected ? 1.08f : 1f);
+                keyArrows[k].color = CustomArrows ? new Color(1f, 1f, 1f, expected ? 1f : 0.45f)
+                                                  : expected ? Color.white : new Color(0.35f, 0.35f, 0.35f);
             }
 
             // 진행 바: 첫 노트 ~ 마지막 노트 구간
@@ -626,25 +860,26 @@ namespace FarmingSystem.Rhythm
             int done = result.Perfect + result.Good + result.Miss;
             goalText.text = $"<size=60%><color=#{ColorUtility.ToHtmlStringRGB(LeafGreen)}>수확 목표</color></size>\n{result.Perfect + result.Good} / {pattern.Notes.Count}개";
             comboText.text = $"<size=40%>COMBO</size>\n{combo:00}";
-            remainText.text = $"<size=60%>남은 노트</size>\n{pattern.Notes.Count - done}개";
+            if (remainText != null) remainText.text = $"<size=60%>남은 노트</size>\n{pattern.Notes.Count - done}개";
         }
 
-        // 작물(모델 가운데)의 화면 위치에 판정 원을 둠. 화면 밖으로 넘치지 않게 안쪽으로 당김
-        private Vector2 ComputeCenter(Transform crop, Vector3 fallback)
+        // 작물 모델의 가운데 (월드 좌표). 모델이 없으면 fallback 위치
+        private static Vector3 GetCropCenter(Transform crop, Vector3 fallback)
         {
-            Vector3 world = fallback;
-            if (crop != null)
+            if (crop == null) return fallback;
+            bool found = false;
+            Bounds b = new Bounds(crop.position, Vector3.zero);
+            foreach (Renderer r in crop.GetComponentsInChildren<Renderer>())
             {
-                bool found = false;
-                Bounds b = new Bounds(crop.position, Vector3.zero);
-                foreach (Renderer r in crop.GetComponentsInChildren<Renderer>())
-                {
-                    if (!found) { b = r.bounds; found = true; }
-                    else b.Encapsulate(r.bounds);
-                }
-                world = found ? b.center : crop.position;
+                if (!found) { b = r.bounds; found = true; }
+                else b.Encapsulate(r.bounds);
             }
+            return found ? b.center : crop.position;
+        }
 
+        // 월드 위치 → 캔버스 위치. 화면 밖으로 넘치지 않게 안쪽으로 당김 (위쪽 HUD·아래쪽 방향키 자리 피함)
+        private Vector2 ProjectToCanvas(Vector3 world)
+        {
             Vector2 local = Vector2.zero;
             Camera cam = Camera.main;
             if (cam != null)
@@ -657,7 +892,7 @@ namespace FarmingSystem.Rhythm
             float r0 = judgeRadius * approachStartScale + 20f;
             float maxX = Mathf.Max(0f, half.x - r0);
             float top = half.y - r0 - 150f;    // 위쪽 HUD 자리
-            float bottom = -half.y + r0 + 330f; // 아래쪽 방향키·안내 자리
+            float bottom = -half.y + r0 + 300f; // 아래쪽 방향키·안내 자리
             return new Vector2(Mathf.Clamp(local.x, -maxX, maxX), Mathf.Clamp(local.y, Mathf.Min(bottom, top), Mathf.Max(bottom, top)));
         }
 
@@ -784,6 +1019,7 @@ namespace FarmingSystem.Rhythm
 
             // ---- 오른쪽 위: 남은 노트 ----
             Image remainPanel = CreatePanel("RemainPanel", hud, new Vector2(1f, 1f), new Vector2(-210f, -95f), new Vector2(340f, 120f), Cream);
+            remainPanel.gameObject.SetActive(showRemainingNotes);
             Image remainGlyph = CreateImage("Glyph", remainPanel.rectTransform, noteSprite, new Color(0.55f, 0.35f, 0.9f));
             SetAnchored(remainGlyph.rectTransform, new Vector2(0f, 0.5f), new Vector2(65f, 0f), Vector2.one * 70f);
             remainText = CreateText("Remain", remainPanel.rectTransform, 46f, FontStyles.Bold);
@@ -794,15 +1030,23 @@ namespace FarmingSystem.Rhythm
             // ---- 아래: 방향키 패드 ----
             var pad = new GameObject("KeyPad", typeof(RectTransform)).GetComponent<RectTransform>();
             pad.SetParent(hud, false);
-            SetAnchored(pad, new Vector2(0.5f, 0f), new Vector2(0f, 250f), new Vector2(320f, 210f));
-            Vector2[] keyPos = { new Vector2(0f, 52f), new Vector2(0f, -52f), new Vector2(-104f, -52f), new Vector2(104f, -52f) };
+            SetAnchored(pad, new Vector2(0.5f, 0f), new Vector2(0f, 205f), new Vector2(270f, 180f));
+            Vector2[] keyPos = { new Vector2(0f, 44f), new Vector2(0f, -44f), new Vector2(-88f, -44f), new Vector2(88f, -44f) };
             for (int k = 0; k < 4; k++)
             {
-                CreatePanel("KeyShadow", pad, new Vector2(0.5f, 0.5f), keyPos[k] + new Vector2(0f, -6f), Vector2.one * 92f, new Color(0.45f, 0.42f, 0.4f, 0.9f));
-                keyBacks[k] = CreatePanel("Key", pad, new Vector2(0.5f, 0.5f), keyPos[k], Vector2.one * 92f, KeyColor);
+                keyShadows[k] = CreatePanel("KeyShadow", pad, new Vector2(0.5f, 0.5f), keyPos[k] + new Vector2(0f, -6f), Vector2.one * 76f, new Color(0.45f, 0.42f, 0.4f, 0.9f));
+                keyBacks[k] = CreatePanel("Key", pad, new Vector2(0.5f, 0.5f), keyPos[k], Vector2.one * 76f, KeyColor);
                 keyArrows[k] = CreateImage("Arrow", keyBacks[k].rectTransform, arrowSprite, Color.gray);
-                SetAnchored(keyArrows[k].rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * 50f);
-                keyArrows[k].rectTransform.localEulerAngles = new Vector3(0f, 0f, DirToAngle((ArrowDirection)k));
+                SetAnchored(keyArrows[k].rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * 42f);
+                SetArrow(keyArrows[k], (ArrowDirection)k);
+                if (keySprite != null)
+                {
+                    keyBacks[k].sprite = keySprite;
+                    keyBacks[k].type = Image.Type.Simple;
+                    keyBacks[k].color = Color.white;
+                    keyShadows[k].enabled = false; // 디자이너 키는 테두리가 있어서 그림자 안 씀
+                    SetAnchored(keyArrows[k].rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * 48f);
+                }
             }
 
             // ---- 아래: 안내 문구 ----
@@ -831,6 +1075,87 @@ namespace FarmingSystem.Rhythm
             resultBody.textWrappingMode = TextWrappingModes.Normal;
             SetAnchored(resultBody.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, -45f), new Vector2(580f, 300f));
             resultPanel.SetActive(false);
+
+            // ---- 작물 강조 모서리 (판정 원 바깥 4귀퉁이) ----
+            if (focusCornerSprite != null)
+            {
+                float[] rot = { 0f, -90f, 180f, 90f }; // 왼쪽 위 → 오른쪽 위 → 오른쪽 아래 → 왼쪽 아래
+                for (int i = 0; i < 4; i++)
+                {
+                    focusCorners[i] = CreateImage("FocusCorner", judgeRoot, focusCornerSprite, Color.white);
+                    focusCorners[i].preserveAspect = true;
+                    SetAnchored(focusCorners[i].rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * 46f);
+                    focusCorners[i].rectTransform.localEulerAngles = new Vector3(0f, 0f, rot[i]);
+                    focusCorners[i].transform.SetAsFirstSibling();
+                }
+            }
+
+            // ---- 디자이너 이미지 적용 ----
+            Skin(goalPanel, hudPanelSprite);
+            Skin(remainPanel, hudPanelSprite);
+            if (Skin(barBack, progressBackSprite)) fillBack.color = Color.clear;
+            if (progressFillSprite != null) { progressFill.sprite = progressFillSprite; progressFill.color = Color.white; }
+            Skin(guide, guideSprite);
+            if (Skin(panelBorder, resultWindowSprite))
+            {
+                panel.color = Color.clear;
+                resultTitle.color = Color.white;
+            }
+        }
+
+        // 디자이너 이미지가 있으면 바꿔 끼움. 9-슬라이스 테두리가 설정된 이미지면 크기가 바뀌어도 모서리가 안 늘어남
+        private static bool Skin(Image img, Sprite sprite)
+        {
+            if (img == null || sprite == null) return false;
+            img.sprite = sprite;
+            img.type = sprite.border.sqrMagnitude > 0f ? Image.Type.Sliced : Image.Type.Simple;
+            img.color = Color.white;
+
+            // 판이 이미지 테두리보다 작으면 모서리끼리 겹쳐 찌그러지므로, 테두리가 판 안에 들어가도록 자동으로 줄임
+            if (img.type == Image.Type.Sliced)
+            {
+                Vector2 size = img.rectTransform.sizeDelta;
+                Vector4 bd = sprite.border; // x = 왼쪽, y = 아래, z = 오른쪽, w = 위
+                float needX = size.x > 0f ? (bd.x + bd.z) / (size.x * 0.9f) : 1f;
+                float needY = size.y > 0f ? (bd.y + bd.w) / (size.y * 0.9f) : 1f;
+                img.pixelsPerUnitMultiplier = Mathf.Max(1f, Mathf.Max(needX, needY));
+            }
+            return true;
+        }
+
+        // 방향 아이콘 설정: 디자이너 화살표면 방향별 이미지, 아니면 기본 화살표를 돌려서 사용
+        private void SetArrow(Image img, ArrowDirection dir)
+        {
+            if (CustomArrows)
+            {
+                img.sprite = dir == ArrowDirection.Up ? arrowUpSprite : dir == ArrowDirection.Down ? arrowDownSprite
+                           : dir == ArrowDirection.Left ? arrowLeftSprite : arrowRightSprite;
+                img.preserveAspect = true;
+                img.rectTransform.localEulerAngles = Vector3.zero;
+            }
+            else
+            {
+                img.sprite = arrowSprite;
+                img.rectTransform.localEulerAngles = new Vector3(0f, 0f, DirToAngle(dir));
+            }
+        }
+
+        // 강조 모서리: 시작할 때 바깥에서 판정 원 쪽으로 모여들고, 숨쉬듯 살짝 움직임
+        private void UpdateFocusCorners(float dt)
+        {
+            if (focusCorners[0] == null) return;
+            cornerAnim = Mathf.MoveTowards(cornerAnim, 1f, dt * 3f);
+            float ease = 1f - (1f - cornerAnim) * (1f - cornerAnim);
+            float breathe = Mathf.Sin(Time.unscaledTime * 3f) * 4f;
+            float d = judgeRadius * Mathf.Lerp(2.4f, 1.35f, ease) + breathe;
+            Vector2[] dirs = { new Vector2(-1f, 1f), new Vector2(1f, 1f), new Vector2(1f, -1f), new Vector2(-1f, -1f) };
+            for (int i = 0; i < 4; i++)
+            {
+                focusCorners[i].rectTransform.anchoredPosition = dirs[i] * d;
+                Color c = Color.white;
+                c.a = ease;
+                focusCorners[i].color = c;
+            }
         }
 
         private Image CreatePanel(string name, Transform parent, Vector2 anchor, Vector2 pos, Vector2 size, Color color)

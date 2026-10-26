@@ -27,9 +27,13 @@ namespace FarmingSystem.Player
     // - 각도와 위치 모두 부드러운 보간을 적용하고, 거리는 항상 일정하게 유지
     // - 벽·땅·물체에 카메라가 파묻히면 그 앞까지 당겨오고, 올려다볼 때는 캐릭터 쪽으로 다가옴
     // - 상점·인벤토리가 열리거나 Alt를 누르면 커서가 나타나고 회전이 멈춤
+    // - 강조(Focus): 수확 리듬게임처럼 특정 지점을 잠깐 강조할 때, 바라보는 점을 그쪽으로 옮기고 살짝 다가감
+    //   게임 시간이 멈춰 있어도(Time.timeScale = 0) 카메라는 실제 시간으로 움직임
     //
     public class ThirdPersonCameraRig : MonoBehaviour
     {
+        public static ThirdPersonCameraRig Instance { get; private set; }
+
         [Header("구성")]
         [SerializeField] private Transform target;        // Player
         [SerializeField] private Transform pivot;         // CameraPivot
@@ -73,6 +77,15 @@ namespace FarmingSystem.Player
         [SerializeField] private float collisionRadius = 0.3f;
         [SerializeField] private float minDistance = 1.5f;
 
+        // 강조 상태
+        private bool focusActive;
+        private Vector3 focusPoint;
+        private float focusBlend;
+        private float focusDistanceScale = 1f;
+        private float focusWeight;             // 0 = 평소, 1 = 완전히 강조 (부드럽게 오감)
+        private float pitchBeforeFocus;
+        private const float FocusSharpness = 6f;
+
         private float targetYaw;
         private float targetPitch;
         private float currentDistance;
@@ -91,9 +104,36 @@ namespace FarmingSystem.Player
             ApplyTransforms();
         }
 
+        private void OnEnable()
+        {
+            Instance = this;
+        }
+
         private void OnDisable()
         {
+            if (Instance == this) Instance = null;
             SetCursorLocked(false);
+        }
+
+        // 특정 지점 강조 시작
+        // blend = 바라보는 점을 플레이어에서 그 지점 쪽으로 옮기는 정도 (0~1)
+        // distanceScale = 거리 배율 (0.6 = 60%까지 다가감), pitch = 강조 중 각도 (음수면 지금 각도 유지)
+        public void BeginFocus(Vector3 point, float blend, float distanceScale, float pitch)
+        {
+            if (!focusActive) pitchBeforeFocus = targetPitch;
+            focusActive = true;
+            focusPoint = point;
+            focusBlend = Mathf.Clamp01(blend);
+            focusDistanceScale = Mathf.Clamp(distanceScale, 0.2f, 1f);
+            if (pitch >= 0f) targetPitch = Mathf.Clamp(pitch, minPitch, maxPitch);
+        }
+
+        // 강조 끝 → 원래 각도·거리로 부드럽게 복귀
+        public void EndFocus()
+        {
+            if (!focusActive) return;
+            focusActive = false;
+            targetPitch = pitchBeforeFocus;
         }
 
         private void Update()
@@ -109,10 +149,16 @@ namespace FarmingSystem.Player
         {
             if (target == null || pivot == null || cameraTransform == null) return;
 
-            float dt = Time.deltaTime;
+            // 게임 시간이 멈춘 동안(리듬게임 등)에도 카메라는 움직여야 해서 실제 시간 사용
+            float dt = Time.unscaledDeltaTime;
 
-            // 1) Pivot 위치: 플레이어 위치(+높이)를 부드럽게 따라감
+            // 강조 정도를 부드럽게 0 ↔ 1로
+            focusWeight = Mathf.Lerp(focusWeight, focusActive ? 1f : 0f, SmoothFactor(FocusSharpness, dt));
+
+            // 1) Pivot 위치: 플레이어 위치(+높이)를 부드럽게 따라감. 강조 중이면 강조 지점 쪽으로 옮김
             Vector3 desiredPivot = target.position + Vector3.up * pivotHeight;
+            if (focusWeight > 0.001f)
+                desiredPivot = Vector3.Lerp(desiredPivot, Vector3.Lerp(desiredPivot, focusPoint, focusBlend), focusWeight);
             pivot.position = Smooth(pivot.position, desiredPivot, followSharpness, dt);
 
             // 2) 각도: 목표 각도로 부드럽게 회전 (좌우는 360도를 넘나들어도 최단 방향으로)
@@ -136,7 +182,7 @@ namespace FarmingSystem.Player
         private float CalculateDistance(float dt)
         {
             // 올려다볼수록 카메라를 캐릭터 쪽으로 당김 (낮은 각도에서 카메라가 땅 밑으로 들어가는 것 방지)
-            float wanted = distance;
+            float wanted = distance * Mathf.Lerp(1f, focusDistanceScale, focusWeight);
             if (pitch < zoomInBelowPitch)
             {
                 float t = Mathf.InverseLerp(zoomInBelowPitch, minPitch, pitch);

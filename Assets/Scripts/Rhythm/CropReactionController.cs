@@ -3,7 +3,9 @@ using UnityEngine;
 namespace FarmingSystem.Rhythm
 {
     // 수확 리듬게임 판정에 맞춰 실제 3D 작물을 움직이는 연출 (기획서 10~13장)
-    // - 성공할 때마다 왼쪽 → 오른쪽 → 왼쪽… 번갈아 흔들림 (Perfect 8도 / Good 4도 / Miss 1도, 작물별 배율 적용)
+    // - 방향키 노트를 따라 움직임 (Perfect 8도 / Good 4도 / Miss 1도, 작물별 배율 적용)
+    //     ← 노트 = 왼쪽으로 기울어짐, → 노트 = 오른쪽으로 기울어짐
+    //     ↑ 노트 = 위로 쭉 늘어나며 들썩, ↓ 노트 = 아래로 꾹 눌림
     // - 3번째 성공부터 작물이 조금씩 땅에서 올라옴, 4번째 성공에 흙이 갈라짐(흙 파티클)
     // - 마지막: 좌우로 크게 흔들림 → 위로 튕기듯 뽑힘 + 흙 파티클 + 반짝임 → 작게 줄어들며 사라짐
     // - 흔들림 방향은 카메라 기준 좌우 (화면에서 보이는 그대로 좌우로 기울어짐)
@@ -29,7 +31,13 @@ namespace FarmingSystem.Rhythm
         private float shakeAmp, shakeTime;     // 현재 흔들림 (감쇠 진동)
         private float lift, liftTarget;        // 땅에서 올라온 정도
         private int successCount;
-        private int nextSide = -1;             // -1 = 왼쪽부터
+        private int nextSide = -1;             // 방향 정보가 없을 때 번갈아 흔들 방향 (-1 = 왼쪽부터)
+        private float stretchAmp, stretchTime; // 위·아래 노트의 늘어남(+)/눌림(-) (감쇠 진동)
+
+        // 위·아래 노트 반응 크기 (판정별)
+        public float perfectStretch = 0.18f;
+        public float goodStretch = 0.1f;
+        public float missStretch = 0.03f;
 
         private enum PullState { None, Wobble, Pop, Vanish, Done }
         private PullState pull = PullState.None;
@@ -64,27 +72,44 @@ namespace FarmingSystem.Rhythm
             height = Mathf.Max(0.2f, b.size.y);
         }
 
-        // 판정 결과 반응. 0 = Perfect, 1 = Good, 2 = Miss
+        // 판정 결과 반응 (방향 정보 없음 → 좌우 번갈아)
         public void React(int judgement)
+        {
+            React(judgement, nextSide < 0 ? ArrowDirection.Left : ArrowDirection.Right);
+            nextSide = -nextSide;
+        }
+
+        // 판정 결과 반응. 0 = Perfect, 1 = Good, 2 = Miss / direction = 그 노트의 방향
+        public void React(int judgement, ArrowDirection direction)
         {
             if (pull != PullState.None) return;
 
             float angle = judgement == 0 ? perfectAngle : judgement == 1 ? goodAngle : missAngle;
+            float stretch = judgement == 0 ? perfectStretch : judgement == 1 ? goodStretch : missStretch;
+
+            // 화면 기준: 오른쪽으로 기울이려면 +, 왼쪽은 - (카메라가 보는 방향 축으로 회전)
+            switch (direction)
+            {
+                case ArrowDirection.Left: Kick(-angle * shakeScale); break;
+                case ArrowDirection.Right: Kick(angle * shakeScale); break;
+                case ArrowDirection.Up: Stretch(stretch * shakeScale); break;
+                case ArrowDirection.Down: Stretch(-stretch * shakeScale); break;
+            }
+
             if (judgement < 2)
             {
                 successCount++;
-                Kick(nextSide * angle * shakeScale);
-                nextSide = -nextSide;
 
                 // 누적 연출 (기획서 12장): 3번째 성공부터 조금씩 올라오고, 4번째에 흙이 갈라짐
                 if (successCount >= 3) liftTarget = Mathf.Min(0.12f, 0.03f * (successCount - 2)) * height;
                 if (successCount == 4) SpawnDirt(10, 0.6f);
             }
-            else
-            {
-                // Miss: 살짝 덜컹 (방향 유지)
-                Kick(nextSide * angle * shakeScale);
-            }
+        }
+
+        private void Stretch(float amount)
+        {
+            stretchAmp = amount;
+            stretchTime = 0f;
         }
 
         // 모든 노트가 끝났을 때 뽑히는 연출 시작
@@ -114,12 +139,18 @@ namespace FarmingSystem.Rhythm
         {
             float dt = Time.unscaledDeltaTime;
             shakeTime += dt;
+            stretchTime += dt;
             lift = Mathf.Lerp(lift, liftTarget, 1f - Mathf.Exp(-12f * dt));
 
             // 감쇠 진동: 처음 kick 방향으로 기울었다가 반대로 조금 넘어가며 잦아듦
             float angle = shakeAmp * Mathf.Exp(-shakeDecay * shakeTime) * Mathf.Cos(shakeFrequency * shakeTime);
             float extraLift = 0f;
             float scale = 1f;
+
+            // 위·아래 노트: 세로로 늘어났다(+) 눌렸다(-) 하며 잦아듦. 늘어날 땐 살짝 들썩이며 위로
+            float st = stretchAmp * Mathf.Exp(-8f * stretchTime) * Mathf.Cos(18f * stretchTime);
+            Vector3 stretchScale = new Vector3(1f - st * 0.5f, 1f + st, 1f - st * 0.5f);
+            if (st > 0f) extraLift += st * height * 0.4f;
 
             if (pull != PullState.None && pull != PullState.Done)
             {
@@ -175,7 +206,7 @@ namespace FarmingSystem.Rhythm
             transform.Rotate(tiltAxis, angle, Space.World);
             transform.localPosition = basePosition;
             transform.position += Vector3.up * (lift + extraLift);
-            transform.localScale = baseScale * scale;
+            transform.localScale = Vector3.Scale(baseScale, stretchScale) * scale;
         }
 
         private Bounds GetBounds()
