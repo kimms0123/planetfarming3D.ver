@@ -1,104 +1,119 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 using FarmingSystem.Farming;
+using FarmingSystem.Core;
 
 namespace FarmingSystem.World
 {
-    // Áö¿ª Á¾·ù
+    // ì§€ì—­ ì¢…ë¥˜
     public enum ZoneType
     {
-        Wild,      // Áö¿ªÀÌ ¾Æ´Ñ ÀÏ¹İ ¶¥ (³ª¹«¡¤¹ÙÀ§°¡ ÀÚ¶ó´Â °÷)
-        Home,      // Áı
-        Farm,      // ³óÀå (FarmTileÀÌ ºÙÀº ¹ç)
-        Plaza,     // ¿ìÁÖ¼± / »óÀÎ ±¤Àå
-        Beach,     // ÇØº¯ / Ç×±¸ (ÃßÈÄ ³¬½Ã)
-        Highland   // ³ôÀº Áö´ë (ÃßÈÄ ±¤»ê)
+        Wild,      // ì§€ì—­ì´ ì•„ë‹Œ ì¼ë°˜ ë•… (ë‚˜ë¬´Â·ë°”ìœ„ê°€ ìë¼ëŠ” ê³³)
+        Home,      // ì§‘
+        Farm,      // ë†ì¥ (FarmTileì´ ë¶™ì€ ë°­)
+        Plaza,     // ìš°ì£¼ì„  / ìƒì¸ ê´‘ì¥
+        Beach,     // í•´ë³€ / í•­êµ¬ (ì¶”í›„ ë‚šì‹œ)
+        Highland   // ë†’ì€ ì§€ëŒ€ (ì¶”í›„ ê´‘ì‚°)
     }
 
-    // Áö¿ª ÇÏ³ªÀÇ ¼³Á¤°ª (ÀÎ½ºÆåÅÍ¿¡¼­ À§Ä¡¡¤Å©±â¡¤³ôÀÌ¡¤Àá±İ ¿©ºÎ¸¦ Á¶Àı)
+    // ì§€ì—­ í•˜ë‚˜ì˜ ì„¤ì •ê°’ (ì¸ìŠ¤í™í„°ì—ì„œ ìœ„ì¹˜Â·í¬ê¸°Â·ë†’ì´Â·ì ê¸ˆ ì—¬ë¶€ë¥¼ ì¡°ì ˆ)
     [Serializable]
     public class ZoneDefinition
     {
-        public string displayName = "Áö¿ª";
+        public string displayName = "ì§€ì—­";
         public ZoneType type = ZoneType.Wild;
-        [Tooltip("¸Ê ¾È¿¡¼­ÀÇ À§Ä¡ (0~1). (0,0) = ¿ŞÂÊ ¾Æ·¡(³²¼­), (1,1) = ¿À¸¥ÂÊ À§(ºÏµ¿)")]
+        [Tooltip("ë§µ ì•ˆì—ì„œì˜ ìœ„ì¹˜ (0~1). (0,0) = ì™¼ìª½ ì•„ë˜(ë‚¨ì„œ), (1,1) = ì˜¤ë¥¸ìª½ ìœ„(ë¶ë™)")]
         public Vector2 center = new Vector2(0.5f, 0.5f);
-        [Tooltip("Áö¿ª ¹İÁö¸§ (Ä­ ¼ö)")]
+        [Tooltip("ì§€ì—­ ë°˜ì§€ë¦„ (ì¹¸ ìˆ˜)")]
         public float radius = 5f;
-        [Tooltip("Áö¸é ³ôÀÌ ´Ü°è. 0 = ÇØº¯ ³ôÀÌ, 1 = ±âº» ÆòÁö, 2 = ³ôÀº Áö´ë")]
+        [Tooltip("ì§€ë©´ ë†’ì´ ë‹¨ê³„. 0 = í•´ë³€ ë†’ì´, 1 = ê¸°ë³¸ í‰ì§€, 2 = ë†’ì€ ì§€ëŒ€")]
         public int level = 1;
-        [Tooltip("ÃßÈÄ ÄÜÅÙÃ÷¶ó Áö±İÀº µé¾î°¥ ¼ö ¾ø°Ô ¸·À»Áö")]
+        [Tooltip("ì¶”í›„ ì½˜í…ì¸ ë¼ ì§€ê¸ˆì€ ë“¤ì–´ê°ˆ ìˆ˜ ì—†ê²Œ ë§‰ì„ì§€")]
         public bool locked = false;
-        [TextArea] public string lockedMessage = "¾ÆÁ÷ °¥ ¼ö ¾ø´Â °÷ÀÌ¿¡¿ä.";
+        [TextArea] public string lockedMessage = "ì•„ì§ ê°ˆ ìˆ˜ ì—†ëŠ” ê³³ì´ì—ìš”.";
     }
 
-    // ¸Ê¿¡ ¾²´Â ÇÁ¸®ÆÕ ¹­À½ (AssetHuntsl 3D Tile ¿¡¼ÂÀ» ²ø¾î´Ù ³Ö´Â´Ù)
+    // ë§µì— ì“°ëŠ” í”„ë¦¬íŒ¹ ë¬¶ìŒ (AssetHuntsl 3D Tile ì—ì…‹ì„ ëŒì–´ë‹¤ ë„£ëŠ”ë‹¤)
     [Serializable]
     public class IslandPrefabSet
     {
-        [Header("¶¥ ºí·Ï (À§ÂÊ ¸é)")]
-        [Tooltip("±âº» ÀÜµğ. ¿¹: 3D_Tile_Ground_01 (ÃÊ·Ï À­¸é)")] public GameObject grassTop;
-        [Tooltip("ÇØº¯ ¸ğ·¡ (ºñ¿ì¸é ÀÜµğ)")] public GameObject sandTop;
-        [Tooltip("Èë±æ (ºñ¿ì¸é ÀÜµğ)")] public GameObject pathTop;
-        [Tooltip("±¤Àå ¹Ù´Ú (ºñ¿ì¸é Èë±æ)")] public GameObject plazaTop;
-        [Tooltip("³ôÀº Áö´ë À­¸é (ºñ¿ì¸é ÀÜµğ)")] public GameObject highlandTop;
-        [Tooltip("»ê ²À´ë±â ÂÊ ¹ÙÀ§ À­¸é (ºñ¿ì¸é Stone Fill)")] public GameObject mountainRockTop;
+        [Header("ë•… ë¸”ë¡ (ìœ„ìª½ ë©´)")]
+        [Tooltip("ê¸°ë³¸ ì”ë””. ì˜ˆ: 3D_Tile_Ground_01 (ì´ˆë¡ ìœ—ë©´)")] public GameObject grassTop;
+        [Tooltip("í•´ë³€ ëª¨ë˜ (ë¹„ìš°ë©´ ì”ë””)")] public GameObject sandTop;
+        [Tooltip("í™ê¸¸ (ë¹„ìš°ë©´ ì”ë””)")] public GameObject pathTop;
+        [Tooltip("ê´‘ì¥ ë°”ë‹¥ (ë¹„ìš°ë©´ í™ê¸¸)")] public GameObject plazaTop;
+        [Tooltip("ë†’ì€ ì§€ëŒ€ ìœ—ë©´ (ë¹„ìš°ë©´ ì”ë””)")] public GameObject highlandTop;
+        [Tooltip("ì‚° ê¼­ëŒ€ê¸° ìª½ ë°”ìœ„ ìœ—ë©´ (ë¹„ìš°ë©´ Stone Fill)")] public GameObject mountainRockTop;
 
-        [Header("¶¥ ºí·Ï (¿·¸é / ¼Ó)")]
-        [Tooltip("Àıº® ¿·¸é Èë. ¿¹: °¥»ö ºí·Ï (ºñ¿ì¸é ÀÜµğ)")] public GameObject dirtFill;
-        [Tooltip("³ôÀº Áö´ë Àıº® (ºñ¿ì¸é Èë)")] public GameObject stoneFill;
-        [Tooltip("¹° ¹Ø¹Ù´Ú (ºñ¿ì¸é ¸ğ·¡ ¡æ Èë)")] public GameObject seabed;
+        [Header("ë•… ë¸”ë¡ (ì˜†ë©´ / ì†)")]
+        [Tooltip("ì ˆë²½ ì˜†ë©´ í™. ì˜ˆ: ê°ˆìƒ‰ ë¸”ë¡ (ë¹„ìš°ë©´ ì”ë””)")] public GameObject dirtFill;
+        [Tooltip("ë†’ì€ ì§€ëŒ€ ì ˆë²½ (ë¹„ìš°ë©´ í™)")] public GameObject stoneFill;
+        [Tooltip("ë¬¼ ë°‘ë°”ë‹¥ (ë¹„ìš°ë©´ ëª¨ë˜ â†’ í™)")] public GameObject seabed;
 
-        [Header("¹ç (FarmTile)")]
-        [Tooltip("°¥±â Àü ¹ç ¸ğ½À (ºñ¿ì¸é ÀÜµğ). ±âÁ¸ WorldMapPainter¿¡¼­ ¾²´ø °Í°ú °°°Ô")] public GameObject farmNaturalVisual;
-        [Tooltip("°£ ¹ç ¸ğ½À. ¿¹: 3D_Tile_Farm_F...")] public GameObject farmTilledVisual;
+        [Header("ë°­ (FarmTile)")]
+        [Tooltip("ê°ˆê¸° ì „ ë°­ ëª¨ìŠµ (ë¹„ìš°ë©´ ì”ë””). ê¸°ì¡´ WorldMapPainterì—ì„œ ì“°ë˜ ê²ƒê³¼ ê°™ê²Œ")] public GameObject farmNaturalVisual;
+        [Tooltip("ê°„ ë°­ ëª¨ìŠµ. ì˜ˆ: 3D_Tile_Farm_F...")] public GameObject farmTilledVisual;
 
-        [Header("°æ»ç·Î (³ôÀÌ°¡ ´Ù¸¥ ±æÀ» ÀÕ´Â ºí·Ï)")]
-        [Tooltip("°æ»ç ºí·Ï. ¿¹: ºñ½ºµëÇÑ 3D_Tile_Ground")] public GameObject slope;
-        [Tooltip("°æ»ç ºí·ÏÀÌ ¿Ã¶ó°¡´Â ¹æÇâÀÌ ±æ°ú ¾È ¸ÂÀ¸¸é 90 / 180 / 270À¸·Î Á¶Àı")] public float slopeYawOffset = 0f;
-        [Tooltip("°æ»ç ºí·ÏÀÇ Box Collider¸¦ Mesh Collider·Î ¹Ù²ã ½ÇÁ¦·Î ¿Ã¶ó°¥ ¼ö ÀÖ°Ô")] public bool fixSlopeCollider = true;
+        [Header("ê²½ì‚¬ë¡œ (ë†’ì´ê°€ ë‹¤ë¥¸ ê¸¸ì„ ì‡ëŠ” ë¸”ë¡)")]
+        [Tooltip("ê²½ì‚¬ ë¸”ë¡. ì˜ˆ: ë¹„ìŠ¤ë“¬í•œ 3D_Tile_Ground")] public GameObject slope;
+        [Tooltip("ê²½ì‚¬ ë¸”ë¡ì´ ì˜¬ë¼ê°€ëŠ” ë°©í–¥ì´ ê¸¸ê³¼ ì•ˆ ë§ìœ¼ë©´ 90 / 180 / 270ìœ¼ë¡œ ì¡°ì ˆ")] public float slopeYawOffset = 0f;
+        [Tooltip("(ì´ì œ ì•ˆ ì”€ - ê²½ì‚¬ë¡œëŠ” í•­ìƒ ëª¨ì–‘ ê·¸ëŒ€ë¡œì˜ Mesh Colliderë¡œ ìë™ ì„¤ì •ë¨)")] public bool fixSlopeCollider = true;
 
-        [Header("¹° / ´Ù¸®")]
-        [Tooltip("¹° 1Ä­ (AssetHuntsl ¹° ¿¡¼Â)")] public GameObject waterTile;
-        [Tooltip("¼¶ ¹Ù±ù Å« ¹Ù´Ù (¼±ÅÃ, ÇÏ³ª¸¸ Å©°Ô ±ò¸²)")] public GameObject oceanPlane;
-        [Tooltip("´Ù¸® 1Ä­ (ºñ¿ì¸é Èë±æ ºí·ÏÀ¸·Î ´ë½Å ³õÀ½)")] public GameObject bridge;
-        [Tooltip("ºÎ¼­Áø ´Ù¸® 1Ä­ (Àá±ä Áö¿ªÀ¸·Î °¡´Â ´Ù¸®, ºñ¿ì¸é ¾Æ¹«°Íµµ ¾È ³õÀ½)")] public GameObject brokenBridge;
-        [Tooltip("´Ù¸® ¹æÇâÀÌ ±æ°ú ¾È ¸ÂÀ¸¸é 90À¸·Î Á¶Àı")] public float bridgeYawOffset = 0f;
+        [Header("ë¬¼ / ë‹¤ë¦¬")]
+        [Tooltip("ë¬¼ 1ì¹¸ (AssetHuntsl ë¬¼ ì—ì…‹)")] public GameObject waterTile;
+        [Tooltip("ì„¬ ë°”ê¹¥ í° ë°”ë‹¤ (ì„ íƒ, í•˜ë‚˜ë§Œ í¬ê²Œ ê¹”ë¦¼)")] public GameObject oceanPlane;
+        [Tooltip("ë‹¤ë¦¬ 1ì¹¸ (ë¹„ìš°ë©´ í™ê¸¸ ë¸”ë¡ìœ¼ë¡œ ëŒ€ì‹  ë†“ìŒ)")] public GameObject bridge;
+        [Tooltip("ë¶€ì„œì§„ ë‹¤ë¦¬ 1ì¹¸ (ì ê¸´ ì§€ì—­ìœ¼ë¡œ ê°€ëŠ” ë‹¤ë¦¬, ë¹„ìš°ë©´ ì•„ë¬´ê²ƒë„ ì•ˆ ë†“ìŒ)")] public GameObject brokenBridge;
+        [Tooltip("ë‹¤ë¦¬ ë°©í–¥ì´ ê¸¸ê³¼ ì•ˆ ë§ìœ¼ë©´ 90ìœ¼ë¡œ ì¡°ì ˆ")] public float bridgeYawOffset = 0f;
 
-        [Header("Àå½Ä")]
+        [Header("ì¥ì‹")]
+        [Tooltip("ë‚˜ë¬´ í”„ë¦¬íŒ¹ (ê³„ì ˆ ë‚˜ë¬´ë©´ ë´„ ë‚˜ë¬´ë¥¼ ë„£ê³ , ì•„ë˜ Seasonal Tree Setì— ê³„ì ˆë³„ ë‚˜ë¬´ë¥¼ ë“±ë¡)")]
         public GameObject[] trees;
+        [Tooltip("ê³„ì ˆë³„ ë‚˜ë¬´ ë¬¶ìŒ (Seasonal Block Set íŒŒì¼ - í•œ ì¤„ = ë‚˜ë¬´ í•œ ì¢…ë¥˜ì˜ ë´„Â·ì—¬ë¦„Â·ê°€ì„Â·ê²¨ìš¸ í”„ë¦¬íŒ¹).\n" +
+                 "ì—¬ê¸° ë“±ë¡ëœ ë‚˜ë¬´ëŠ” ê³„ì ˆë§ˆë‹¤ ëª¨ë¸ì´ í†µì§¸ë¡œ ë°”ë€œ. ë¹„ìš°ë©´ ë‚˜ë¬´ëŠ” ê³„ì ˆê³¼ ìƒê´€ì—†ì´ ê·¸ëŒ€ë¡œ")]
+        public SeasonalBlockSet seasonalTreeSet;
         public GameObject[] rocks;
-        [Tooltip("Àá±ä Áö¿ª ÀÔ±¸¸¦ ¸·´Â ÀÜÇØ (¹ÙÀ§, Ç¥ÁöÆÇ µî)")] public GameObject gateRubble;
+        [Tooltip("ì ê¸´ ì§€ì—­ ì…êµ¬ë¥¼ ë§‰ëŠ” ì”í•´ (ë°”ìœ„, í‘œì§€íŒ ë“±)")] public GameObject gateRubble;
 
-        [Header("°Ç¹° (¼±ÅÃ - ºñ¿ì¸é À§Ä¡ Ç¥½Ã¿ë ºó ¿ÀºêÁ§Æ®¸¸ »ı¼º)")]
+        [Header("ê±´ë¬¼ (ì„ íƒ - ë¹„ìš°ë©´ ìœ„ì¹˜ í‘œì‹œìš© ë¹ˆ ì˜¤ë¸Œì íŠ¸ë§Œ ìƒì„±)")]
         public GameObject house;
         public GameObject shop;
+
+        [Header("ê´‘ì‚° ì…êµ¬ (ë¹„ìš°ë©´ ì„ì‹œ ëª¨ì–‘ - ê²€ì€ ì…êµ¬ + ë‚˜ë¬´ í‘œì§€íŒ)")]
+        [Tooltip("ì‚° ì ˆë²½ì— ë¶™ëŠ” ë™êµ´ ì…êµ¬ ëª¨ë¸. ê¸°ì¤€ì  = ë°”ë‹¥ ê°€ìš´ë°, ì•(íŒŒë€ Zì¶•)ì´ ë°”ê¹¥(í”Œë ˆì´ì–´ ìª½)ì„ ë³´ê²Œ")]
+        public GameObject mineEntrance;
+        [Tooltip("ì ê²¨ ìˆëŠ” ë™ì•ˆ ì…êµ¬ ì•ì— ì„¸ìš¸ 'ì¶œì…ê¸ˆì§€' í‘œì§€íŒ (ì—´ë¦¬ë©´ ì‚¬ë¼ì§)")]
+        public GameObject mineClosedSign;
     }
 
-    // »ı¼º Áß¿¡ ¾²´Â ¸Ê µ¥ÀÌÅÍ (Ä­ ´ÜÀ§ 2Â÷¿ø ¹è¿­)
+    // ìƒì„± ì¤‘ì— ì“°ëŠ” ë§µ ë°ì´í„° (ì¹¸ ë‹¨ìœ„ 2ì°¨ì› ë°°ì—´)
     public class IslandLayout
     {
         public readonly int width, depth;
-        public readonly bool[,] land;          // ¶¥ÀÎÁö (false = ¹°)
-        public readonly bool[,] river;         // °­ÀÎÁö (¹Ù´Ù¿Í ±¸ºĞ, ´Ù¸®¸¦ ³õÀ» ¼ö ÀÖ´Â ¹°)
-        public readonly int[,] level;          // Áö¸é ³ôÀÌ ´Ü°è (¹° = -1)
-        public readonly int[,] zoneIndex;      // ¾î´À Áö¿ªÀÎÁö (-1 = ÀÏ¹İ ¶¥)
-        public readonly bool[,] road;          // ±æÀÎÁö (°­ À§¸é ´Ù¸®)
-        public readonly bool[,] shore;         // ¼¶ µÑ·¹ ¸ğ·¡»çÀåÀÎÁö (ÇØº¯ ³ôÀÌ, ¸ğ·¡ ºí·Ï)
-        public readonly int[,] rampDir;        // °æ»ç·Î ¹æÇâ (-1 = ¾øÀ½, 0~3 = ¿Ã¶ó°¡´Â ¹æÇâ)
-        public readonly int[,] bridgeAxis;     // ´Ù¸® ¹æÇâ (-1 = ¾øÀ½, 0 = ³²ºÏ, 1 = µ¿¼­)
-        public readonly int[,] bridgeLockZone; // Àá±ä Áö¿ªÀ¸·Î °¡´Â ºÎ¼­Áø ´Ù¸®¸é ±× Áö¿ª ¹øÈ£ (-1 = Á¤»ó ´Ù¸®)
-        public int[,] coastDistance;           // °¡Àå °¡±î¿î ¹°±îÁö °Å¸®
-        public int[,] zoneDistance;            // °¡Àå °¡±î¿î Áö¿ª(Áı¡¤³óÀå µî)±îÁö °Å¸®
+        public readonly bool[,] land;          // ë•…ì¸ì§€ (false = ë¬¼)
+        public readonly bool[,] river;         // ê°•ì¸ì§€ (ë°”ë‹¤ì™€ êµ¬ë¶„, ë‹¤ë¦¬ë¥¼ ë†“ì„ ìˆ˜ ìˆëŠ” ë¬¼)
+        public readonly int[,] level;          // ì§€ë©´ ë†’ì´ ë‹¨ê³„ (ë¬¼ = -1)
+        public readonly int[,] zoneIndex;      // ì–´ëŠ ì§€ì—­ì¸ì§€ (-1 = ì¼ë°˜ ë•…)
+        public readonly bool[,] road;          // ê¸¸ì¸ì§€ (ê°• ìœ„ë©´ ë‹¤ë¦¬)
+        public readonly bool[,] shore;         // ì„¬ ë‘˜ë ˆ ëª¨ë˜ì‚¬ì¥ì¸ì§€ (í•´ë³€ ë†’ì´, ëª¨ë˜ ë¸”ë¡)
+        public readonly int[,] rampDir;        // ê²½ì‚¬ë¡œ ë°©í–¥ (-1 = ì—†ìŒ, 0~3 = ì˜¬ë¼ê°€ëŠ” ë°©í–¥)
+        public readonly int[,] bridgeAxis;     // ë‹¤ë¦¬ ë°©í–¥ (-1 = ì—†ìŒ, 0 = ë‚¨ë¶, 1 = ë™ì„œ)
+        public readonly int[,] bridgeLockZone; // ì ê¸´ ì§€ì—­ìœ¼ë¡œ ê°€ëŠ” ë¶€ì„œì§„ ë‹¤ë¦¬ë©´ ê·¸ ì§€ì—­ ë²ˆí˜¸ (-1 = ì •ìƒ ë‹¤ë¦¬)
+        public int[,] coastDistance;           // ê°€ì¥ ê°€ê¹Œìš´ ë¬¼ê¹Œì§€ ê±°ë¦¬
+        public int[,] zoneDistance;            // ê°€ì¥ ê°€ê¹Œìš´ ì§€ì—­(ì§‘Â·ë†ì¥ ë“±)ê¹Œì§€ ê±°ë¦¬
         public readonly List<Vector2> treePositions = new List<Vector2>();
         public readonly List<Vector2> rockPositions = new List<Vector2>();
         public readonly Dictionary<int, Vector2Int> gateCells = new Dictionary<int, Vector2Int>();
-        public readonly Dictionary<int, int> gateDirs = new Dictionary<int, int>(); // ÀÔ±¸¿¡¼­ ¹Ù±ùÀ» ÇâÇÏ´Â ¹æÇâ
+        public readonly Dictionary<int, int> gateDirs = new Dictionary<int, int>(); // ì…êµ¬ì—ì„œ ë°”ê¹¥ì„ í–¥í•˜ëŠ” ë°©í–¥
         public readonly List<string> warnings = new List<string>();
+        public Vector2Int mineFront = new Vector2Int(-1, -1); // ê´‘ì‚° ì…êµ¬ ì•ì— ì„œëŠ” ì¹¸
+        public int mineDir = -1;                              // ì…êµ¬ ì• ì¹¸ â†’ ì ˆë²½(ì‚° ì•ˆìª½) ë°©í–¥ (-1 = ì…êµ¬ ì—†ìŒ)
+        public float treeRootRadiusCells;                     // ë‚˜ë¬´ ë°‘ë™(ë¿Œë¦¬)ì´ ì°¨ì§€í•˜ëŠ” ë°˜ì§€ë¦„ (ì¹¸ ë‹¨ìœ„)
+        public float treeJitter = 0.3f;                       // ë‚˜ë¬´ë¥¼ ì¹¸ ê°€ìš´ë°ì—ì„œ í”ë“œëŠ” ìµœëŒ€ ê±°ë¦¬ (ì¹¸ ë‹¨ìœ„)
 
         public IslandLayout(int width, int depth)
         {
@@ -125,203 +140,247 @@ namespace FarmingSystem.World
 
         public bool InBounds(Vector2Int c) => c.x >= 0 && c.y >= 0 && c.x < width && c.y < depth;
         public bool IsSea(Vector2Int c) => !land[c.x, c.y] && !river[c.x, c.y];
-        // ¶¥ÀÌ°Å³ª ´Ù¸®°¡ ³õÀÎ °­ = °É¾î ´Ù´Ò ¼ö ÀÖ´Â Ä­
+        // ë•…ì´ê±°ë‚˜ ë‹¤ë¦¬ê°€ ë†“ì¸ ê°• = ê±¸ì–´ ë‹¤ë‹ ìˆ˜ ìˆëŠ” ì¹¸
         public bool IsWalkable(Vector2Int c) => land[c.x, c.y] || (river[c.x, c.y] && road[c.x, c.y]);
-        // ÀÌ Ä­ÀÇ À­¸é ³ôÀÌ ´Ü°è (¹° = -1)
+        // ì´ ì¹¸ì˜ ìœ—ë©´ ë†’ì´ ë‹¨ê³„ (ë¬¼ = -1)
         public int TopLevel(int x, int z) => land[x, z] ? level[x, z] : -1;
     }
 
-    // ¼¶ ¸Ê ÀÚµ¿ »ı¼º±â
-    // 1) ¼¶ ¸ğ¾ç: ¿øÇü °¨¼è + ÇÁ·¢Å» ³ëÀÌÁî ¡æ ¼¿·ê·¯ ¿ÀÅä¸¶Å¸·Î ´Ùµë±â ¡æ ÇÃ·¯µå ÇÊ·Î º»¼¶¸¸ ³²±â±â
-    // 2) Áö¿ª: ¼³Á¤ÇÑ Áö¿ª Áß½É/¹İÁö¸§À¸·Î Ä­¸¶´Ù °¡Àå °¡±î¿î Áö¿ªÀ» Á¤ÇÔ (°¡Áß º¸·Î³ëÀÌ)
-    // 3) ³ôÀÌ: Áö¿ªº° ³ôÀÌ + ³ëÀÌÁî ¾ğ´ö ¡æ °è´Ü½Ä ÁöÇü
-    // 4) °­: ³ôÀº Áö´ë °¡ÀåÀÚ¸®¿¡¼­ ¹Ù´Ù±îÁö A*·Î ±ÁÀÌÄ¡´Â ¹°±æÀ» ³¿
-    // 5) ±æ: Áı¿¡¼­ °¢ Áö¿ª±îÁö A* (±âÁ¸ ±æ Àç»ç¿ë ½Ã ºñ¿ë¡é ¡æ ÀÚ¿¬½º·´°Ô ±æÀÌ ÇÕÃÄÁü), ³ôÀÌÂ÷´Â °æ»ç·Î, °­Àº ´Ù¸®
-    // 6) Àá±ä Áö¿ª: °æ°è¸¦ Åõ¸í º®À¸·Î ¸·°í, °¡´Â ±æÀÇ ´Ù¸®´Â ºÎ¼­Áø ´Ù¸®, ÀÔ±¸¿£ ÀÜÇØ¸¦ ³õÀ½
-    // 7) Àå½Ä: Æ÷¾Æ¼Û µğ½ºÅ© »ùÇÃ¸µÀ¸·Î ³ª¹«¡¤¹ÙÀ§¸¦ °í¸£°Ô ¹èÄ¡
-    // ¿¡µğÅÍ¿¡¼­ [¹Ì¸®º¸±â]·Î »ö»ó Áöµµ¸¦ È®ÀÎÇÏ°í [¸Ê »ı¼º]À¸·Î ½ÇÁ¦ ºí·ÏÀ» ¹èÄ¡ÇÑ´Ù
+    // ì„¬ ë§µ ìë™ ìƒì„±ê¸°
+    // 1) ì„¬ ëª¨ì–‘: ì›í˜• ê°ì‡  + í”„ë™íƒˆ ë…¸ì´ì¦ˆ â†’ ì…€ë£°ëŸ¬ ì˜¤í† ë§ˆíƒ€ë¡œ ë‹¤ë“¬ê¸° â†’ í”ŒëŸ¬ë“œ í•„ë¡œ ë³¸ì„¬ë§Œ ë‚¨ê¸°ê¸°
+    // 2) ì§€ì—­: ì„¤ì •í•œ ì§€ì—­ ì¤‘ì‹¬/ë°˜ì§€ë¦„ìœ¼ë¡œ ì¹¸ë§ˆë‹¤ ê°€ì¥ ê°€ê¹Œìš´ ì§€ì—­ì„ ì •í•¨ (ê°€ì¤‘ ë³´ë¡œë…¸ì´)
+    // 3) ë†’ì´: ì§€ì—­ë³„ ë†’ì´ + ë…¸ì´ì¦ˆ ì–¸ë• â†’ ê³„ë‹¨ì‹ ì§€í˜•
+    // 4) ê°•: ë†’ì€ ì§€ëŒ€ ê°€ì¥ìë¦¬ì—ì„œ ë°”ë‹¤ê¹Œì§€ A*ë¡œ êµ½ì´ì¹˜ëŠ” ë¬¼ê¸¸ì„ ëƒ„
+    // 5) ê¸¸: ì§‘ì—ì„œ ê° ì§€ì—­ê¹Œì§€ A* (ê¸°ì¡´ ê¸¸ ì¬ì‚¬ìš© ì‹œ ë¹„ìš©â†“ â†’ ìì—°ìŠ¤ëŸ½ê²Œ ê¸¸ì´ í•©ì³ì§), ë†’ì´ì°¨ëŠ” ê²½ì‚¬ë¡œ, ê°•ì€ ë‹¤ë¦¬
+    // 6) ì ê¸´ ì§€ì—­: ê²½ê³„ë¥¼ íˆ¬ëª… ë²½ìœ¼ë¡œ ë§‰ê³ , ê°€ëŠ” ê¸¸ì˜ ë‹¤ë¦¬ëŠ” ë¶€ì„œì§„ ë‹¤ë¦¬, ì…êµ¬ì—” ì”í•´ë¥¼ ë†“ìŒ
+    // 7) ì¥ì‹: í¬ì•„ì†¡ ë””ìŠ¤í¬ ìƒ˜í”Œë§ìœ¼ë¡œ ë‚˜ë¬´Â·ë°”ìœ„ë¥¼ ê³ ë¥´ê²Œ ë°°ì¹˜
+    // ì—ë””í„°ì—ì„œ [ë¯¸ë¦¬ë³´ê¸°]ë¡œ ìƒ‰ìƒ ì§€ë„ë¥¼ í™•ì¸í•˜ê³  [ë§µ ìƒì„±]ìœ¼ë¡œ ì‹¤ì œ ë¸”ë¡ì„ ë°°ì¹˜í•œë‹¤
     public class IslandMapGenerator : MonoBehaviour
     {
         private const string RootName = "GeneratedIsland";
         private const int IgnoreRaycastLayer = 2;
 
-        [Header("¸Ê Å©±â")]
-        [Tooltip("°¡·Î Ä­ ¼ö (¹Ù±ù ¹° Å×µÎ¸® Æ÷ÇÔ)")]
+        [Header("ë§µ í¬ê¸°")]
+        [Tooltip("ê°€ë¡œ ì¹¸ ìˆ˜ (ë°”ê¹¥ ë¬¼ í…Œë‘ë¦¬ í¬í•¨)")]
         [SerializeField] private int width = 112;
-        [Tooltip("¼¼·Î Ä­ ¼ö (¹Ù±ù ¹° Å×µÎ¸® Æ÷ÇÔ)")]
+        [Tooltip("ì„¸ë¡œ ì¹¸ ìˆ˜ (ë°”ê¹¥ ë¬¼ í…Œë‘ë¦¬ í¬í•¨)")]
         [SerializeField] private int depth = 96;
-        [Tooltip("°°Àº ½Ãµå = Ç×»ó °°Àº ¸Ê. ¸¶À½¿¡ µå´Â ¸ÊÀÌ ³ª¿À¸é ÀÌ ¼ıÀÚ¸¦ ±â·Ï")]
+        [Tooltip("ê°™ì€ ì‹œë“œ = í•­ìƒ ê°™ì€ ë§µ. ë§ˆìŒì— ë“œëŠ” ë§µì´ ë‚˜ì˜¤ë©´ ì´ ìˆ«ìë¥¼ ê¸°ë¡")]
         [SerializeField] private int seed = 12345;
 
-        [Header("ÀüÃ¼ Å©±â")]
-        [Tooltip("¸Ê ÀüÃ¼ ¹èÀ². ºí·Ï¡¤³ôÀÌ¡¤¹°¡¤º®¡¤³ª¹« Å©±â°¡ ¸ğµÎ °°ÀÌ Ä¿Áü. Ä³¸¯ÅÍ¿¡ ºñÇØ ¸ÊÀÌ ÀÛÀ¸¸é 1.5 ~ 2·Î")]
+        [Header("ì „ì²´ í¬ê¸°")]
+        [Tooltip("ë§µ ì „ì²´ ë°°ìœ¨. ë¸”ë¡Â·ë†’ì´Â·ë¬¼Â·ë²½Â·ë‚˜ë¬´ í¬ê¸°ê°€ ëª¨ë‘ ê°™ì´ ì»¤ì§. ìºë¦­í„°ì— ë¹„í•´ ë§µì´ ì‘ìœ¼ë©´ 1.5 ~ 2ë¡œ")]
         [SerializeField, Range(0.5f, 4f)] private float worldScale = 2f;
-        [Tooltip("³ª¹«¡¤¹ÙÀ§ Å©±â ¹èÀ² (ÀüÃ¼ ¹èÀ²¿¡ Ãß°¡·Î °öÇØÁü)")]
+        [Tooltip("ë‚˜ë¬´Â·ë°”ìœ„ í¬ê¸° ë°°ìœ¨ (ì „ì²´ ë°°ìœ¨ì— ì¶”ê°€ë¡œ ê³±í•´ì§)")]
         [SerializeField] private float propScale = 1f;
+        [Tooltip("ë‚˜ë¬´ ë†’ì´ (m). ëª¨ë¸ í¬ê¸°ë¥¼ ì¬ì„œ ì´ ë†’ì´ì— ë§ì¶¤ (í”Œë ˆì´ì–´ í‚¤ ì•½ 2m, ë™ìˆ² ëŠë‚Œì´ë©´ 5 ì •ë„).\n0ì´ë©´ ì•„ë˜ Tree Scale ë°°ìœ¨ì„ ê·¸ëŒ€ë¡œ ì”€")]
+        [SerializeField, Range(0f, 15f)] private float treeHeight = 5f;
+        [Tooltip("ë‚˜ë¬´ë§Œ ë”°ë¡œ í‚¤ìš°ëŠ” ë°°ìœ¨ (Tree Heightê°€ 0ì¼ ë•Œë§Œ ì‚¬ìš©, ë‚˜ë¬´Â·ë°”ìœ„ ë°°ìœ¨ì— ì¶”ê°€ë¡œ ê³±í•´ì§)")]
+        [SerializeField] private float treeScale = 1f;
+        [Tooltip("ë‚˜ë¬´ë¥¼ ë•…ì— ë°•ì•„ ë„£ëŠ” ê¹Šì´ (ë‚˜ë¬´ ë†’ì´ ëŒ€ë¹„ ë¹„ìœ¨). ë¿Œë¦¬ê°€ ë“œëŸ¬ë‚˜ ë–  ë³´ì´ë©´ ì˜¬ë¦¬ê¸° (0.08 = ë†’ì´ì˜ 8%)")]
+        [SerializeField, Range(0f, 0.3f)] private float treeSinkRatio = 0.08f;
+        [Tooltip("ë‚˜ë¬´ ë°‘ë™(ë¿Œë¦¬) ë‘˜ë ˆì— ë‚¨ê¸¸ ì—¬ìœ  (m). ë¿Œë¦¬ê°€ ì ˆë²½ ëÂ·ë¬¼ê°€ ë°–ìœ¼ë¡œ íŠ€ì–´ë‚˜ì˜¤ì§€ ì•Šê²Œ ì´ë§Œí¼ ë” ì•ˆìª½ì— ì‹¬ìŒ")]
+        [SerializeField, Range(0f, 1f)] private float treeRootMargin = 0.15f;
 
-        [Header("ºí·Ï Å©±â (ÀüÃ¼ ¹èÀ² 1ÀÏ ¶§ ±âÁØ - ±âÁ¸ WorldMapPainter¿Í °°Àº °ª)")]
-        [Tooltip("Ä­ °£°İ. ÀÌÀ½¸Å Á¦°Å¿ëÀ¸·Î 1º¸´Ù »ìÂ¦ ÀÛ°Ô. FarmGridÀÇ Tile Size¿Í ¹İµå½Ã °°¾Æ¾ß ÇÔ")]
+        [Header("ë¸”ë¡ í¬ê¸° (ì „ì²´ ë°°ìœ¨ 1ì¼ ë•Œ ê¸°ì¤€ - ê¸°ì¡´ WorldMapPainterì™€ ê°™ì€ ê°’)")]
+        [Tooltip("ì¹¸ ê°„ê²©. ì´ìŒë§¤ ì œê±°ìš©ìœ¼ë¡œ 1ë³´ë‹¤ ì‚´ì§ ì‘ê²Œ. FarmGridì˜ Tile Sizeì™€ ë°˜ë“œì‹œ ê°™ì•„ì•¼ í•¨")]
         [SerializeField] private float cellSize = 0.97f;
-        [Tooltip("³ôÀÌ 1´Ü°è = ºí·Ï 1°³ ³ôÀÌ")]
+        [Tooltip("ë†’ì´ 1ë‹¨ê³„ = ë¸”ë¡ 1ê°œ ë†’ì´")]
         [SerializeField] private float levelHeight = 1f;
-        [Tooltip("¿øº» 2À¯´Ö ºí·ÏÀ» 1À¯´ÖÀ¸·Î ÁÙÀÌ´Â ¹èÀ²")]
+        [Tooltip("ì›ë³¸ 2ìœ ë‹› ë¸”ë¡ì„ 1ìœ ë‹›ìœ¼ë¡œ ì¤„ì´ëŠ” ë°°ìœ¨")]
         [SerializeField] private float blockScale = 0.5f;
-        [Tooltip("ºí·Ï ÇÇ¹şÀÌ ¹Ù´Ú Áß¾ÓÀÌ ¾Æ´Ï¸é º¸Á¤")]
+        [Tooltip("ë¸”ë¡ í”¼ë²—ì´ ë°”ë‹¥ ì¤‘ì•™ì´ ì•„ë‹ˆë©´ ë³´ì • (ì•„ë˜ 'ë¸”ë¡ ë°”ë‹¥ ìë™ ë§ì¶¤'ì„ ì¼œë©´ 0ìœ¼ë¡œ ë‘ê¸°)")]
         [SerializeField] private Vector3 blockOffset = Vector3.zero;
+        [Tooltip("ë¸”ë¡ ëª¨ë¸ì˜ ë°”ë‹¥ì´ ì–´ë”” ìˆëŠ”ì§€ ì¬ì„œ, ëª¨ë“  ë¸”ë¡ì˜ ë°”ë‹¥ì„ ì¹¸ ë°”ë‹¥ì— ë§ì¶¤.\n" +
+                 "ê¸°ì¤€ì ì´ ë°”ë‹¥ì¸ ë¸”ë¡(ê·¸ë˜í”½íŒ€ ë¸”ë¡)ê³¼ ê¸°ì¤€ì ì´ ê°€ìš´ë°ì¸ ë¸”ë¡(ì˜ˆì „ ì—ì…‹)ì„ ì„ì–´ ì¨ë„ ë†’ì´ê°€ ë§ìŒ.\n" +
+                 "ì˜®ê¸´ ë¸”ë¡ì€ Consoleì— '[ë¸”ë¡ ë°”ë‹¥ ë§ì¶¤]'ìœ¼ë¡œ ë‚˜ì˜´")]
+        [SerializeField] private bool alignBlockBottoms = true;
 
-        [Header("¼¶ ¸ğ¾ç")]
-        [Tooltip("¸Ê °¡ÀåÀÚ¸®¿¡¼­ ¸î Ä­À» ¹«Á¶°Ç ¹°·Î µÑÁö")]
+        [Header("ì„¬ ëª¨ì–‘")]
+        [Tooltip("ë§µ ê°€ì¥ìë¦¬ì—ì„œ ëª‡ ì¹¸ì„ ë¬´ì¡°ê±´ ë¬¼ë¡œ ë‘˜ì§€")]
         [SerializeField] private int borderWater = 3;
-        [Tooltip("³ôÀ»¼ö·Ï ¼¶ÀÌ ÀÛ¾ÆÁü")]
+        [Tooltip("ë†’ì„ìˆ˜ë¡ ì„¬ì´ ì‘ì•„ì§")]
         [SerializeField, Range(-0.2f, 0.6f)] private float landThreshold = 0.08f;
-        [Tooltip("¼¶ ¸ğ¾çÀÌ ¾ó¸¶³ª ³×¸ğ³­Áö (2 = ¿øÇü, 4 = µÕ±Ù ³×¸ğ, Å¬¼ö·Ï ¸ÊÀ» ²Ë Ã¤¿ò)")]
+        [Tooltip("ì„¬ ëª¨ì–‘ì´ ì–¼ë§ˆë‚˜ ë„¤ëª¨ë‚œì§€ (2 = ì›í˜•, 4 = ë‘¥ê·¼ ë„¤ëª¨, í´ìˆ˜ë¡ ë§µì„ ê½‰ ì±„ì›€)")]
         [SerializeField, Range(2f, 8f)] private float islandSquareness = 4f;
-        [Tooltip("ÇØ¾È¼± ³ëÀÌÁî Å©±â (ÀÛÀ»¼ö·Ï Å« ±¼°î)")]
+        [Tooltip("í•´ì•ˆì„  ë…¸ì´ì¦ˆ í¬ê¸° (ì‘ì„ìˆ˜ë¡ í° êµ´ê³¡)")]
         [SerializeField] private float coastNoiseScale = 0.05f;
-        [Tooltip("ÇØ¾È¼±ÀÌ ¾ó¸¶³ª ¿ïÅüºÒÅüÇÑÁö")]
+        [Tooltip("í•´ì•ˆì„ ì´ ì–¼ë§ˆë‚˜ ìš¸í‰ë¶ˆí‰í•œì§€")]
         [SerializeField, Range(0f, 1.5f)] private float coastRoughness = 0.55f;
-        [Tooltip("¼¿·ê·¯ ¿ÀÅä¸¶Å¸ ´Ùµë±â È½¼ö")]
+        [Tooltip("ì…€ë£°ëŸ¬ ì˜¤í† ë§ˆíƒ€ ë‹¤ë“¬ê¸° íšŸìˆ˜")]
         [SerializeField, Range(0, 6)] private int smoothingPasses = 2;
-        [Tooltip("Áö¿ªÀÌ ¾Æ´Ñ ÀÏ¹İ ¶¥ÀÇ ³ôÀÌ ´Ü°è")]
+        [Tooltip("ì§€ì—­ì´ ì•„ë‹Œ ì¼ë°˜ ë•…ì˜ ë†’ì´ ë‹¨ê³„")]
         [SerializeField] private int baseLevel = 1;
 
-        [Header("¾ğ´ö (ÀÏ¹İ ¶¥¿¡ »ı±â´Â ÇÑ ´Ü ³ôÀº µĞ´ö)")]
-        [SerializeField] private bool generateHills = true;
-        [SerializeField] private float hillNoiseScale = 0.15f;
-        [Tooltip("³ôÀ»¼ö·Ï ¾ğ´öÀÌ Àû¾îÁü")]
-        [SerializeField, Range(0.4f, 0.9f)] private float hillThreshold = 0.64f;
 
-        [Header("°­")]
+        [Header("ê°•")]
         [SerializeField] private bool generateRiver = true;
-        [Tooltip("°­ÀÌ ¹Ù´Ù·Î ºüÁ®³ª°¡´Â ÂÊ (0~1 ÁÂÇ¥)")]
+        [Tooltip("ê°•ì´ ë°”ë‹¤ë¡œ ë¹ ì ¸ë‚˜ê°€ëŠ” ìª½ (0~1 ì¢Œí‘œ)")]
         [SerializeField] private Vector2 riverMouthHint = new Vector2(0.70f, 0.05f);
-        [Tooltip("ÇÏ±¸ À§Ä¡¿¡¼­ ÀÌ °Å¸®(Ä­) ¾ÈÀÇ ¹Ù´Ù¿¡ ´êÀ¸¸é °­ÀÌ ³¡³²")]
+        [Tooltip("í•˜êµ¬ ìœ„ì¹˜ì—ì„œ ì´ ê±°ë¦¬(ì¹¸) ì•ˆì˜ ë°”ë‹¤ì— ë‹¿ìœ¼ë©´ ê°•ì´ ëë‚¨")]
         [SerializeField] private float riverMouthRadius = 16f;
-        [Tooltip("Å¬¼ö·Ï °­ÀÌ ±¸ºÒ±¸ºÒ")]
+        [Tooltip("í´ìˆ˜ë¡ ê°•ì´ êµ¬ë¶ˆêµ¬ë¶ˆ")]
         [SerializeField, Range(0f, 6f)] private float riverMeander = 3f;
         [SerializeField, Range(1, 2)] private int riverWidth = 2;
 
-        [Header("±æ (A* ºñ¿ë)")]
-        [Tooltip("´Ù¸® 1Ä­ ºñ¿ë (Å¬¼ö·Ï ´Ù¸®¸¦ ´ú ³õÀ¸·Á ÇÔ)")]
+        [Header("ê¸¸ (A* ë¹„ìš©)")]
+        [Tooltip("ëŒê¸¸ì„ ë§µì— ë³´ì´ê²Œ í• ì§€.\në„ë©´ ê¸¸ ìë¦¬ë„ ì”ë”” ë¸”ë¡ìœ¼ë¡œ ê¹”ë¦¬ê³  ë†ì‚¬ë„ ê°€ëŠ¥í•´ì§ (ì§€ì—­ ì—°ê²°Â·ë‹¤ë¦¬Â·ê²½ì‚¬ë¡œ ìœ„ì¹˜ ê³„ì‚°ì—ëŠ” ê·¸ëŒ€ë¡œ ì“°ì„ â†’ ê°• ìœ„ ë‹¤ë¦¬ëŠ” ê·¸ëŒ€ë¡œ ìƒê¹€)")]
+        [SerializeField] private bool showRoads = true;
+        [Tooltip("ë‹¤ë¦¬ 1ì¹¸ ë¹„ìš© (í´ìˆ˜ë¡ ë‹¤ë¦¬ë¥¼ ëœ ë†“ìœ¼ë ¤ í•¨)")]
         [SerializeField] private float bridgeCost = 6f;
-        [Tooltip("°æ»ç·Î ºñ¿ë (Å¬¼ö·Ï ³ôÀÌ°¡ °°Àº ±æ·Î µ¹¾Æ°¨)")]
+        [Tooltip("ê²½ì‚¬ë¡œ ë¹„ìš© (í´ìˆ˜ë¡ ë†’ì´ê°€ ê°™ì€ ê¸¸ë¡œ ëŒì•„ê°)")]
         [SerializeField] private float rampCost = 3f;
-        [Tooltip("ÀÌ¹Ì ÀÖ´Â ±æÀ» Áö³¯ ¶§ ºñ¿ë (ÀÛÀ»¼ö·Ï ±æÀÌ ÇÏ³ª·Î ÇÕÃÄÁü)")]
+        [Tooltip("ì´ë¯¸ ìˆëŠ” ê¸¸ì„ ì§€ë‚  ë•Œ ë¹„ìš© (ì‘ì„ìˆ˜ë¡ ê¸¸ì´ í•˜ë‚˜ë¡œ í•©ì³ì§)")]
         [SerializeField, Range(0.1f, 1f)] private float existingRoadCost = 0.4f;
-        [Tooltip("¹çÀ» °¡·ÎÁö¸£´Â ºñ¿ë (¹ç ÇÑ°¡¿îµ¥·Î ±æÀÌ ³ªÁö ¾Ê°Ô)")]
+        [Tooltip("ë°­ì„ ê°€ë¡œì§€ë¥´ëŠ” ë¹„ìš© (ë°­ í•œê°€ìš´ë°ë¡œ ê¸¸ì´ ë‚˜ì§€ ì•Šê²Œ)")]
         [SerializeField] private float farmCrossCost = 40f;
 
-        [Header("³ª¹« / ¹ÙÀ§ (Æ÷¾Æ¼Û µğ½ºÅ© + ½£ ³ëÀÌÁî)")]
-        [Tooltip("¼¶¿¡¼­ ½£ÀÌ Â÷ÁöÇÏ´Â ºñÀ² (0 = ³ª¹« ¾øÀ½, 1 = ºó ¶¥¸¶´Ù ³ª¹«). ³ª¸ÓÁö´Â ³ó»çÁş±â ÁÁÀº Å¹ Æ®ÀÎ Ç®¹ç")]
+        [Header("ë‚˜ë¬´ / ë°”ìœ„ (í¬ì•„ì†¡ ë””ìŠ¤í¬ + ìˆ² ë…¸ì´ì¦ˆ)")]
+        [Tooltip("ì„¬ì—ì„œ ìˆ²ì´ ì°¨ì§€í•˜ëŠ” ë¹„ìœ¨ (0 = ë‚˜ë¬´ ì—†ìŒ, 1 = ë¹ˆ ë•…ë§ˆë‹¤ ë‚˜ë¬´). ë‚˜ë¨¸ì§€ëŠ” ë†ì‚¬ì§“ê¸° ì¢‹ì€ íƒ íŠ¸ì¸ í’€ë°­")]
         [SerializeField, Range(0f, 1f)] private float forestCoverage = 0.4f;
-        [Tooltip("½£ µ¢¾î¸® Å©±â (ÀÛÀ»¼ö·Ï Å« ½£)")]
+        [Tooltip("ë‚˜ë¬´ê°€ ìˆ² ë©ì–´ë¦¬ë¡œ ë­‰ì¹˜ëŠ” ì •ë„ (1 = ìˆ²ê³¼ ë¹ˆ í’€ë°­ìœ¼ë¡œ í™•ì‹¤íˆ ë‚˜ë‰¨, 0 = ì„¬ ì „ì²´ì— ê³ ë¥´ê²Œ í©ì–´ì§ - ë™ìˆ² ëŠë‚Œ)")]
+        [SerializeField, Range(0f, 1f)] private float forestClumping = 0.3f;
+        [Tooltip("ì¼œë©´ ë‚˜ë¬´ë¼ë¦¬ ìì´ ê²¹ì¹˜ì§€ ì•Šì„ ë§Œí¼ ë–¨ì–´ëœ¨ë¦¼ (Tree Spacingë³´ë‹¤ ë‚˜ë¬´ í­ì´ í¬ë©´ ë‚˜ë¬´ í­ ê¸°ì¤€)")]
+        [SerializeField] private bool keepCanopiesApart = true;
+        [Tooltip("ìˆ² ë©ì–´ë¦¬ í¬ê¸° (ì‘ì„ìˆ˜ë¡ í° ìˆ²)")]
         [SerializeField] private float forestNoiseScale = 0.06f;
-        [Tooltip("³ª¹« »çÀÌ ÃÖ¼Ò °Å¸® (Ä­)")]
+        [Tooltip("ë‚˜ë¬´ ì‚¬ì´ ìµœì†Œ ê±°ë¦¬ (ì¹¸)")]
         [SerializeField] private float treeSpacing = 2.2f;
-        [Tooltip("¹ÙÀ§ »çÀÌ ÃÖ¼Ò °Å¸® (Ä­)")]
+        [Tooltip("ë°”ìœ„ ì‚¬ì´ ìµœì†Œ ê±°ë¦¬ (ì¹¸)")]
         [SerializeField] private float rockSpacing = 4.5f;
         [SerializeField, Range(0f, 1f)] private float rockChance = 0.5f;
-        [Tooltip("Å©±â ¹«ÀÛÀ§ ¹üÀ§ (0.15 = ¡¾15%)")]
+        [Tooltip("í¬ê¸° ë¬´ì‘ìœ„ ë²”ìœ„ (0.15 = Â±15%)")]
         [SerializeField, Range(0f, 0.5f)] private float propScaleJitter = 0.15f;
 
-        [Header("¹°")]
-        [Tooltip("¹° Ç¥¸é ³ôÀÌ (ÇØº¯ À­¸é = 1º¸´Ù »ìÂ¦ ³·°Ô)")]
+        [Header("ë¬¼")]
+        [Tooltip("ë¬¼ í‘œë©´ ë†’ì´ (í•´ë³€ ìœ—ë©´ = 1ë³´ë‹¤ ì‚´ì§ ë‚®ê²Œ)")]
         [SerializeField] private float waterSurfaceY = 0.85f;
-        [Tooltip("¹° 1Ä­ ÇÁ¸®ÆÕ Å©±â ¹èÀ²")]
+        [Tooltip("ë¬¼ 1ì¹¸ í”„ë¦¬íŒ¹ í¬ê¸° ë°°ìœ¨")]
         [SerializeField] private float waterTileScale = 0.5f;
-        [Tooltip("Å« ¹Ù´Ù ÇÁ¸®ÆÕ Å©±â ¹èÀ²")]
+        [Tooltip("í° ë°”ë‹¤ í”„ë¦¬íŒ¹ í¬ê¸° ë°°ìœ¨")]
         [SerializeField] private float oceanPlaneScale = 20f;
-        [Tooltip("¹° ¹Ø¹Ù´Ú ºí·ÏÀ» Ä­¸¶´Ù ±òÁö (°İÀÚ ¹«´Ì°¡ º¸ÀÓ). Smooth Seabed°¡ ÄÑÁ® ÀÖÀ¸¸é ¹«½Ã")]
+        [Tooltip("ë¬¼ ë°‘ë°”ë‹¥ ë¸”ë¡ì„ ì¹¸ë§ˆë‹¤ ê¹”ì§€ (ê²©ì ë¬´ëŠ¬ê°€ ë³´ì„). Smooth Seabedê°€ ì¼œì ¸ ìˆìœ¼ë©´ ë¬´ì‹œ")]
         [SerializeField] private bool placeSeabed = false;
-        [Tooltip("¹° ¹Ø¹Ù´ÚÀ» ºí·Ï ´ë½Å ¸Å²öÇÑ °æ»ç¸é ÇÏ³ª·Î (ÇØ¾È¿¡¼­ ¸Ö¾îÁú¼ö·Ï ±í¾îÁ® ¹° »öÀÌ ÀÚ¿¬½º·´°Ô ÁøÇØÁü)")]
+        [Tooltip("ë¬¼ ë°‘ë°”ë‹¥ì„ ë¸”ë¡ ëŒ€ì‹  ë§¤ëˆí•œ ê²½ì‚¬ë©´ í•˜ë‚˜ë¡œ (í•´ì•ˆì—ì„œ ë©€ì–´ì§ˆìˆ˜ë¡ ê¹Šì–´ì ¸ ë¬¼ ìƒ‰ì´ ìì—°ìŠ¤ëŸ½ê²Œ ì§„í•´ì§)")]
         [SerializeField] private bool smoothSeabed = true;
-        [Tooltip("¹° ¹Ø¹Ù´Ú »ö")]
+        [Tooltip("ë¬¼ ë°‘ë°”ë‹¥ ìƒ‰")]
         [SerializeField] private Color seabedColor = new Color(0.93f, 0.82f, 0.6f);
-        [Tooltip("ÇØ¾È¿¡¼­ ¸î Ä­¿¡ °ÉÃÄ ±í¾îÁúÁö")]
+        [Tooltip("í•´ì•ˆì—ì„œ ëª‡ ì¹¸ì— ê±¸ì³ ê¹Šì–´ì§ˆì§€")]
         [SerializeField] private float seabedShelfWidth = 8f;
-        [Tooltip("°¡Àå ±íÀº °÷ ±íÀÌ (¹° Ç¥¸é ¾Æ·¡, ºí·Ï ³ôÀÌ ´ÜÀ§)")]
+        [Tooltip("ê°€ì¥ ê¹Šì€ ê³³ ê¹Šì´ (ë¬¼ í‘œë©´ ì•„ë˜, ë¸”ë¡ ë†’ì´ ë‹¨ìœ„)")]
         [SerializeField] private float seabedMaxDepth = 4f;
-        [Tooltip("Ocean PlaneÀÌ ÀÖÀ» ¶§, ÇØ¾È¿¡¼­ ¸î Ä­±îÁö¸¸ ¹° Ä­¡¤¹Ø¹Ù´ÚÀ» ±òÁö (¸Õ ¹Ù´Ù´Â Å« ¹Ù´Ù ÇÑ ÀåÀ¸·Î ´ë½ÅÇØ ¿ÀºêÁ§Æ® ¼ö¸¦ ÁÙÀÓ)")]
+        [Tooltip("Ocean Planeì´ ìˆì„ ë•Œ, í•´ì•ˆì—ì„œ ëª‡ ì¹¸ê¹Œì§€ë§Œ ë¬¼ ì¹¸Â·ë°‘ë°”ë‹¥ì„ ê¹”ì§€ (ë¨¼ ë°”ë‹¤ëŠ” í° ë°”ë‹¤ í•œ ì¥ìœ¼ë¡œ ëŒ€ì‹ í•´ ì˜¤ë¸Œì íŠ¸ ìˆ˜ë¥¼ ì¤„ì„)")]
         [SerializeField] private int seaTileMargin = 4;
 
-        [Header("Àá±ä Áö¿ª")]
+        [Header("ì ê¸´ ì§€ì—­")]
+        [Tooltip("ì ê¸´ ì§€ì—­(ê´‘ì‚°Â·í•´ë³€)ì„ íˆ¬ëª… ë²½Â·ë¶€ì„œì§„ ë‹¤ë¦¬ë¡œ ë§‰ì„ì§€.\në„ë©´ ëª¨ë“  ì§€ì—­ì´ ì²˜ìŒë¶€í„° ì—´ë¦¼ (íˆ¬ëª… ë²½ ì—†ìŒ, ë‹¤ë¦¬ë„ ì •ìƒ)")]
+        [SerializeField] private bool useLockedAreas = false;
         [SerializeField] private float lockedWallHeight = 3f;
 
-        [Header("Áö¿ª ¹èÄ¡ (±âÈ¹ ÀÌ¹ÌÁö ±âÁØ, ½£¡¤Æ¯º° Áö¿ªÀº Á¦¿Ü)")]
+        [Header("ì§€ì—­ ë°°ì¹˜ (ê¸°íš ì´ë¯¸ì§€ ê¸°ì¤€, ìˆ²Â·íŠ¹ë³„ ì§€ì—­ì€ ì œì™¸)")]
         [SerializeField] private List<ZoneDefinition> zones = RecommendedZones(2f);
 
-        [Header("±¤»ê »ê (³ôÀº Áö´ë¸¦ °è´Ü½Ä »êÀ¸·Î)")]
-        [Tooltip("°¡ÀåÀÚ¸® ³ôÀÌ(Áö¿ª Level) À§·Î ¸î ´Ü ´õ ½×À»Áö. Å¬¼ö·Ï ³ôÀº »ê")]
-        [SerializeField, Range(0, 8)] private int mountainHeight = 6;
-        [Tooltip("»ê °¡ÀåÀÚ¸®¸¦ ÆòÆòÇÏ°Ô ³²±æ ºñÀ² (³ªÁß¿¡ ±¤»ê ÀÔ±¸¡¤±æÀÌ µé¾î¼³ ÀÚ¸®)")]
+        [Header("ê´‘ì‚° ì‚° (ë†’ì€ ì§€ëŒ€ë¥¼ ê³„ë‹¨ì‹ ì‚°ìœ¼ë¡œ)")]
+        [Tooltip("ê°€ì¥ìë¦¬ ë†’ì´(ì§€ì—­ Level) ìœ„ë¡œ ê³„ë‹¨(ì¸µ)ì„ ëª‡ ê°œ ìŒ“ì„ì§€. í´ìˆ˜ë¡ ë†’ì€ ì‚°")]
+        [SerializeField, Range(0, 14)] private int mountainHeight = 8;
+        [Tooltip("ê³„ë‹¨ í•˜ë‚˜(ì¸µ)ì˜ ì ˆë²½ ë†’ì´ = ë¸”ë¡ ëª‡ ê°œë¥¼ ìŒ“ì„ì§€.\n" +
+                 "1 = ë¸”ë¡ 1ê°œ(2m)ì”© ì˜¤ë¥´ëŠ” ê³„ë‹¨ ì‚° / 2 = ë¸”ë¡ 2ê°œ(4m) ë†’ì´ì˜ ì ˆë²½ (ë™ìˆ²Â·í¬ì½”í”¼ì•„ì²˜ëŸ¼ ë†’ì€ ì ˆë²½ê³¼ ë„“ì€ í‰ì§€)")]
+        [SerializeField, Range(1, 4)] private int mountainTierLevels = 1;
+        [Tooltip("ì‚° ìœ„ ë‚˜ë¬´ ì–‘ (1 = ì‚° ì•„ë˜ì™€ ê°™ì€ ìˆ², 0 = ë‚˜ë¬´ ì—†ìŒ). ë‚®ì¶”ë©´ ì ˆë²½ì´ ì˜ ë³´ì„")]
+        [SerializeField, Range(0f, 1f)] private float mountainTreeDensity = 1f;
+        [Tooltip("ì‚° ê°€ì¥ìë¦¬ë¥¼ í‰í‰í•˜ê²Œ ë‚¨ê¸¸ ë¹„ìœ¨ (ë‚˜ì¤‘ì— ê´‘ì‚° ì…êµ¬Â·ê¸¸ì´ ë“¤ì–´ì„¤ ìë¦¬)")]
         [SerializeField, Range(0f, 0.5f)] private float mountainFlatRim = 0.2f;
-        [Tooltip("°è´Ü °æ°è°¡ ¾ó¸¶³ª ºÒ±ÔÄ¢ÇÑÁö (0 = µ¿±×¶õ °è´Ü, Å¬¼ö·Ï ÀÚ¿¬½º·¯¿î ¹ÙÀ§»ê)")]
+        [Tooltip("ê³„ë‹¨ ê²½ê³„ê°€ ì–¼ë§ˆë‚˜ ë¶ˆê·œì¹™í•œì§€ (0 = ë™ê·¸ë€ ê³„ë‹¨, í´ìˆ˜ë¡ ìì—°ìŠ¤ëŸ¬ìš´ ë°”ìœ„ì‚°)")]
         [SerializeField, Range(0f, 2f)] private float mountainRoughness = 0.9f;
-        [Tooltip("»ê ¸ğ¾ç ³ëÀÌÁî Å©±â")]
+        [Tooltip("ì‚° ëª¨ì–‘ ë…¸ì´ì¦ˆ í¬ê¸°")]
         [SerializeField] private float mountainNoiseScale = 0.18f;
-        [Tooltip("À§¿¡¼­ºÎÅÍ ¸î ´Ü±îÁö À­¸éÀ» ¹ÙÀ§·Î µ¤À»Áö (0 = ÀüºÎ ÀÜµğ)")]
-        [SerializeField, Range(0, 8)] private int mountainRockTiers = 2;
+        [Tooltip("ì‚° í‘œë©´ ì¤‘ ëŒ ë¸”ë¡ ë¹„ìœ¨ (ë‚˜ë¨¸ì§€ëŠ” ì”ë””Â·í™ ë¸”ë¡). ë§ˆí¬ ì‚°ì²˜ëŸ¼ ëŒê³¼ í™ì´ ì–¼ë£©ëœë£© ì„ì„\n0 = ì „ë¶€ ì”ë””Â·í™ / 1 = ì „ë¶€ ëŒ")]
+        [SerializeField, Range(0f, 1f)] private float mountainStoneRatio = 0.45f;
+        [Tooltip("ëŒÂ·í™ ì–¼ë£© í¬ê¸° (ì‘ì„ìˆ˜ë¡ í° ë©ì–´ë¦¬)")]
+        [SerializeField] private float mountainStoneNoiseScale = 0.22f;
+        [Tooltip("ë†’ì´ ì˜¬ë¼ê°ˆìˆ˜ë¡ ëŒì´ ë§ì•„ì§€ëŠ” ì •ë„ (0 = ë†’ì´ì™€ ìƒê´€ì—†ìŒ)")]
+        [SerializeField, Range(0f, 1f)] private float mountainStoneByHeight = 0.35f;
+        [Tooltip("ìœ„ì—ì„œë¶€í„° ëª‡ ë‹¨ê¹Œì§€ ìœ—ë©´ì„ ë°”ìœ„ë¡œ ë®ì„ì§€ (0 = ì „ë¶€ ì”ë””)")]
+        [SerializeField, Range(0, 14)] private int mountainRockTiers = 2;
 
-        [Header("ÇÁ¸®ÆÕ")]
+        [Header("ê´‘ì‚° ì…êµ¬")]
+        [Tooltip("ì‚° ì ˆë²½ì— ê´‘ì‚° ì…êµ¬(ë™êµ´)ë¥¼ ë§Œë“¤ì§€. ì²˜ìŒì—” 'ì¶œì…ê¸ˆì§€'ë¡œ ì ê²¨ ìˆê³ , ìŠ¤í† ë¦¬ ì´ë²¤íŠ¸(ìƒì¸)ì—ì„œ MineEntrance.UnlockMine()ì„ ë¶€ë¥´ë©´ ì—´ë¦¼")]
+        [SerializeField] private bool buildMineEntrance = true;
+        [Tooltip("ì ê²¨ ìˆì„ ë•Œ ì…êµ¬ë¥¼ ë³´ê³  Eë¥¼ ëˆ„ë¥´ë©´ ë‚˜ì˜¤ëŠ” ë¬¸êµ¬")]
+        [SerializeField, TextArea] private string mineLockedMessage = "ì¶œì…ê¸ˆì§€\në¬´ë„ˆì§ˆ ìœ„í—˜ì´ ìˆì–´ ì§€ê¸ˆì€ ë“¤ì–´ê°ˆ ìˆ˜ ì—†ë‹¤.";
+        [Tooltip("ì—´ë¦° ë’¤ ì…êµ¬ì—ì„œ Eë¥¼ ëˆ„ë¥´ë©´ ë¶ˆëŸ¬ì˜¬ ì”¬ ì´ë¦„ (ë¹„ìš°ë©´ ì´ë²¤íŠ¸ë§Œ ì‹¤í–‰)")]
+        [SerializeField] private string mineSceneName = "";
+
+        [Header("ì ˆë²½ (í¬ì½”í”¼ì•„ì‹)")]
+        [Tooltip("ì¼œë©´ ì ˆë²½ ì˜†ë©´ì˜ ìœ„ì•„ë˜ë¡œ ì´ì–´ì§„ ë¸”ë¡ì„ ì„¸ë¡œë¡œ ëŠ˜ë¦° í° ë¸”ë¡ í•˜ë‚˜ë¡œ í•©ì¹¨ (ì´ìŒìƒˆ ì—†ëŠ” ì ˆë²½, ì˜¤ë¸Œì íŠ¸ ìˆ˜ë„ ì¤„ì–´ë“¦)")]
+        [SerializeField] private bool mergeCliffBlocks = true;
+        [Tooltip("í•œ ë©ì–´ë¦¬ë¡œ í•©ì¹  ìµœëŒ€ ì¹¸ ìˆ˜ (2 = 2ì¹¸ì”© í•œ ë©ì–´ë¦¬, 0 = ì´ì–´ì§„ ë§Œí¼ ì „ë¶€ í•œ ë©ì–´ë¦¬)")]
+        [SerializeField, Range(0, 14)] private int cliffMergeCount = 2;
+
+        [Header("í”„ë¦¬íŒ¹")]
         [SerializeField] private IslandPrefabSet prefabs = new IslandPrefabSet();
 
-        [Header("¹ç ¼³Á¤ (±âÁ¸ WorldMapPainter¿Í °°Àº °ª)")]
-        [Tooltip("¹° ÁØ ¹ç¿¡ °öÇØÁú »ö»ó")]
+        [Header("ë°­ ì„¤ì • (ê¸°ì¡´ WorldMapPainterì™€ ê°™ì€ ê°’)")]
+        [Tooltip("ë¬¼ ì¤€ ë°­ì— ê³±í•´ì§ˆ ìƒ‰ìƒ")]
         [SerializeField] private Color wateredTintMultiplier = new Color(0.55f, 0.4f, 0.3f, 1f);
-        [Tooltip("ÀÛ¹° Å©±â ¹èÀ² (FarmTile.cropScaleMultiplier·Î Àü´Ş)")]
+        [Tooltip("ì‘ë¬¼ í¬ê¸° ë°°ìœ¨ (FarmTile.cropScaleMultiplierë¡œ ì „ë‹¬)")]
         [SerializeField] private float cropScaleMultiplier = 2f;
 
-        [Header("·¹ÀÌ¾î ÀÌ¸§")]
+        [Header("ë ˆì´ì–´ ì´ë¦„")]
         [SerializeField] private string farmableLayerName = "FarmableGround";
         [SerializeField] private string groundLayerName = "NonFarmableGround";
         [SerializeField] private string blockerLayerName = "FarmingBlocker";
 
-        [Header("¸ğ·¡»çÀå (¼¶ µÑ·¹)")]
-        [Tooltip("ÇØ¾È¼±À» µû¶ó ¸î Ä­ ÆøÀ¸·Î ¸ğ·¡»çÀåÀ» ±òÁö (0 = ¾øÀ½). ÇØº¯ ³ôÀÌ(0´Ü)¶ó ¹°°ú ¸Â´ê¾Æ ¼¶ÀÌ ¶° º¸ÀÌÁö ¾ÊÀ½")]
+        [Header("ëª¨ë˜ì‚¬ì¥ (ì„¬ ë‘˜ë ˆ)")]
+        [Tooltip("í•´ì•ˆì„ ì„ ë”°ë¼ ëª‡ ì¹¸ í­ìœ¼ë¡œ ëª¨ë˜ì‚¬ì¥ì„ ê¹”ì§€ (0 = ì—†ìŒ). í•´ë³€ ë†’ì´(0ë‹¨)ë¼ ë¬¼ê³¼ ë§ë‹¿ì•„ ì„¬ì´ ë–  ë³´ì´ì§€ ì•ŠìŒ")]
         [SerializeField, Range(0, 6)] private int shoreBeachWidth = 2;
-        [Tooltip("¸ğ·¡»çÀå°ú À§ ¶¥À» ÀÕ´Â °æ»ç·Î °£°İ (Ä­). ¸ğ·¡»çÀåÀ¸·Î ³»·Á°¬´Ù°¡ ¸ø ¿Ã¶ó¿À´Â ÀÏÀÌ ¾ø°Ô")]
+        [Tooltip("ëª¨ë˜ì‚¬ì¥Â·í•´ë³€ì„ ì¼ë°˜ ë•…ê³¼ ê°™ì€ ë†’ì´ë¡œ (ë„ë©´ í•œ ë‹¨ ë‚®ì€ í•´ë³€ - ë¬¼ì— ì ê¸¸ ìˆ˜ ìˆìŒ)")]
+        [SerializeField] private bool beachSameHeight = true;
+        [Tooltip("ê²½ì‚¬ë¡œë¥¼ ì ˆë²½ ì•ˆìª½ìœ¼ë¡œ íŒŒì„œ ë§Œë“¤ê¸° (ë™ìˆ²ì²˜ëŸ¼ ì–‘ì˜†ì´ ë¸”ë¡ ë²½ì´ê³  ê·¸ ì‚¬ì´ë¡œ ì˜¬ë¼ê°).\në„ë©´ ì˜ˆì „ì²˜ëŸ¼ ì ˆë²½ ì• ë‚®ì€ ë•… ìœ„ì— ê²½ì‚¬ë¡œê°€ íˆ­ íŠ€ì–´ë‚˜ì˜´")]
+        [SerializeField] private bool recessRamps = true;
+        [Tooltip("ëª¨ë˜ì‚¬ì¥ê³¼ ìœ„ ë•…ì„ ì‡ëŠ” ê²½ì‚¬ë¡œ ê°„ê²© (ì¹¸). ëª¨ë˜ì‚¬ì¥ìœ¼ë¡œ ë‚´ë ¤ê°”ë‹¤ê°€ ëª» ì˜¬ë¼ì˜¤ëŠ” ì¼ì´ ì—†ê²Œ")]
         [SerializeField] private float shoreRampSpacing = 14f;
 
-        [Header("¸Å²öÇÑ Áö¸é (°İÀÚ ¾ø¾Ö±â)")]
-        [Tooltip("ÄÑ¸é ºí·Ï ¸ğµ¨ ´ë½Å ÀÌ¾îÁø ¸Å²öÇÑ Áö¸éÀ» ±×¸² (ºí·Ï¸¶´Ù µÕ±Ù ¸ğ¼­¸®°¡ ¸¸µå´Â °İÀÚ ¹«´Ì°¡ »ç¶óÁü)\n" +
-                 "ºí·ÏÀº ±×´ë·Î ³²¾Æ Ãæµ¹¡¤¹ç(FarmTile) ±â´É¸¸ ÇÏ°í º¸ÀÌÁö ¾ÊÀ½. °¥¾Æ³õÀº ¹çÀº ¹ç ºí·ÏÀ¸·Î º¸ÀÓ")]
+        [Header("ë§¤ëˆí•œ ì§€ë©´ (ê²©ì ì—†ì• ê¸°)")]
+        [Tooltip("ì¼œë©´ ë¸”ë¡ ëª¨ë¸ ëŒ€ì‹  ì´ì–´ì§„ ë§¤ëˆí•œ ì§€ë©´ì„ ê·¸ë¦¼ (ë¸”ë¡ë§ˆë‹¤ ë‘¥ê·¼ ëª¨ì„œë¦¬ê°€ ë§Œë“œëŠ” ê²©ì ë¬´ëŠ¬ê°€ ì‚¬ë¼ì§)\n" +
+                 "ë¸”ë¡ì€ ê·¸ëŒ€ë¡œ ë‚¨ì•„ ì¶©ëŒÂ·ë°­(FarmTile) ê¸°ëŠ¥ë§Œ í•˜ê³  ë³´ì´ì§€ ì•ŠìŒ. ê°ˆì•„ë†“ì€ ë°­ì€ ë°­ ë¸”ë¡ìœ¼ë¡œ ë³´ì„")]
         [SerializeField] private bool smoothSurface = false;
         [SerializeField] private Color surfaceGrassColor = new Color(0.63f, 0.76f, 0.2f);
         [SerializeField] private Color surfacePathColor = new Color(0.94f, 0.6f, 0.24f);
         [SerializeField] private Color surfaceSandColor = new Color(0.97f, 0.85f, 0.6f);
         [SerializeField] private Color surfacePlazaColor = new Color(0.86f, 0.86f, 0.88f);
         [SerializeField] private Color surfaceRockColor = new Color(0.62f, 0.62f, 0.65f);
-        [Tooltip("Àıº® ¿·¸é (Èë)")]
+        [Tooltip("ì ˆë²½ ì˜†ë©´ (í™)")]
         [SerializeField] private Color surfaceDirtColor = new Color(0.74f, 0.46f, 0.25f);
-        [Tooltip("³ôÀº Áö´ë Àıº® ¿·¸é (¹ÙÀ§)")]
+        [Tooltip("ë†’ì€ ì§€ëŒ€ ì ˆë²½ ì˜†ë©´ (ë°”ìœ„)")]
         [SerializeField] private Color surfaceStoneColor = new Color(0.5f, 0.5f, 0.53f);
-        [Tooltip("¶¥ »öÀÇ ÀÚ¿¬½º·¯¿î ¾ó·è Á¤µµ (0 = ´Ü»ö). ³ĞÀº Ç®¹çÀÌ ¹Ô¹ÔÇÏÁö ¾Ê°Ô ¹à°í ¾îµÎ¿î ºÎºĞÀÌ »ı±è")]
+        [Tooltip("ë•… ìƒ‰ì˜ ìì—°ìŠ¤ëŸ¬ìš´ ì–¼ë£© ì •ë„ (0 = ë‹¨ìƒ‰). ë„“ì€ í’€ë°­ì´ ë°‹ë°‹í•˜ì§€ ì•Šê²Œ ë°ê³  ì–´ë‘ìš´ ë¶€ë¶„ì´ ìƒê¹€")]
         [SerializeField, Range(0f, 0.4f)] private float surfaceColorVariation = 0.12f;
-        [Tooltip("¾ó·è Å©±â (ÀÛÀ»¼ö·Ï Å« ¾ó·è)")]
+        [Tooltip("ì–¼ë£© í¬ê¸° (ì‘ì„ìˆ˜ë¡ í° ì–¼ë£©)")]
         [SerializeField] private float surfaceNoiseScale = 0.07f;
-        [Tooltip("ÀÜµğ ¾ó·è¿¡ ¼¯À» »ö (¹àÀº °÷Àº ÀÌ »ö ÂÊÀ¸·Î, ¾îµÎ¿î °÷Àº ÁøÇÑ ÃÊ·Ï ÂÊÀ¸·Î)")]
+        [Tooltip("ì”ë”” ì–¼ë£©ì— ì„ì„ ìƒ‰ (ë°ì€ ê³³ì€ ì´ ìƒ‰ ìª½ìœ¼ë¡œ, ì–´ë‘ìš´ ê³³ì€ ì§„í•œ ì´ˆë¡ ìª½ìœ¼ë¡œ)")]
         [SerializeField] private Color surfaceGrassHighlight = new Color(0.78f, 0.82f, 0.32f);
-        [Tooltip("1Ä­´ç Áö¸é ÅØ½ºÃ³ ÇÈ¼¿ ¼ö (Å¬¼ö·Ï ±æ¡¤¸ğ·¡ °æ°è°¡ ¶Ç·Ç)")]
+        [Tooltip("1ì¹¸ë‹¹ ì§€ë©´ í…ìŠ¤ì²˜ í”½ì…€ ìˆ˜ (í´ìˆ˜ë¡ ê¸¸Â·ëª¨ë˜ ê²½ê³„ê°€ ë˜ë ·)")]
         [SerializeField, Range(2, 8)] private int surfaceTexelsPerCell = 4;
-        [Tooltip("¶¥ Á¾·ù °æ°è¸¦ ºÎµå·´°Ô ¹øÁö°Ô ÇÏ´Â Á¤µµ (0 = ¶Ç·Ç)")]
+        [Tooltip("ë•… ì¢…ë¥˜ ê²½ê³„ë¥¼ ë¶€ë“œëŸ½ê²Œ ë²ˆì§€ê²Œ í•˜ëŠ” ì •ë„ (0 = ë˜ë ·)")]
         [SerializeField, Range(0, 3)] private int surfaceEdgeBlur = 1;
 
-        [Header("ºí·Ï Æ´ ¸Ş¿ì±â (¸Å²öÇÑ Áö¸éÀ» ²ö °æ¿ì¿¡¸¸)")]
-        [Tooltip("ºí·Ï ¸ğ¼­¸®°¡ µÕ±Û¾î¼­ »ı±â´Â Æ´ »çÀÌ·Î ºó °ø°£ÀÌ º¸ÀÌÁö ¾Ê°Ô, ºí·Ï ¹Ù·Î ¹Ø¿¡ »öÆÇÀ» ±ò¾Æ ¸·À½")]
+        [Header("ë¸”ë¡ í‹ˆ ë©”ìš°ê¸° (ë§¤ëˆí•œ ì§€ë©´ì„ ëˆ ê²½ìš°ì—ë§Œ)")]
+        [Tooltip("ë¸”ë¡ ëª¨ì„œë¦¬ê°€ ë‘¥ê¸€ì–´ì„œ ìƒê¸°ëŠ” í‹ˆ ì‚¬ì´ë¡œ ë¹ˆ ê³µê°„ì´ ë³´ì´ì§€ ì•Šê²Œ, ë¸”ë¡ ë°”ë¡œ ë°‘ì— ìƒ‰íŒì„ ê¹”ì•„ ë§‰ìŒ")]
         [SerializeField] private bool fillBevelGaps = true;
-        [Tooltip("Æ´À¸·Î º¸ÀÌ´Â À­¸é »ö (ÀÜµğ ±×¸²ÀÚ »ö)")]
+        [Tooltip("í‹ˆìœ¼ë¡œ ë³´ì´ëŠ” ìœ—ë©´ ìƒ‰ (ì”ë”” ê·¸ë¦¼ì ìƒ‰)")]
         [SerializeField] private Color gapTopColor = new Color(0.32f, 0.42f, 0.12f);
-        [Tooltip("Æ´À¸·Î º¸ÀÌ´Â ¿·¸é »ö (Èë »ö)")]
+        [Tooltip("í‹ˆìœ¼ë¡œ ë³´ì´ëŠ” ì˜†ë©´ ìƒ‰ (í™ ìƒ‰)")]
         [SerializeField] private Color gapSideColor = new Color(0.45f, 0.27f, 0.15f);
 
-        [Header("ÁöÇü ¼Ó Ã¤¿ì±â")]
-        [Tooltip("º¸ÀÌÁö ¾Ê´Â ¶¥ ¼ÓÀ» Äİ¶óÀÌ´õ·Î ²Ë Ã¤¿ò. ²ô¸é À­¸é ºí·Ï ¾Æ·¡°¡ ºñ¾î ÀÖ¾î¼­, Ä³¸¯ÅÍ°¡ ÇÑ ¹ø ¶¥ ¹ØÀ¸·Î µé¾î°¡¸é ºó °ø°£¿¡ °¤Èû")]
+        [Header("ì§€í˜• ì† ì±„ìš°ê¸°")]
+        [Tooltip("ë³´ì´ì§€ ì•ŠëŠ” ë•… ì†ì„ ì½œë¼ì´ë”ë¡œ ê½‰ ì±„ì›€. ë„ë©´ ìœ—ë©´ ë¸”ë¡ ì•„ë˜ê°€ ë¹„ì–´ ìˆì–´ì„œ, ìºë¦­í„°ê°€ í•œ ë²ˆ ë•… ë°‘ìœ¼ë¡œ ë“¤ì–´ê°€ë©´ ë¹ˆ ê³µê°„ì— ê°‡í˜")]
         [SerializeField] private bool fillHollowGround = true;
 
-        [Header("¹Ì¸®º¸±â")]
+        [Header("ë¯¸ë¦¬ë³´ê¸°")]
         [SerializeField] private bool showPreview = true;
 
-        // ÀüÃ¼ ¹èÀ²ÀÌ Àû¿ëµÈ ½ÇÁ¦ °ª (ÄÚµå¿¡¼­´Â Ç×»ó ÀÌ °ªµéÀ» »ç¿ë)
+        // ì „ì²´ ë°°ìœ¨ì´ ì ìš©ëœ ì‹¤ì œ ê°’ (ì½”ë“œì—ì„œëŠ” í•­ìƒ ì´ ê°’ë“¤ì„ ì‚¬ìš©)
         private float Cell => cellSize * worldScale;
         private float LevelH => levelHeight * worldScale;
         private float BlockS => blockScale * worldScale;
@@ -330,42 +389,42 @@ namespace FarmingSystem.World
         private float WallH => lockedWallHeight * worldScale;
         private float OceanS => oceanPlaneScale * worldScale;
 
-        // ¸¶Áö¸·À¸·Î °è»êÇÑ ¸Ê (¹Ì¸®º¸±â Ç¥½Ã¿ë, ÀúÀåµÇÁö ¾ÊÀ½)
+        // ë§ˆì§€ë§‰ìœ¼ë¡œ ê³„ì‚°í•œ ë§µ (ë¯¸ë¦¬ë³´ê¸° í‘œì‹œìš©, ì €ì¥ë˜ì§€ ì•ŠìŒ)
         [NonSerialized] private IslandLayout previewLayout;
 
         public IReadOnlyList<string> LastWarnings => previewLayout != null ? previewLayout.warnings : (IReadOnlyList<string>)Array.Empty<string>();
         public bool HasPreview => previewLayout != null;
-        // FarmGrid Tile Size¿¡ ³ÖÀ» ½ÇÁ¦ Ä­ °£°İ (ÀüÃ¼ ¹èÀ² Æ÷ÇÔ)
+        // FarmGrid Tile Sizeì— ë„£ì„ ì‹¤ì œ ì¹¸ ê°„ê²© (ì „ì²´ ë°°ìœ¨ í¬í•¨)
         public float CellSize => Cell;
-        // »ı¼ºµÈ ¸Ê ·çÆ® (¾øÀ¸¸é null) - ¿¡µğÅÍ°¡ FarmGridÀÇ World Root¸¦ ÀÚµ¿ ¿¬°áÇÒ ¶§ »ç¿ë
+        // ìƒì„±ëœ ë§µ ë£¨íŠ¸ (ì—†ìœ¼ë©´ null) - ì—ë””í„°ê°€ FarmGridì˜ World Rootë¥¼ ìë™ ì—°ê²°í•  ë•Œ ì‚¬ìš©
         public Transform GeneratedRoot => transform.Find(RootName);
 
-        // ±âÈ¹ ÀÌ¹ÌÁö ±âÁØ ÃßÃµ Áö¿ª ¹èÄ¡ (½£¡¤Æ¯º° Áö¿ª Á¦¿Ü)
-        // À§ÂÊ °¡¿îµ¥ Å« ¹ÙÀ§»ê(±¤»ê) / °¡¿îµ¥ Áı / ¿À¸¥ÂÊ »óÀÎ ±¤Àå / ¾Æ·¡ ÇØº¯
-        // ³óÁö´Â µû·Î Á¤ÇÏÁö ¾ÊÀ½: ±â´É ¾ø´Â ¸Ç¶¥(ÀÜµğ)ÀÌ¸é ¾îµğ¼­µç ³ó»ç °¡´É (Farm On All Grass)
-        // size = Áö¿ª Å©±â ¹èÀ² (56¡¿50 ¸Ê ±âÁØ 1, 112¡¿96 ¸Ê ±âÁØ 2)
+        // ê¸°íš ì´ë¯¸ì§€ ê¸°ì¤€ ì¶”ì²œ ì§€ì—­ ë°°ì¹˜ (ìˆ²Â·íŠ¹ë³„ ì§€ì—­ ì œì™¸)
+        // ìœ„ìª½ ê°€ìš´ë° í° ë°”ìœ„ì‚°(ê´‘ì‚°) / ê°€ìš´ë° ì§‘ / ì˜¤ë¥¸ìª½ ìƒì¸ ê´‘ì¥ / ì•„ë˜ í•´ë³€
+        // ë†ì§€ëŠ” ë”°ë¡œ ì •í•˜ì§€ ì•ŠìŒ: ê¸°ëŠ¥ ì—†ëŠ” ë§¨ë•…(ì”ë””)ì´ë©´ ì–´ë””ì„œë“  ë†ì‚¬ ê°€ëŠ¥ (Farm On All Grass)
+        // size = ì§€ì—­ í¬ê¸° ë°°ìœ¨ (56Ã—50 ë§µ ê¸°ì¤€ 1, 112Ã—96 ë§µ ê¸°ì¤€ 2)
         private static List<ZoneDefinition> RecommendedZones(float size)
         {
             return new List<ZoneDefinition>
             {
-                new ZoneDefinition { displayName = "Áı",        type = ZoneType.Home,     center = new Vector2(0.50f, 0.46f), radius = 6f * size,  level = 1 },
-                new ZoneDefinition { displayName = "»óÀÎ ±¤Àå", type = ZoneType.Plaza,    center = new Vector2(0.76f, 0.46f), radius = 6f * size,  level = 1 },
-                new ZoneDefinition { displayName = "±¤»ê",      type = ZoneType.Highland, center = new Vector2(0.50f, 0.80f), radius = 10f * size, level = 2,
-                                     locked = true, lockedMessage = "¹«³ÊÁø ±æ ³Ê¸Ó·Î ±¤»êÀÌ º¸ÀÎ´Ù. ¾ÆÁ÷Àº °¥ ¼ö ¾ø´Ù." },
-                new ZoneDefinition { displayName = "ÇØº¯",      type = ZoneType.Beach,    center = new Vector2(0.55f, 0.12f), radius = 7f * size,  level = 0,
-                                     locked = true, lockedMessage = "ÇØº¯À¸·Î °¡´Â ±æÀÌ ¸·Çô ÀÖ´Ù. ¾ğÁ¨°¡ ³¬½ÃÇÏ·¯ °¡ÀÚ." },
+                new ZoneDefinition { displayName = "ì§‘",        type = ZoneType.Home,     center = new Vector2(0.50f, 0.46f), radius = 6f * size,  level = 1 },
+                new ZoneDefinition { displayName = "ìƒì¸ ê´‘ì¥", type = ZoneType.Plaza,    center = new Vector2(0.76f, 0.46f), radius = 6f * size,  level = 1 },
+                new ZoneDefinition { displayName = "ê´‘ì‚°",      type = ZoneType.Highland, center = new Vector2(0.50f, 0.80f), radius = 10f * size, level = 2,
+                                     locked = true, lockedMessage = "ë¬´ë„ˆì§„ ê¸¸ ë„ˆë¨¸ë¡œ ê´‘ì‚°ì´ ë³´ì¸ë‹¤. ì•„ì§ì€ ê°ˆ ìˆ˜ ì—†ë‹¤." },
+                new ZoneDefinition { displayName = "í•´ë³€",      type = ZoneType.Beach,    center = new Vector2(0.55f, 0.12f), radius = 7f * size,  level = 0,
+                                     locked = true, lockedMessage = "í•´ë³€ìœ¼ë¡œ ê°€ëŠ” ê¸¸ì´ ë§‰í˜€ ìˆë‹¤. ì–¸ì  ê°€ ë‚šì‹œí•˜ëŸ¬ ê°€ì." },
             };
         }
 
-        // ¸Ê Å©±â¡¤Áö¿ª ¹èÄ¡¡¤»ê¡¤°­ ¼³Á¤À» ÃßÃµ°ªÀ¸·Î µÇµ¹¸² (ÇÁ¸®ÆÕ¡¤ºí·Ï Å©±â ¼³Á¤Àº ±×´ë·Î À¯Áö)
-        // Áö¿ª ¹İÁö¸§°ú »ê ³ôÀÌ, °­ ÇÏ±¸ ¹üÀ§´Â ¸Ê Å©±â¿¡ ¸ÂÃç °°ÀÌ Ä¿Áü
+        // ë§µ í¬ê¸°Â·ì§€ì—­ ë°°ì¹˜Â·ì‚°Â·ê°• ì„¤ì •ì„ ì¶”ì²œê°’ìœ¼ë¡œ ë˜ëŒë¦¼ (í”„ë¦¬íŒ¹Â·ë¸”ë¡ í¬ê¸° ì„¤ì •ì€ ê·¸ëŒ€ë¡œ ìœ ì§€)
+        // ì§€ì—­ ë°˜ì§€ë¦„ê³¼ ì‚° ë†’ì´, ê°• í•˜êµ¬ ë²”ìœ„ëŠ” ë§µ í¬ê¸°ì— ë§ì¶° ê°™ì´ ì»¤ì§
         public void ApplyRecommendedLayout(int mapWidth, int mapDepth)
         {
             float size = mapWidth / 56f;
             width = mapWidth;
             depth = mapDepth;
             zones = RecommendedZones(size);
-            mountainHeight = Mathf.Clamp(Mathf.RoundToInt(4f * Mathf.Sqrt(size)), 3, 8);
+            mountainHeight = Mathf.Clamp(Mathf.RoundToInt(6f * Mathf.Sqrt(size)), 4, 14);
             mountainFlatRim = 0.2f;
             mountainRoughness = 0.9f;
             mountainRockTiers = 2;
@@ -388,29 +447,31 @@ namespace FarmingSystem.World
             fillBevelGaps = true;
         }
 
-        // ==================== ¿¡µğÅÍ ¹öÆ°¿¡¼­ È£Ãâ ====================
+        // ==================== ì—ë””í„° ë²„íŠ¼ì—ì„œ í˜¸ì¶œ ====================
 
-        // ½Ãµå¸¦ ¹«ÀÛÀ§·Î ¹Ù²Û´Ù
+        // ì‹œë“œë¥¼ ë¬´ì‘ìœ„ë¡œ ë°”ê¾¼ë‹¤
         public void RandomizeSeed()
         {
             seed = UnityEngine.Random.Range(1, 999999);
         }
 
-        // ºí·ÏÀº ¸¸µéÁö ¾Ê°í ¸Ê µ¥ÀÌÅÍ¸¸ °è»êÇØ¼­ Scene ºä¿¡ »öÀ¸·Î º¸¿©ÁØ´Ù
+        // ë¸”ë¡ì€ ë§Œë“¤ì§€ ì•Šê³  ë§µ ë°ì´í„°ë§Œ ê³„ì‚°í•´ì„œ Scene ë·°ì— ìƒ‰ìœ¼ë¡œ ë³´ì—¬ì¤€ë‹¤
         public void Preview()
         {
             previewLayout = BuildLayout();
         }
 
-        // ¸Ê µ¥ÀÌÅÍ¸¦ °è»êÇÏ°í ½ÇÁ¦ ºí·Ï¡¤¹°¡¤³ª¹«¸¦ ¹èÄ¡ÇÑ´Ù
+        // ë§µ ë°ì´í„°ë¥¼ ê³„ì‚°í•˜ê³  ì‹¤ì œ ë¸”ë¡Â·ë¬¼Â·ë‚˜ë¬´ë¥¼ ë°°ì¹˜í•œë‹¤
         public void Generate()
         {
+            bottomFixCache.Clear(); // ë¸”ë¡ í”„ë¦¬íŒ¹ì„ ë°”ê¿¨ì„ ìˆ˜ë„ ìˆìœ¼ë‹ˆ ë§¤ë²ˆ ìƒˆë¡œ ì¼
+            propBottomCache.Clear();
             Clear();
             previewLayout = BuildLayout();
             BuildScene(previewLayout);
         }
 
-        // »ı¼ºµÈ ¸Ê ¿ÀºêÁ§Æ®¸¦ Áö¿î´Ù
+        // ìƒì„±ëœ ë§µ ì˜¤ë¸Œì íŠ¸ë¥¼ ì§€ìš´ë‹¤
         public void Clear()
         {
             Transform old = transform.Find(RootName);
@@ -421,14 +482,14 @@ namespace FarmingSystem.World
             Destroy(old.gameObject);
         }
 
-        // ==================== 1´Ü°è: ¸Ê µ¥ÀÌÅÍ °è»ê ====================
+        // ==================== 1ë‹¨ê³„: ë§µ ë°ì´í„° ê³„ì‚° ====================
 
         private IslandLayout BuildLayout()
         {
             var rng = new System.Random(seed);
             var layout = new IslandLayout(Mathf.Max(10, width), Mathf.Max(10, depth));
 
-            // ³ëÀÌÁî¸¶´Ù ´Ù¸¥ À§Ä¡¸¦ ¾²µµ·Ï ½Ãµå·Î ¿ÀÇÁ¼ÂÀ» Á¤ÇÔ
+            // ë…¸ì´ì¦ˆë§ˆë‹¤ ë‹¤ë¥¸ ìœ„ì¹˜ë¥¼ ì“°ë„ë¡ ì‹œë“œë¡œ ì˜¤í”„ì…‹ì„ ì •í•¨
             Vector2 coastOffset = new Vector2(rng.Next(-9999, 9999), rng.Next(-9999, 9999));
             Vector2 hillOffset = new Vector2(rng.Next(-9999, 9999), rng.Next(-9999, 9999));
             Vector2 riverOffset = new Vector2(rng.Next(-9999, 9999), rng.Next(-9999, 9999));
@@ -439,16 +500,24 @@ namespace FarmingSystem.World
             AssignShoreBeach(layout);
             if (generateRiver) CarveRiver(layout, riverOffset);
 
-            // °­ÀÌ »ı±ä µÚ ÇØ¾È °Å¸® ´Ù½Ã °è»ê
+            // ê°•ì´ ìƒê¸´ ë’¤ í•´ì•ˆ ê±°ë¦¬ ë‹¤ì‹œ ê³„ì‚°
             layout.coastDistance = MapAlgorithms.DistanceField(layout.width, layout.depth, (x, z) => !layout.land[x, z]);
 
             BuildRoads(layout);
             AddShoreRamps(layout, rng);
+            if (recessRamps) RecessRamps(layout);
+            if (buildMineEntrance) ChooseMineEntrance(layout);
+            layout.treeRootRadiusCells = MeasureTreeRootRadiusCells();
+            // ë¿Œë¦¬ê°€ í•œ ì¹¸ ì•ˆì— ë“¤ì–´ê°ˆ ë§Œí¼ë§Œ í”ë“¦ â†’ ë¿Œë¦¬ê°€ ì˜† ì¹¸(ì ˆë²½ ì•„ë˜ ë“±)ìœ¼ë¡œ ë„˜ì–´ê°€ì§€ ì•Šì•„ì„œ ëª¨ì„œë¦¬ ì¹¸ì—ë„ ì‹¬ì„ ìˆ˜ ìˆìŒ
+            float rootR = layout.treeRootRadiusCells + treeRootMargin / Mathf.Max(0.01f, Cell);
+            layout.treeJitter = Mathf.Clamp(0.5f - rootR, 0f, 0.3f);
             ScatterProps(layout, rng);
+            if (prefabs.trees != null && prefabs.trees.Length > 0 && layout.treePositions.Count == 0)
+                layout.warnings.Add("ë‚˜ë¬´: ì‹¬ì„ ìë¦¬ê°€ í•˜ë‚˜ë„ ì—†ìŒ. Forest Coverageë¥¼ ì˜¬ë¦¬ê±°ë‚˜ Tree Spacingì„ ë‚®ì¶° ë³´ì„¸ìš”");
             return layout;
         }
 
-        // ¼¶ ¸ğ¾ç ¸¸µé±â
+        // ì„¬ ëª¨ì–‘ ë§Œë“¤ê¸°
         private void BuildLandMask(IslandLayout L, Vector2 noiseOffset)
         {
             int w = L.width, h = L.depth;
@@ -460,21 +529,21 @@ namespace FarmingSystem.World
                 {
                     if (IsBorder(L, x, z)) { L.land[x, z] = false; continue; }
 
-                    // ¸Ê Áß¾Ó 0, °¡ÀåÀÚ¸® 1ÀÎ °Å¸® (¿øÇü °¨¼è)
+                    // ë§µ ì¤‘ì•™ 0, ê°€ì¥ìë¦¬ 1ì¸ ê±°ë¦¬ (ì›í˜• ê°ì‡ )
                     float nx = (x + 0.5f) / w * 2f - 1f;
                     float nz = (z + 0.5f) / h * 2f - 1f;
-                    // ÃÊÅ¸¿ø °Å¸®: Áö¼ö°¡ Å¬¼ö·Ï ³×¸ğ¿¡ °¡±î¿öÁ® ¼¶ÀÌ ¸ÊÀ» ²Ë Ã¤¿ò
+                    // ì´ˆíƒ€ì› ê±°ë¦¬: ì§€ìˆ˜ê°€ í´ìˆ˜ë¡ ë„¤ëª¨ì— ê°€ê¹Œì›Œì ¸ ì„¬ì´ ë§µì„ ê½‰ ì±„ì›€
                     float p = Mathf.Max(2f, islandSquareness);
                     float falloff = Mathf.Pow(Mathf.Pow(Mathf.Abs(nx), p) + Mathf.Pow(Mathf.Abs(nz), p), 1f / p);
 
-                    // ÇÁ·¢Å» ³ëÀÌÁî·Î ÇØ¾È¼±À» ¿ïÅüºÒÅüÇÏ°Ô
+                    // í”„ë™íƒˆ ë…¸ì´ì¦ˆë¡œ í•´ì•ˆì„ ì„ ìš¸í‰ë¶ˆí‰í•˜ê²Œ
                     float noise = MapAlgorithms.Fbm(x * coastNoiseScale + noiseOffset.x, z * coastNoiseScale + noiseOffset.y, 4);
                     float value = (1f - falloff) + (noise - 0.5f) * coastRoughness;
                     L.land[x, z] = value > landThreshold;
                 }
             }
 
-            // Áö¿ª ¿ø ¾ÈÀº ¹«Á¶°Ç ¶¥ (Áö¿ªÀÌ ¹Ù´Ù¿¡ Àß¸®Áö ¾Ê°Ô)
+            // ì§€ì—­ ì› ì•ˆì€ ë¬´ì¡°ê±´ ë•… (ì§€ì—­ì´ ë°”ë‹¤ì— ì˜ë¦¬ì§€ ì•Šê²Œ)
             for (int i = 0; i < zones.Count; i++)
             {
                 Vector2Int c = ZoneCenterCell(L, i);
@@ -490,7 +559,7 @@ namespace FarmingSystem.World
 
             MapAlgorithms.SmoothCellular(L.land, smoothingPasses, forced);
 
-            // ´ÙµëÀº µÚ¿¡µµ °¡ÀåÀÚ¸®´Â ¹°·Î
+            // ë‹¤ë“¬ì€ ë’¤ì—ë„ ê°€ì¥ìë¦¬ëŠ” ë¬¼ë¡œ
             for (int x = 0; x < w; x++)
                 for (int z = 0; z < h; z++)
                     if (IsBorder(L, x, z)) L.land[x, z] = false;
@@ -498,7 +567,7 @@ namespace FarmingSystem.World
             MapAlgorithms.KeepLargestRegion(L.land);
         }
 
-        // Ä­¸¶´Ù ¾î´À Áö¿ª¿¡ ¼ÓÇÏ´ÂÁö Á¤ÇÔ (Áö¿ª ¿ø ¾È¿¡¼­ (°Å¸® / ¹İÁö¸§)ÀÌ °¡Àå ÀÛÀº Áö¿ª)
+        // ì¹¸ë§ˆë‹¤ ì–´ëŠ ì§€ì—­ì— ì†í•˜ëŠ”ì§€ ì •í•¨ (ì§€ì—­ ì› ì•ˆì—ì„œ (ê±°ë¦¬ / ë°˜ì§€ë¦„)ì´ ê°€ì¥ ì‘ì€ ì§€ì—­)
         private void AssignZones(IslandLayout L)
         {
             for (int x = 0; x < L.width; x++)
@@ -518,18 +587,18 @@ namespace FarmingSystem.World
                 }
             }
 
-            // ¼¶ ¹ÛÀ¸·Î ¹Ğ·Á³ª Ä­ÀÌ ÇÏ³ªµµ ¾ø´Â Áö¿ª °æ°í
+            // ì„¬ ë°–ìœ¼ë¡œ ë°€ë ¤ë‚˜ ì¹¸ì´ í•˜ë‚˜ë„ ì—†ëŠ” ì§€ì—­ ê²½ê³ 
             for (int i = 0; i < zones.Count; i++)
             {
                 bool any = false;
                 for (int x = 0; x < L.width && !any; x++)
                     for (int z = 0; z < L.depth && !any; z++)
                         if (L.zoneIndex[x, z] == i) any = true;
-                if (!any) L.warnings.Add($"'{zones[i].displayName}' Áö¿ªÀÌ ¼¶ ¾È¿¡ ¾øÀ½ (À§Ä¡³ª ¹İÁö¸§ È®ÀÎ)");
+                if (!any) L.warnings.Add($"'{zones[i].displayName}' ì§€ì—­ì´ ì„¬ ì•ˆì— ì—†ìŒ (ìœ„ì¹˜ë‚˜ ë°˜ì§€ë¦„ í™•ì¸)");
             }
         }
 
-        // ³ôÀÌ ´Ü°è Á¤ÇÏ±â
+        // ë†’ì´ ë‹¨ê³„ ì •í•˜ê¸°
         private void AssignLevels(IslandLayout L, Vector2 hillOffset)
         {
             Vector2 mountainOffset = hillOffset + new Vector2(311f, 173f);
@@ -545,31 +614,27 @@ namespace FarmingSystem.World
                     int zi = L.zoneIndex[x, z];
                     if (zi >= 0)
                     {
-                        // Áö¿ªÀº Á¤ÇØÁø ³ôÀÌ·Î ÆòÆòÇÏ°Ô, ³ôÀº Áö´ë´Â °è´Ü½Ä »êÀ¸·Î
+                        // ì§€ì—­ì€ ì •í•´ì§„ ë†’ì´ë¡œ í‰í‰í•˜ê²Œ, ë†’ì€ ì§€ëŒ€ëŠ” ê³„ë‹¨ì‹ ì‚°ìœ¼ë¡œ
                         L.level[x, z] = zones[zi].type == ZoneType.Highland
                             ? MountainLevel(L, x, z, zi, mountainOffset)
-                            : zones[zi].level;
+                            : zones[zi].type == ZoneType.Beach && beachSameHeight
+                                ? Mathf.Max(zones[zi].level, baseLevel)
+                                : zones[zi].level;
                         continue;
                     }
 
+                    // ì¼ë°˜ ë•…ì€ ì „ë¶€ ê°™ì€ ë†’ì´ í‰ì§€ (ë™ìˆ²ì²˜ëŸ¼ í‰ì§€ì— ëœ¬ê¸ˆì—†ëŠ” ë‘”ë• ì—†ìŒ - ì–¸ë• ê¸°ëŠ¥ì€ ì‚­ì œí•¨)
                     L.level[x, z] = baseLevel;
-
-                    // Áö¿ª¿¡¼­ 2Ä­ ÀÌ»ó, ÇØ¾È¿¡¼­ 3Ä­ ÀÌ»ó ¶³¾îÁø ÀÏ¹İ ¶¥¿¡¸¸ ¾ğ´ö (Áö¿ª ¿·¿¡ Àıº®ÀÌ »ı±âÁö ¾Ê°Ô)
-                    if (generateHills && L.zoneDistance[x, z] >= 2 && L.coastDistance[x, z] >= 3)
-                    {
-                        float n = MapAlgorithms.Fbm(x * hillNoiseScale + hillOffset.x, z * hillNoiseScale + hillOffset.y, 3);
-                        if (n > hillThreshold) L.level[x, z] = baseLevel + 1;
-                    }
                 }
             }
         }
 
-        // ¼¶ µÑ·¹ ¸ğ·¡»çÀå: ÇØ¾È¿¡¼­ shoreBeachWidthÄ­ ¾ÈÂÊÀÇ ÀÏ¹İ ¶¥À» ÇØº¯ ³ôÀÌ(0´Ü) ¸ğ·¡·Î ¹Ù²Ş
-        // (Áı¡¤³óÀå µî Áö¿ª°ú ±× ¹Ù·Î ¿·Àº Á¦¿Ü)
+        // ì„¬ ë‘˜ë ˆ ëª¨ë˜ì‚¬ì¥: í•´ì•ˆì—ì„œ shoreBeachWidthì¹¸ ì•ˆìª½ì˜ ì¼ë°˜ ë•…ì„ í•´ë³€ ë†’ì´(0ë‹¨) ëª¨ë˜ë¡œ ë°”ê¿ˆ
+        // (ì§‘Â·ë†ì¥ ë“± ì§€ì—­ê³¼ ê·¸ ë°”ë¡œ ì˜†ì€ ì œì™¸)
         private void AssignShoreBeach(IslandLayout L)
         {
             if (shoreBeachWidth <= 0) return;
-            int shoreLevel = Mathf.Max(0, baseLevel - 1);
+            int shoreLevel = beachSameHeight ? baseLevel : Mathf.Max(0, baseLevel - 1);
 
             for (int x = 0; x < L.width; x++)
                 for (int z = 0; z < L.depth; z++)
@@ -582,12 +647,12 @@ namespace FarmingSystem.World
                 }
         }
 
-        // ¸ğ·¡»çÀå°ú À§ ¶¥ »çÀÌ °æ»ç·Î: °æ°è¸¦ µû¶ó ÀÏÁ¤ °£°İÀ¸·Î ³õ¾Æ, ¾îµğ¼­ ³»·Á°¡µµ ±ÙÃ³¿¡¼­ ´Ù½Ã ¿Ã¶ó¿Ã ¼ö ÀÖ°Ô ÇÔ
+        // ëª¨ë˜ì‚¬ì¥ê³¼ ìœ„ ë•… ì‚¬ì´ ê²½ì‚¬ë¡œ: ê²½ê³„ë¥¼ ë”°ë¼ ì¼ì • ê°„ê²©ìœ¼ë¡œ ë†“ì•„, ì–´ë””ì„œ ë‚´ë ¤ê°€ë„ ê·¼ì²˜ì—ì„œ ë‹¤ì‹œ ì˜¬ë¼ì˜¬ ìˆ˜ ìˆê²Œ í•¨
         private void AddShoreRamps(IslandLayout L, System.Random rng)
         {
             if (shoreBeachWidth <= 0) return;
 
-            // ÈÄº¸: ¸ğ·¡»çÀå Ä­ Áß ÇÑ ´Ü ³ôÀº ÀÏ¹İ ¶¥°ú ¸Â´êÀº Ä­
+            // í›„ë³´: ëª¨ë˜ì‚¬ì¥ ì¹¸ ì¤‘ í•œ ë‹¨ ë†’ì€ ì¼ë°˜ ë•…ê³¼ ë§ë‹¿ì€ ì¹¸
             var candidates = new List<(Vector2Int cell, int dir)>();
             for (int x = 0; x < L.width; x++)
                 for (int z = 0; z < L.depth; z++)
@@ -598,9 +663,9 @@ namespace FarmingSystem.World
                         Vector2Int n = new Vector2Int(x, z) + MapAlgorithms.Dirs4[d];
                         if (!L.InBounds(n) || !L.land[n.x, n.y] || L.shore[n.x, n.y]) continue;
                         if (L.level[n.x, n.y] != L.level[x, z] + 1) continue;
-                        if (L.zoneIndex[n.x, n.y] >= 0 && zones[L.zoneIndex[n.x, n.y]].locked) continue;
+                        if (L.zoneIndex[n.x, n.y] >= 0 && IsLocked(L.zoneIndex[n.x, n.y])) continue;
 
-                        // °æ»ç·Î ¹İ´ëÆí(³»·Á¿À´Â ÂÊ)µµ ¸ğ·¡»çÀåÀÌ¾î¾ß ÀÚ¿¬½º·´°Ô ÀÌ¾îÁü
+                        // ê²½ì‚¬ë¡œ ë°˜ëŒ€í¸(ë‚´ë ¤ì˜¤ëŠ” ìª½)ë„ ëª¨ë˜ì‚¬ì¥ì´ì–´ì•¼ ìì—°ìŠ¤ëŸ½ê²Œ ì´ì–´ì§
                         Vector2Int back = new Vector2Int(x, z) - MapAlgorithms.Dirs4[d];
                         if (!L.InBounds(back) || !L.land[back.x, back.y] || L.level[back.x, back.y] != L.level[x, z]) continue;
 
@@ -609,7 +674,7 @@ namespace FarmingSystem.World
                     }
                 }
 
-            // ¹«ÀÛÀ§ ¼ø¼­·Î ÈÈÀ¸¸ç, ÀÌ¹Ì ³õÀº °æ»ç·Î¿Í °£°İÀÌ ÃæºĞÇÒ ¶§¸¸ Ãß°¡
+            // ë¬´ì‘ìœ„ ìˆœì„œë¡œ í›‘ìœ¼ë©°, ì´ë¯¸ ë†“ì€ ê²½ì‚¬ë¡œì™€ ê°„ê²©ì´ ì¶©ë¶„í•  ë•Œë§Œ ì¶”ê°€
             for (int i = candidates.Count - 1; i > 0; i--)
             {
                 int j = rng.Next(i + 1);
@@ -628,31 +693,117 @@ namespace FarmingSystem.World
             }
         }
 
-        // °è´Ü½Ä »ê ³ôÀÌ °è»ê
-        // Áß½É¿¡ °¡±î¿ï¼ö·Ï ´ÜÀÌ ³ô¾ÆÁö°í(¿ø»Ô), ³ëÀÌÁî·Î °è´Ü °æ°è¸¦ Èçµé¾î ÀÚ¿¬½º·¯¿î ¹ÙÀ§»ê ¸ğ¾çÀ» ¸¸µç´Ù
-        // °¡ÀåÀÚ¸®(mountainFlatRim)´Â Ç×»ó ±âº» ³ôÀÌ·Î ³²°Ü, ¹Ù±ù ¶¥°ú ÇÑ ´Ü Â÷ÀÌ¸¸ ³ª°Ô ÇÔ (±æ¡¤°æ»ç·Î°¡ ´êÀ» ¼ö ÀÖ°Ô)
+        // ë™ìˆ²ì‹ ê²½ì‚¬ë¡œ: ì ˆë²½ ì•ì— íŠ€ì–´ë‚˜ì˜¨ ê²½ì‚¬ë¡œë¥¼ ì ˆë²½ ì•ˆìª½ ì¹¸ìœ¼ë¡œ ì˜®ê²¨ ë„£ëŠ”ë‹¤
+        // ì›ë˜: ë‚®ì€ ì¹¸(L) ìœ„ì— ê²½ì‚¬ë¡œ â†’ ë†’ì€ ì¹¸(H)ìœ¼ë¡œ ì˜¬ë¼ê° â†’ ê²½ì‚¬ë¡œê°€ ì ˆë²½ ì•ì— í˜¼ì íˆ­ íŠ€ì–´ë‚˜ì™€ ë³´ì„
+        // ë°”ê¿ˆ: ë†’ì€ ì¹¸(H)ì„ í•œ ë‹¨ íŒŒë‚´ì„œ ê²½ì‚¬ë¡œë¥¼ ê·¸ ì•ˆì— ë„£ìŒ â†’ H ì–‘ì˜†ì˜ ë†’ì€ ë•…ì´ ë²½ì´ ë˜ê³ , ê·¸ ì‚¬ì´ë¡œ ì˜¬ë¼ê°€ ë’¤ ì¹¸(B)ì— ë„ì°©
+        //   [ë‚®ì€ ë•… L] â†’ [H: íŒŒë‚¸ ì¹¸ + ê²½ì‚¬ë¡œ] â†’ [B: ë†’ì€ ë•…]
+        // ë’¤ ì¹¸ Bê°€ ë†’ì€ ë•…ì´ ì•„ë‹ˆë©´(ë†’ì€ ë•…ì´ í•œ ì¹¸ ë‘ê»˜ë¿ì´ë©´) íŒ” ìˆ˜ ì—†ìœ¼ë‹ˆ ì›ë˜ ìœ„ì¹˜ ê·¸ëŒ€ë¡œ ë‘ 
+        private void RecessRamps(IslandLayout L)
+        {
+            // ë¨¼ì € ì˜®ê¸¸ ëª©ë¡ì„ ë‹¤ ì •í•˜ê³  ë‚˜ì¤‘ì— ë°”ê¿ˆ (ì˜®ê¸°ëŠ” ë„ì¤‘ ë†’ì´ê°€ ë°”ë€Œì–´ ë‹¤ë¥¸ ê²½ì‚¬ë¡œ íŒë‹¨ì´ ê¼¬ì´ì§€ ì•Šê²Œ)
+            var moves = new List<(Vector2Int low, Vector2Int high, int dir)>();
+            for (int x = 0; x < L.width; x++)
+            {
+                for (int z = 0; z < L.depth; z++)
+                {
+                    int dir = L.rampDir[x, z];
+                    if (dir < 0 || !L.land[x, z]) continue;
+
+                    Vector2Int low = new Vector2Int(x, z);
+                    Vector2Int high = low + MapAlgorithms.Dirs4[dir];
+                    Vector2Int back = high + MapAlgorithms.Dirs4[dir];
+                    if (!L.InBounds(high) || !L.InBounds(back)) continue;
+                    if (!L.land[high.x, high.y] || !L.land[back.x, back.y]) continue;
+                    if (L.river[high.x, high.y] || L.river[back.x, back.y]) continue;
+                    if (L.rampDir[high.x, high.y] >= 0 || L.rampDir[back.x, back.y] >= 0) continue;
+
+                    int lowLevel = L.level[x, z];
+                    if (L.level[high.x, high.y] != lowLevel + 1) continue;     // ë°”ë¡œ ìœ„ ì¹¸ì´ í•œ ë‹¨ ë†’ì•„ì•¼
+                    if (L.level[back.x, back.y] != lowLevel + 1) continue;     // ê²½ì‚¬ë¡œë¥¼ ì˜¬ë¼ê°„ ë’¤ ì„¤ ë•…ë„ ê°™ì€ ë†’ì´ì—¬ì•¼
+                    moves.Add((low, high, dir));
+                }
+            }
+
+            var taken = new HashSet<Vector2Int>();
+            foreach (var m in moves)
+            {
+                if (taken.Contains(m.high)) continue;
+                taken.Add(m.high);
+
+                L.rampDir[m.low.x, m.low.y] = -1;                         // ì›ë˜ ìë¦¬(ì ˆë²½ ì•)ì—ì„œ ë¹¼ê³ 
+                L.level[m.high.x, m.high.y] = L.level[m.low.x, m.low.y];  // ë†’ì€ ì¹¸ì„ í•œ ë‹¨ íŒŒë‚¸ ë’¤
+                L.rampDir[m.high.x, m.high.y] = m.dir;                    // ê±°ê¸°ì— ê°™ì€ ë°©í–¥ìœ¼ë¡œ ë†“ìŒ
+                L.road[m.high.x, m.high.y] = L.road[m.high.x, m.high.y] || L.road[m.low.x, m.low.y];
+            }
+        }
+
+        // ê´‘ì‚° ì…êµ¬ ìë¦¬ ê³ ë¥´ê¸°
+        // ì‚°(ë†’ì€ ì§€ëŒ€)ì˜ ì ˆë²½ ì¤‘, ì•ì— í‰í‰í•˜ê²Œ ì„¤ ë•…ì´ ìˆê³  ì„¬ ì•ˆìª½(ì§‘)ì„ ë°”ë¼ë³´ë©° ê¸¸ê³¼ ê°€ê¹Œìš´ ê³³
+        //   [ì• ì¹¸: í”Œë ˆì´ì–´ê°€ ì„œëŠ” ê³³, ë‚®ì€ ë•…] â†’ [ì ˆë²½ ì¹¸: ì‚°, ì• ì¹¸ë³´ë‹¤ ë†’ìŒ] ì´ ê²½ê³„ ë²½ì— ë™êµ´ ì…êµ¬ê°€ ë¶™ìŒ
+        private void ChooseMineEntrance(IslandLayout L)
+        {
+            int mountain = FindZone(ZoneType.Highland);
+            if (mountain < 0) { L.warnings.Add("ê´‘ì‚° ì…êµ¬: ì‚°(Highland) ì§€ì—­ì´ ì—†ì–´ ë§Œë“¤ì§€ ì•ŠìŒ"); return; }
+
+            int home = FindZone(ZoneType.Home);
+            Vector2 homeCenter = home >= 0 ? (Vector2)ZoneCenterCell(L, home) : new Vector2(L.width * 0.5f, L.depth * 0.5f);
+            int[,] roadDist = MapAlgorithms.DistanceField(L.width, L.depth, (x, z) => L.road[x, z]);
+
+            float best = float.MaxValue;
+            for (int x = 0; x < L.width; x++)
+            {
+                for (int z = 0; z < L.depth; z++)
+                {
+                    if (!L.land[x, z] || L.zoneIndex[x, z] != mountain || L.rampDir[x, z] >= 0) continue;
+                    for (int d = 0; d < 4; d++)
+                    {
+                        Vector2Int cliff = new Vector2Int(x, z);
+                        Vector2Int front = cliff - MapAlgorithms.Dirs4[d]; // ì ˆë²½ ì• ì¹¸ (d = ì• ì¹¸ â†’ ì ˆë²½ ë°©í–¥)
+                        if (!L.InBounds(front) || !L.land[front.x, front.y]) continue;
+                        if (L.river[front.x, front.y] || L.rampDir[front.x, front.y] >= 0 || L.shore[front.x, front.y]) continue;
+                        if (L.level[cliff.x, cliff.y] - L.level[front.x, front.y] < 1) continue; // ì ˆë²½ì´ ìˆì–´ì•¼
+
+                        // ì…êµ¬ ì• ì–‘ì˜†ë„ ê°™ì€ ë†’ì´ í‰ì§€ì—¬ì•¼ ìì—°ìŠ¤ëŸ¬ì›€
+                        Vector2Int side = new Vector2Int(-MapAlgorithms.Dirs4[d].y, MapAlgorithms.Dirs4[d].x);
+                        bool flat = true;
+                        foreach (Vector2Int s2 in new[] { front + side, front - side, front - MapAlgorithms.Dirs4[d] })
+                            if (!L.InBounds(s2) || !L.land[s2.x, s2.y] || L.level[s2.x, s2.y] != L.level[front.x, front.y] || L.river[s2.x, s2.y]) { flat = false; break; }
+                        if (!flat) continue;
+
+                        // ì ìˆ˜: ì§‘(ì„¬ ì•ˆìª½)ê³¼ ê°€ê¹ê³ , ê¸¸ê³¼ ê°€ê¹Œìš¸ìˆ˜ë¡ ì¢‹ìŒ
+                        float score = (front - homeCenter).magnitude + roadDist[front.x, front.y] * 2f;
+                        if (score < best) { best = score; L.mineFront = front; L.mineDir = d; }
+                    }
+                }
+            }
+            if (L.mineDir < 0) L.warnings.Add("ê´‘ì‚° ì…êµ¬: ì‚°ì—ì„œ ì•ì´ í‰í‰í•œ ì ˆë²½ì„ ì°¾ì§€ ëª»í•¨ (ì‚° í¬ê¸°Â·ë†’ì´ í™•ì¸)");
+        }
+
+        // ê³„ë‹¨ì‹ ì‚° ë†’ì´ ê³„ì‚°
+        // ì¤‘ì‹¬ì— ê°€ê¹Œìš¸ìˆ˜ë¡ ë‹¨ì´ ë†’ì•„ì§€ê³ (ì›ë¿”), ë…¸ì´ì¦ˆë¡œ ê³„ë‹¨ ê²½ê³„ë¥¼ í”ë“¤ì–´ ìì—°ìŠ¤ëŸ¬ìš´ ë°”ìœ„ì‚° ëª¨ì–‘ì„ ë§Œë“ ë‹¤
+        // ê°€ì¥ìë¦¬(mountainFlatRim)ëŠ” í•­ìƒ ê¸°ë³¸ ë†’ì´ë¡œ ë‚¨ê²¨, ë°”ê¹¥ ë•…ê³¼ í•œ ë‹¨ ì°¨ì´ë§Œ ë‚˜ê²Œ í•¨ (ê¸¸Â·ê²½ì‚¬ë¡œê°€ ë‹¿ì„ ìˆ˜ ìˆê²Œ)
         private int MountainLevel(IslandLayout L, int x, int z, int zi, Vector2 noiseOffset)
         {
             ZoneDefinition zone = zones[zi];
             float d = (new Vector2(x, z) - (Vector2)ZoneCenterCell(L, zi)).magnitude / Mathf.Max(0.01f, zone.radius);
             if (d >= 1f - mountainFlatRim) return zone.level;
 
-            // 0(°¡ÀåÀÚ¸® ÆòÁö ³¡) ~ 1(Áß½É)
+            // 0(ê°€ì¥ìë¦¬ í‰ì§€ ë) ~ 1(ì¤‘ì‹¬)
             float t = 1f - d / Mathf.Max(0.01f, 1f - mountainFlatRim);
             float n = MapAlgorithms.Fbm(x * mountainNoiseScale + noiseOffset.x, z * mountainNoiseScale + noiseOffset.y, 3) - 0.5f;
             float raw = t * (mountainHeight + 0.99f) + n * mountainRoughness * 2f;
             int tier = Mathf.Clamp(Mathf.FloorToInt(raw) + 1, 1, mountainHeight);
             if (mountainHeight <= 0) tier = 0;
-            return zone.level + tier;
+            return zone.level + tier * Mathf.Max(1, mountainTierLevels);
         }
 
-        // ³ôÀº Áö´ë °¡ÀåÀÚ¸®¿¡¼­ ¹Ù´Ù±îÁö °­ ÆÄ±â
+        // ë†’ì€ ì§€ëŒ€ ê°€ì¥ìë¦¬ì—ì„œ ë°”ë‹¤ê¹Œì§€ ê°• íŒŒê¸°
         private void CarveRiver(IslandLayout L, Vector2 noiseOffset)
         {
             int source = FindZone(ZoneType.Highland);
-            if (source < 0) { L.warnings.Add("°­: ³ôÀº Áö´ë(Highland) Áö¿ªÀÌ ¾ø¾î °­À» ¸¸µéÁö ¾ÊÀ½"); return; }
+            if (source < 0) { L.warnings.Add("ê°•: ë†’ì€ ì§€ëŒ€(Highland) ì§€ì—­ì´ ì—†ì–´ ê°•ì„ ë§Œë“¤ì§€ ì•ŠìŒ"); return; }
 
-            // ½ÃÀÛÁ¡: ³ôÀº Áö´ë ¹Ù·Î ¹Ù±ù Ä­ Áß °­ ÇÏ±¸ ¹æÇâ¿¡ °¡Àå °¡±î¿î Ä­
+            // ì‹œì‘ì : ë†’ì€ ì§€ëŒ€ ë°”ë¡œ ë°”ê¹¥ ì¹¸ ì¤‘ ê°• í•˜êµ¬ ë°©í–¥ì— ê°€ì¥ ê°€ê¹Œìš´ ì¹¸
             Vector2 mouth = new Vector2(riverMouthHint.x * (L.width - 1), riverMouthHint.y * (L.depth - 1));
             Vector2Int start = new Vector2Int(-1, -1);
             float bestDist = float.MaxValue;
@@ -673,10 +824,10 @@ namespace FarmingSystem.World
                     if (dist < bestDist) { bestDist = dist; start = new Vector2Int(x, z); }
                 }
             }
-            if (start.x < 0) { L.warnings.Add("°­: ³ôÀº Áö´ë ¿·¿¡ ½ÃÀÛÇÒ ¶¥ÀÌ ¾øÀ½"); return; }
+            if (start.x < 0) { L.warnings.Add("ê°•: ë†’ì€ ì§€ëŒ€ ì˜†ì— ì‹œì‘í•  ë•…ì´ ì—†ìŒ"); return; }
 
-            // ÇÏ±¸ ±ÙÃ³ ¹Ù´Ù±îÁö °¡´Â °æ·Î. ³ëÀÌÁî ºñ¿ëÀ¸·Î ±¸ºÒ±¸ºÒÇÏ°Ô, Áö¿ª ¾ÈÂÊÀº ÇÇÇØ¼­
-            // ÇÏ±¸°¡ ¾Æ´Ñ ¹Ù´Ù·Î´Â µé¾î°¡Áö ¸øÇÏ°Ô ÇØ¼­, °¡±î¿î ÇØ¾ÈÀ¸·Î ¹Ù·Î ºüÁöÁö ¾Ê°í ¼¶À» °¡·ÎÁú·¯ Èå¸£°Ô ÇÔ
+            // í•˜êµ¬ ê·¼ì²˜ ë°”ë‹¤ê¹Œì§€ ê°€ëŠ” ê²½ë¡œ. ë…¸ì´ì¦ˆ ë¹„ìš©ìœ¼ë¡œ êµ¬ë¶ˆêµ¬ë¶ˆí•˜ê²Œ, ì§€ì—­ ì•ˆìª½ì€ í”¼í•´ì„œ
+            // í•˜êµ¬ê°€ ì•„ë‹Œ ë°”ë‹¤ë¡œëŠ” ë“¤ì–´ê°€ì§€ ëª»í•˜ê²Œ í•´ì„œ, ê°€ê¹Œìš´ í•´ì•ˆìœ¼ë¡œ ë°”ë¡œ ë¹ ì§€ì§€ ì•Šê³  ì„¬ì„ ê°€ë¡œì§ˆëŸ¬ íë¥´ê²Œ í•¨
             bool NearMouth(Vector2Int c) => (new Vector2(c.x, c.y) - mouth).magnitude <= riverMouthRadius;
 
             float RiverCost(Vector2Int a, Vector2Int b, bool mouthOnly)
@@ -692,14 +843,14 @@ namespace FarmingSystem.World
             List<Vector2Int> path = MapAlgorithms.FindPath(L.width, L.depth, start,
                 c => L.IsSea(c) && NearMouth(c), (a, b) => RiverCost(a, b, true), c => 0f);
 
-            // ÇÏ±¸±îÁö ¸ø °¡¸é °¡Àå °¡±î¿î ¹Ù´Ù·Î¶óµµ
+            // í•˜êµ¬ê¹Œì§€ ëª» ê°€ë©´ ê°€ì¥ ê°€ê¹Œìš´ ë°”ë‹¤ë¡œë¼ë„
             if (path == null)
             {
-                L.warnings.Add("°­: ÇÏ±¸ ÂÊ ¹Ù´Ù±îÁö ±æÀÌ ¾ø¾î °¡±î¿î ¹Ù´Ù·Î ºüÁö°Ô ÇÔ (River Mouth Hint Á¶Àı)");
+                L.warnings.Add("ê°•: í•˜êµ¬ ìª½ ë°”ë‹¤ê¹Œì§€ ê¸¸ì´ ì—†ì–´ ê°€ê¹Œìš´ ë°”ë‹¤ë¡œ ë¹ ì§€ê²Œ í•¨ (River Mouth Hint ì¡°ì ˆ)");
                 path = MapAlgorithms.FindPath(L.width, L.depth, start, c => L.IsSea(c), (a, b) => RiverCost(a, b, false), c => 0f);
             }
 
-            if (path == null) { L.warnings.Add("°­: ¹Ù´Ù±îÁö °æ·Î¸¦ Ã£Áö ¸øÇÔ"); return; }
+            if (path == null) { L.warnings.Add("ê°•: ë°”ë‹¤ê¹Œì§€ ê²½ë¡œë¥¼ ì°¾ì§€ ëª»í•¨"); return; }
 
             for (int i = 0; i < path.Count; i++)
             {
@@ -707,7 +858,7 @@ namespace FarmingSystem.World
                 if (L.IsSea(c)) break;
                 MakeRiver(L, c);
 
-                // Æø 2¸é ÁøÇà ¹æÇâ ¿À¸¥ÂÊ Ä­µµ °­À¸·Î
+                // í­ 2ë©´ ì§„í–‰ ë°©í–¥ ì˜¤ë¥¸ìª½ ì¹¸ë„ ê°•ìœ¼ë¡œ
                 if (riverWidth >= 2 && i + 1 < path.Count)
                 {
                     int dir = MapAlgorithms.DirBetween(c, path[i + 1]);
@@ -729,19 +880,19 @@ namespace FarmingSystem.World
             L.zoneIndex[c.x, c.y] = -1;
         }
 
-        // Áı¿¡¼­ °¢ Áö¿ª±îÁö ±æ ³»±â
+        // ì§‘ì—ì„œ ê° ì§€ì—­ê¹Œì§€ ê¸¸ ë‚´ê¸°
         private void BuildRoads(IslandLayout L)
         {
             int home = FindZone(ZoneType.Home);
-            if (home < 0) { L.warnings.Add("±æ: Áı(Home) Áö¿ªÀÌ ¾ø¾î ±æÀ» ¸¸µéÁö ¾ÊÀ½"); return; }
+            if (home < 0) { L.warnings.Add("ê¸¸: ì§‘(Home) ì§€ì—­ì´ ì—†ì–´ ê¸¸ì„ ë§Œë“¤ì§€ ì•ŠìŒ"); return; }
 
             Vector2Int start = ZoneCenterCellOnLand(L, home);
-            if (start.x < 0) { L.warnings.Add("±æ: Áı Áö¿ª¿¡ ¶¥ÀÌ ¾øÀ½"); return; }
+            if (start.x < 0) { L.warnings.Add("ê¸¸: ì§‘ ì§€ì—­ì— ë•…ì´ ì—†ìŒ"); return; }
 
-            // ¿­¸° Áö¿ª ¸ÕÀú, Àá±ä Áö¿ªÀº ³ªÁß¿¡ (Àá±ä ±æÀÌ Á¤»ó ´Ù¸®¸¦ ºÎ¼öÁö ¾Êµµ·Ï)
+            // ì—´ë¦° ì§€ì—­ ë¨¼ì €, ì ê¸´ ì§€ì—­ì€ ë‚˜ì¤‘ì— (ì ê¸´ ê¸¸ì´ ì •ìƒ ë‹¤ë¦¬ë¥¼ ë¶€ìˆ˜ì§€ ì•Šë„ë¡)
             var order = new List<int>();
-            for (int i = 0; i < zones.Count; i++) if (i != home && !zones[i].locked) order.Add(i);
-            for (int i = 0; i < zones.Count; i++) if (i != home && zones[i].locked) order.Add(i);
+            for (int i = 0; i < zones.Count; i++) if (i != home && !IsLocked(i)) order.Add(i);
+            for (int i = 0; i < zones.Count; i++) if (i != home && IsLocked(i)) order.Add(i);
 
             foreach (int target in order)
             {
@@ -757,14 +908,14 @@ namespace FarmingSystem.World
 
                 if (path == null)
                 {
-                    L.warnings.Add($"±æ: '{zones[target].displayName}'±îÁö ±æÀ» Ã£Áö ¸øÇÔ (Áö¿ª À§Ä¡³ª ³ôÀÌ¸¦ È®ÀÎ)");
+                    L.warnings.Add($"ê¸¸: '{zones[target].displayName}'ê¹Œì§€ ê¸¸ì„ ì°¾ì§€ ëª»í•¨ (ì§€ì—­ ìœ„ì¹˜ë‚˜ ë†’ì´ë¥¼ í™•ì¸)");
                     continue;
                 }
                 ApplyRoad(L, path, target);
             }
         }
 
-        // ±æ 1Ä­ ÀÌµ¿ ºñ¿ë (-1 = °¥ ¼ö ¾øÀ½)
+        // ê¸¸ 1ì¹¸ ì´ë™ ë¹„ìš© (-1 = ê°ˆ ìˆ˜ ì—†ìŒ)
         private float RoadStepCost(IslandLayout L, Vector2Int a, Vector2Int b, int target)
         {
             if (L.IsSea(b)) return -1f;
@@ -773,7 +924,7 @@ namespace FarmingSystem.World
             int la = aRiver ? baseLevel : L.level[a.x, a.y];
             int lb = bRiver ? baseLevel : L.level[b.x, b.y];
 
-            // ´Ù¸®´Â °°Àº ³ôÀÌ³¢¸®¸¸, ¶¥Àº ÇÑ ´Ü°è Â÷ÀÌ±îÁö¸¸ (°æ»ç·Î)
+            // ë‹¤ë¦¬ëŠ” ê°™ì€ ë†’ì´ë¼ë¦¬ë§Œ, ë•…ì€ í•œ ë‹¨ê³„ ì°¨ì´ê¹Œì§€ë§Œ (ê²½ì‚¬ë¡œ)
             if ((aRiver || bRiver) && la != lb) return -1f;
             int diff = Mathf.Abs(la - lb);
             if (diff > 1) return -1f;
@@ -782,7 +933,7 @@ namespace FarmingSystem.World
             if (bRiver && !L.road[b.x, b.y]) cost = bridgeCost;
             if (diff == 1)
             {
-                // ÀÌ¹Ì ´Ù¸¥ ¹æÇâ °æ»ç·Î°¡ ÀÖ´Â Ä­Àº ÇÇÇÔ
+                // ì´ë¯¸ ë‹¤ë¥¸ ë°©í–¥ ê²½ì‚¬ë¡œê°€ ìˆëŠ” ì¹¸ì€ í”¼í•¨
                 if (L.rampDir[a.x, a.y] >= 0 || L.rampDir[b.x, b.y] >= 0) cost += rampCost * 3f;
                 cost += rampCost;
             }
@@ -790,16 +941,16 @@ namespace FarmingSystem.World
             int zi = L.land[b.x, b.y] ? L.zoneIndex[b.x, b.y] : -1;
             if (zi >= 0 && zi != target)
             {
-                if (zones[zi].locked) return -1f;                 // ´Ù¸¥ Àá±ä Áö¿ªÀº Åë°ú ºÒ°¡
-                if (zones[zi].type == ZoneType.Farm) cost += farmCrossCost; // ¹çÀº °¡·ÎÁö¸£Áö ¾Ê°Ô
+                if (IsLocked(zi)) return -1f;                 // ë‹¤ë¥¸ ì ê¸´ ì§€ì—­ì€ í†µê³¼ ë¶ˆê°€
+                if (zones[zi].type == ZoneType.Farm) cost += farmCrossCost; // ë°­ì€ ê°€ë¡œì§€ë¥´ì§€ ì•Šê²Œ
             }
             return cost;
         }
 
-        // Ã£Àº °æ·Î¸¦ ±æ¡¤°æ»ç·Î¡¤´Ù¸®·Î Ç¥½Ã
+        // ì°¾ì€ ê²½ë¡œë¥¼ ê¸¸Â·ê²½ì‚¬ë¡œÂ·ë‹¤ë¦¬ë¡œ í‘œì‹œ
         private void ApplyRoad(IslandLayout L, List<Vector2Int> path, int target)
         {
-            // ÀÌ¹ø °æ·Î ÀÌÀüºÎÅÍ ÀÖ´ø ´Ù¸® (Àá±ä ±æÀÌ¶óµµ ÀÌ ´Ù¸®´Â ºÎ¼öÁö ¾ÊÀ½)
+            // ì´ë²ˆ ê²½ë¡œ ì´ì „ë¶€í„° ìˆë˜ ë‹¤ë¦¬ (ì ê¸´ ê¸¸ì´ë¼ë„ ì´ ë‹¤ë¦¬ëŠ” ë¶€ìˆ˜ì§€ ì•ŠìŒ)
             var preexisting = new HashSet<Vector2Int>();
             foreach (Vector2Int c in path) if (L.road[c.x, c.y]) preexisting.Add(c);
 
@@ -807,11 +958,11 @@ namespace FarmingSystem.World
             {
                 Vector2Int c = path[k];
 
-                // ¶¥Àº Áö¿ª ±¸ºĞ ¾øÀÌ ¸ğµÎ °°Àº ¶¥ÀÌ¶ó, ±æÀº »óÁ¡¡¤Áı±îÁö ±×´ë·Î ÀÌ¾îÁü
+                // ë•…ì€ ì§€ì—­ êµ¬ë¶„ ì—†ì´ ëª¨ë‘ ê°™ì€ ë•…ì´ë¼, ê¸¸ì€ ìƒì Â·ì§‘ê¹Œì§€ ê·¸ëŒ€ë¡œ ì´ì–´ì§
 
                 L.road[c.x, c.y] = true;
 
-                // °­ À§ = ´Ù¸®. ¾ÕµÚ Ä­À¸·Î ´Ù¸® ¹æÇâ °áÁ¤
+                // ê°• ìœ„ = ë‹¤ë¦¬. ì•ë’¤ ì¹¸ìœ¼ë¡œ ë‹¤ë¦¬ ë°©í–¥ ê²°ì •
                 if (L.river[c.x, c.y] && L.bridgeAxis[c.x, c.y] < 0)
                 {
                     Vector2Int prev = k > 0 ? path[k - 1] : c;
@@ -821,7 +972,7 @@ namespace FarmingSystem.World
                 }
             }
 
-            // ³ôÀÌ°¡ 1´Ü°è ´Ù¸¥ µÎ Ä­ »çÀÌ = ³·Àº Ä­¿¡ °æ»ç·Î (³ôÀº ÂÊÀ» ÇâÇÔ)
+            // ë†’ì´ê°€ 1ë‹¨ê³„ ë‹¤ë¥¸ ë‘ ì¹¸ ì‚¬ì´ = ë‚®ì€ ì¹¸ì— ê²½ì‚¬ë¡œ (ë†’ì€ ìª½ì„ í–¥í•¨)
             for (int k = 0; k + 1 < path.Count; k++)
             {
                 Vector2Int a = path[k], b = path[k + 1];
@@ -834,9 +985,9 @@ namespace FarmingSystem.World
                 if (L.rampDir[low.x, low.y] < 0) L.rampDir[low.x, low.y] = MapAlgorithms.DirBetween(low, high);
             }
 
-            if (!zones[target].locked) return;
+            if (!IsLocked(target)) return;
 
-            // Àá±ä Áö¿ª: Áö¿ª¿¡ °¡Àå °¡±î¿î °­ ±¸°£(»õ·Î ³õÀº ´Ù¸®)À» ºÎ¼­Áø ´Ù¸®·Î
+            // ì ê¸´ ì§€ì—­: ì§€ì—­ì— ê°€ì¥ ê°€ê¹Œìš´ ê°• êµ¬ê°„(ìƒˆë¡œ ë†“ì€ ë‹¤ë¦¬)ì„ ë¶€ì„œì§„ ë‹¤ë¦¬ë¡œ
             int lastRiver = -1;
             for (int k = path.Count - 1; k >= 0; k--)
                 if (L.river[path[k].x, path[k].y] && !preexisting.Contains(path[k])) { lastRiver = k; break; }
@@ -847,13 +998,168 @@ namespace FarmingSystem.World
                     L.bridgeLockZone[path[k].x, path[k].y] = target;
             }
 
-            // ÀÔ±¸ = Áö¿ª¿¡ Ã³À½ µé¾î¼± Ä­, ¹æÇâ = ¹Ù±ù(ÀÌÀü Ä­) ÂÊ
+            // ì…êµ¬ = ì§€ì—­ì— ì²˜ìŒ ë“¤ì–´ì„  ì¹¸, ë°©í–¥ = ë°”ê¹¥(ì´ì „ ì¹¸) ìª½
             Vector2Int gate = path[path.Count - 1];
             L.gateCells[target] = gate;
             L.gateDirs[target] = path.Count >= 2 ? MapAlgorithms.DirBetween(gate, path[path.Count - 2]) : 2;
         }
 
-        // ³ª¹«¡¤¹ÙÀ§ Èğ»Ñ¸®±â
+        // ë‚˜ë¬´ ì‹¤ì œ ë°°ì¹˜ ìœ„ì¹˜ (ì¹¸ ë‹¨ìœ„ ì¢Œí‘œ). PlacePropsì™€ ê°™ì€ ê³„ì‚°: ì¹¸ ê°€ìš´ë°ì—ì„œ Â±0.3ì¹¸ ì•ˆìœ¼ë¡œ í”ë“¦
+        private static Vector2 TreeActualPos(IslandLayout L, Vector2 p)
+        {
+            int cx = Mathf.FloorToInt(p.x), cz = Mathf.FloorToInt(p.y);
+            float j = 2f * L.treeJitter;
+            return new Vector2(cx + 0.5f + (p.x - cx - 0.5f) * j, cz + 0.5f + (p.y - cz - 0.5f) * j);
+        }
+
+        // ë‚˜ë¬´ ë°‘ë™(ë¿Œë¦¬) ì› ì•ˆì˜ ì¹¸ì´ ëª¨ë‘ ë°‘ë™ ì¹¸ê³¼ ê°™ì€ ë†’ì´ì˜ ë•…ì¸ì§€
+        // ìì€ ì ˆë²½Â·ë¬¼ ìœ„ë¡œ ë„˜ì–´ê°€ë„ ë˜ê³ (ë™ìˆ²ì²˜ëŸ¼), ë¿Œë¦¬ë§Œ ë•… ì•ˆì— ë“¤ì–´ì˜¤ë©´ ë¨
+        private bool TreeFootprintOk(IslandLayout L, Vector2 p)
+        {
+            float r = L.treeRootRadiusCells + treeRootMargin / Mathf.Max(0.01f, Cell);
+            Vector2 center = TreeActualPos(L, p);
+            int cx = Mathf.FloorToInt(p.x), cz = Mathf.FloorToInt(p.y);
+            int lv = L.level[cx, cz];
+            int reach = Mathf.CeilToInt(r) + 1;
+            for (int dx = -reach; dx <= reach; dx++)
+            {
+                for (int dz = -reach; dz <= reach; dz++)
+                {
+                    int x = cx + dx, z = cz + dz;
+                    // ì›ê³¼ ì¹¸(ì‚¬ê°í˜•) ì‚¬ì´ ê°€ì¥ ê°€ê¹Œìš´ ê±°ë¦¬
+                    float nx = Mathf.Clamp(center.x, x, x + 1f), nz = Mathf.Clamp(center.y, z, z + 1f);
+                    if ((new Vector2(nx, nz) - center).sqrMagnitude > r * r) continue;
+                    if (x < 0 || z < 0 || x >= L.width || z >= L.depth) return false;
+                    if (!L.land[x, z] || L.river[x, z] || L.level[x, z] != lv || L.rampDir[x, z] >= 0) return false;
+                }
+            }
+            return true;
+        }
+
+        // ë‚˜ë¬´ í¬ê¸° ë°°ìœ¨: Tree Heightê°€ ìˆìœ¼ë©´ ëª¨ë¸ ë†’ì´ë¥¼ ì¬ì„œ ê·¸ ë†’ì´ì— ë§ì¶¤
+        private float TreeBaseScale(GameObject sizeRef)
+        {
+            if (treeHeight > 0f && sizeRef != null)
+            {
+                float h = ModelHeight(sizeRef);
+                if (h > 0.0001f) return treeHeight / h;
+            }
+            return propScale * worldScale * treeScale;
+        }
+
+        // í¬ê¸°ë¥¼ ì •í•˜ëŠ” ê¸°ì¤€ ëª¨ë¸ (ê³„ì ˆ ë‚˜ë¬´ë©´ ë´„ ë‚˜ë¬´ - ê³„ì ˆë§ˆë‹¤ í¬ê¸°ê°€ ë“¤ì­‰ë‚ ì­‰í•˜ì§€ ì•Šê²Œ ê°™ì€ ë°°ìœ¨)
+        private GameObject TreeSizeRef(GameObject prefab)
+        {
+            SeasonalBlockSet.Entry e = FindSeasonalEntry(prefabs.seasonalTreeSet, prefab);
+            GameObject spring = e != null ? e.Get(Season.Spring) : null;
+            return spring != null ? spring : prefab;
+        }
+
+        // ë‚˜ë¬´ ì ì§€ë¦„(ì¹¸ ë‹¨ìœ„): ë‚˜ë¬´ë¼ë¦¬ ìì´ ê²¹ì¹˜ì§€ ì•Šê²Œ ê°„ê²© ì¡ì„ ë•Œ ì‚¬ìš© (ë´„ ë‚˜ë¬´ í¬ê¸° ê¸°ì¤€)
+        private float MeasureTreeCanopyDiameterCells()
+        {
+            if (prefabs.trees == null) return 0f;
+            float maxWorld = 0f;
+            foreach (GameObject t in prefabs.trees)
+            {
+                if (t == null) continue;
+                GameObject sizeRef = TreeSizeRef(t);
+                maxWorld = Mathf.Max(maxWorld, ModelHalfWidth(sizeRef) * 2f * TreeBaseScale(sizeRef));
+            }
+            return maxWorld / Mathf.Max(0.01f, Cell);
+        }
+
+        // ë‚˜ë¬´ ë°‘ë™(ë¿Œë¦¬) ë°˜ì§€ë¦„(ì¹¸ ë‹¨ìœ„): ë‚˜ë¬´ í”„ë¦¬íŒ¹(ê³„ì ˆ ë‚˜ë¬´ í¬í•¨) ì¤‘ ê°€ì¥ ë„“ì€ ê²ƒ ê¸°ì¤€
+        private float MeasureTreeRootRadiusCells()
+        {
+            if (prefabs.trees == null) return 0f;
+            float maxWorld = 0f;
+            foreach (GameObject t in prefabs.trees)
+            {
+                if (t == null) continue;
+                GameObject sizeRef = TreeSizeRef(t);
+                float scale = TreeBaseScale(sizeRef) * (1f + propScaleJitter);
+                var list = new List<GameObject> { t };
+                SeasonalBlockSet.Entry e = FindSeasonalEntry(prefabs.seasonalTreeSet, t);
+                if (e != null) list.AddRange(e.All());
+                foreach (GameObject g in list)
+                    maxWorld = Mathf.Max(maxWorld, ModelRootRadius(g) * scale);
+
+                Debug.Log($"[ë‚˜ë¬´] {sizeRef.name}: ëª¨ë¸ ë†’ì´ {ModelHeight(sizeRef):0.##} â†’ ë‚˜ë¬´ ë†’ì´ ì•½ {ModelHeight(sizeRef) * TreeBaseScale(sizeRef):0.#}m, " +
+                          $"ì í­ ì•½ {ModelHalfWidth(sizeRef) * 2f * TreeBaseScale(sizeRef):0.#}m, ë¿Œë¦¬ í­ ì•½ {ModelRootRadius(sizeRef) * 2f * TreeBaseScale(sizeRef):0.#}m");
+            }
+            return maxWorld / Mathf.Max(0.01f, Cell);
+        }
+
+        // ëª¨ë¸ ì•„ë˜ìª½(ë†’ì´ì˜ 15%ê¹Œì§€) ê¼­ì§“ì ë“¤ì´ ê¸°ì¤€ì ì—ì„œ ê°€ë¡œë¡œ ì–¼ë§ˆë‚˜ í¼ì ¸ ìˆëŠ”ì§€ = ë°‘ë™Â·ë¿Œë¦¬ ë°˜ì§€ë¦„
+        private static float ModelRootRadius(GameObject prefab)
+        {
+            Transform t = prefab.transform;
+            Matrix4x4 toRoot = Matrix4x4.TRS(Vector3.zero, t.localRotation, t.localScale) * t.worldToLocalMatrix;
+            float minY = ModelMinY(prefab);
+            float bandTop = minY + ModelHeight(prefab) * 0.15f;
+            float radius = 0f;
+            foreach (MeshFilter mf in prefab.GetComponentsInChildren<MeshFilter>(true))
+            {
+                Mesh mesh = mf.sharedMesh;
+                if (mesh == null) continue;
+                Vector3[] verts;
+                try { verts = mesh.vertices; } catch { continue; }
+                if (verts == null || verts.Length == 0) continue;
+                Matrix4x4 m = toRoot * mf.transform.localToWorldMatrix;
+                foreach (Vector3 v in verts)
+                {
+                    Vector3 w = m.MultiplyPoint3x4(v);
+                    if (w.y > bandTop) continue;
+                    radius = Mathf.Max(radius, new Vector2(w.x, w.z).magnitude);
+                }
+            }
+            return radius;
+        }
+
+        // ëª¨ë¸ì˜ ê°€ë¡œ ë°˜í­ (ê¸°ì¤€ì ì—ì„œ ì ëê¹Œì§€, í”„ë¦¬íŒ¹ ë£¨íŠ¸ì˜ íšŒì „Â·í¬ê¸° í¬í•¨, ë°°ì¹˜ ë°°ìœ¨ ì œì™¸)
+        private static float ModelHalfWidth(GameObject prefab)
+        {
+            Transform t = prefab.transform;
+            Matrix4x4 toRoot = Matrix4x4.TRS(Vector3.zero, t.localRotation, t.localScale) * t.worldToLocalMatrix;
+            float half = 0f;
+            foreach (MeshFilter mf in prefab.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.sharedMesh == null) continue;
+                Bounds b = mf.sharedMesh.bounds;
+                Matrix4x4 m = toRoot * mf.transform.localToWorldMatrix;
+                for (int i = 0; i < 8; i++)
+                {
+                    Vector3 corner = m.MultiplyPoint3x4(b.center + Vector3.Scale(b.extents,
+                        new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f)));
+                    half = Mathf.Max(half, Mathf.Abs(corner.x), Mathf.Abs(corner.z));
+                }
+            }
+            return half;
+        }
+
+        // ëª¨ë¸ ë†’ì´ (í”„ë¦¬íŒ¹ ë£¨íŠ¸ì˜ íšŒì „Â·í¬ê¸° í¬í•¨, ë°°ì¹˜ ë°°ìœ¨ ì œì™¸)
+        private static float ModelHeight(GameObject prefab)
+        {
+            Transform t = prefab.transform;
+            Matrix4x4 toRoot = Matrix4x4.TRS(Vector3.zero, t.localRotation, t.localScale) * t.worldToLocalMatrix;
+            float minY = float.MaxValue, maxY = float.MinValue;
+            foreach (MeshFilter mf in prefab.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.sharedMesh == null) continue;
+                Bounds b = mf.sharedMesh.bounds;
+                Matrix4x4 m = toRoot * mf.transform.localToWorldMatrix;
+                for (int i = 0; i < 8; i++)
+                {
+                    float y = m.MultiplyPoint3x4(b.center + Vector3.Scale(b.extents,
+                        new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f))).y;
+                    minY = Mathf.Min(minY, y); maxY = Mathf.Max(maxY, y);
+                }
+            }
+            return maxY > minY ? maxY - minY : 0f;
+        }
+
+        // ë‚˜ë¬´Â·ë°”ìœ„ í©ë¿Œë¦¬ê¸°
         private void ScatterProps(IslandLayout L, System.Random rng)
         {
             L.zoneDistance = MapAlgorithms.DistanceField(L.width, L.depth, (x, z) => L.zoneIndex[x, z] >= 0 && zones[L.zoneIndex[x, z]].type != ZoneType.Highland);
@@ -861,42 +1167,101 @@ namespace FarmingSystem.World
             var used = new HashSet<Vector2Int>();
             Vector2 forestOffset = new Vector2(rng.Next(-9999, 9999), rng.Next(-9999, 9999));
 
-            // ½£ ³ëÀÌÁî: °ªÀÌ ³ôÀº °÷¸¸ ½£. ³ª¹«°¡ ¼¶ ÀüÃ¼¿¡ °í¸£°Ô Èğ¾îÁöÁö ¾Ê°í ½£ µ¢¾î¸®¿Í ºó Ç®¹çÀ¸·Î ³ª´¸
-            bool InForest(Vector2Int c)
+            // ìˆ² ë…¸ì´ì¦ˆ: ê°’ì´ ë†’ì€ ê³³ë§Œ ìˆ². ë‚˜ë¬´ê°€ ì„¬ ì „ì²´ì— ê³ ë¥´ê²Œ í©ì–´ì§€ì§€ ì•Šê³  ìˆ² ë©ì–´ë¦¬ì™€ ë¹ˆ í’€ë°­ìœ¼ë¡œ ë‚˜ë‰¨
+            // ìˆ² ê¸°ì¤€ê°’ì€ ì‹¤ì œ ë•…ì˜ ë…¸ì´ì¦ˆ ê°’ì„ ì¤„ ì„¸ì›Œì„œ ì •í•¨ â†’ Forest Coverage 0.25 = ë•…ì˜ 25%ê°€ ìˆ² (ì„¤ì •ê°’ ê·¸ëŒ€ë¡œ)
+            // (ì˜ˆì „ì—” ê³ ì • ê³µì‹ì´ë¼ 0.3 ì•„ë˜ë¡œ ë‚´ë¦¬ë©´ ë…¸ì´ì¦ˆê°€ ê¸°ì¤€ì„ ê±°ì˜ ëª» ë„˜ì–´ì„œ ë‚˜ë¬´ê°€ í†µì§¸ë¡œ ì‚¬ë¼ì¡ŒìŒ)
+            // ìˆ² ê°’ = ìˆ² ë…¸ì´ì¦ˆ(ë©ì–´ë¦¬)ì™€ ì¹¸ë§ˆë‹¤ ë¬´ì‘ìœ„ ê°’(ê³ ë¥´ê²Œ í©ì–´ì§)ì„ Forest Clumping ë¹„ìœ¨ë¡œ ì„ìŒ
+            float Noise(int x, int z)
             {
-                float n = MapAlgorithms.Fbm(c.x * forestNoiseScale + forestOffset.x, c.y * forestNoiseScale + forestOffset.y, 3);
-                return n > 1f - forestCoverage * 0.9f - 0.05f;
+                float n = MapAlgorithms.Fbm(x * forestNoiseScale + forestOffset.x, z * forestNoiseScale + forestOffset.y, 3);
+                n = Mathf.Clamp01((n - 0.2f) / 0.6f); // ë…¸ì´ì¦ˆëŠ” ëŒ€ë¶€ë¶„ 0.2~0.8 â†’ 0~1ë¡œ í¼ì¹¨
+                uint h = (uint)(x * 83492791) ^ (uint)(z * 2971215073u) ^ (uint)(seed * 7919);
+                h ^= h >> 13; h *= 0x5bd1e995; h ^= h >> 15;
+                float r = (h % 10000) / 10000f;
+                return Mathf.Lerp(r, n, forestClumping);
             }
+            var landNoise = new List<float>();
+            for (int x = 0; x < L.width; x++)
+                for (int z = 0; z < L.depth; z++)
+                    if (L.land[x, z]) landNoise.Add(Noise(x, z));
+            landNoise.Sort();
+            float forestThreshold = landNoise.Count == 0 ? 1f
+                : forestCoverage <= 0f ? float.MaxValue
+                : landNoise[Mathf.Clamp(Mathf.FloorToInt((1f - forestCoverage) * landNoise.Count), 0, landNoise.Count - 1)];
 
-            // Àå½ÄÀ» ³õ¾Æµµ µÇ´Â Ä­ÀÎÁö
+            bool InForest(Vector2Int c) => Noise(c.x, c.y) >= forestThreshold;
+
+            // ì‚° ë‚˜ë¬´ê°€ ì™œ ì•ˆ ì‹¬ê¸°ëŠ”ì§€ ì›ì¸ë³„ë¡œ ì„¸ê¸° (Consoleì— ì¶œë ¥)
+            int mtTried = 0, mtRoot = 0, mtStone = 0, mtDensity = 0, mtOther = 0;
+
+            // ì¥ì‹ì„ ë†“ì•„ë„ ë˜ëŠ” ì¹¸ì¸ì§€
             bool CanPlace(Vector2 p)
             {
-                var c = new Vector2Int(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y));
-                if (!L.InBounds(c) || !L.land[c.x, c.y]) return false;
-                if (used.Contains(c)) return false;
-                if (roadDistance[c.x, c.y] < 2) return false;     // ±æ ¹Ù·Î ¿·Àº ºñ¿ö µÒ
-                if (L.coastDistance[c.x, c.y] < 1) return false;
-                foreach (var gate in L.gateCells.Values)
-                    if ((gate - c).sqrMagnitude <= 4) return false; // ÀÔ±¸ ÁÖº¯ ºñ¿ö µÒ
-
-                if (L.shore[c.x, c.y]) return false;                 // ¸ğ·¡»çÀå¿£ ³ª¹« ¾øÀ½
-                int zi = L.zoneIndex[c.x, c.y];
-                if (zi < 0) return L.zoneDistance[c.x, c.y] >= 2 && InForest(c); // ÀÏ¹İ ¶¥: Áö¿ª¿¡¼­ 2Ä­ ÀÌ»ó + ½£ Áö´ë¸¸
-                return zones[zi].type == ZoneType.Highland;         // Áö¿ª Áß¿£ ³ôÀº Áö´ë¸¸
+                bool ok = CanPlaceInner(p, out int reason);
+                if (reason > 0)
+                {
+                    mtTried++;
+                    if (!ok)
+                    {
+                        if (reason == 2) mtRoot++;
+                        else if (reason == 3) mtStone++;
+                        else if (reason == 4) mtDensity++;
+                        else mtOther++;
+                    }
+                }
+                return ok;
             }
 
-            foreach (Vector2 p in MapAlgorithms.PoissonDisk(L.width, L.depth, treeSpacing, rng, CanPlace))
+            // reason: 0 = ì‚° ì•„ë‹˜, 1 = ì‚°(í†µê³¼ ë˜ëŠ” ê¸°íƒ€ ì´ìœ ), 2 = ë¿Œë¦¬ ìë¦¬ ë¶€ì¡±, 3 = ëŒ ì¹¸, 4 = ì‚° ë‚˜ë¬´ ì–‘(ë°€ë„)ìœ¼ë¡œ ì†ìŒ
+            bool CanPlaceInner(Vector2 p, out int reason)
+            {
+                reason = 0;
+                var c = new Vector2Int(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y));
+                if (!L.InBounds(c) || !L.land[c.x, c.y]) return false;
+                bool onMountain = L.zoneIndex[c.x, c.y] >= 0 && zones[L.zoneIndex[c.x, c.y]].type == ZoneType.Highland;
+                if (onMountain) reason = 1;
+                if (used.Contains(c)) return false;
+                if (roadDistance[c.x, c.y] < 2) return false;     // ê¸¸ ë°”ë¡œ ì˜†ì€ ë¹„ì›Œ ë‘ 
+                if (L.coastDistance[c.x, c.y] < 1) return false;
+                foreach (var gate in L.gateCells.Values)
+                    if ((gate - c).sqrMagnitude <= 4) return false; // ì…êµ¬ ì£¼ë³€ ë¹„ì›Œ ë‘ 
+
+                if (L.shore[c.x, c.y]) return false;                 // ëª¨ë˜ì‚¬ì¥ì—” ë‚˜ë¬´ ì—†ìŒ
+                if (L.mineDir >= 0 && (c - L.mineFront).sqrMagnitude <= 5) return false; // ê´‘ì‚° ì…êµ¬ ì•ì€ ë¹„ì›Œ ë‘ 
+                if (!TreeFootprintOk(L, p)) { if (onMountain) reason = 2; return false; } // ë¿Œë¦¬ê°€ ì ˆë²½ ëÂ·ë¬¼ê°€ ë°–ìœ¼ë¡œ íŠ€ì–´ë‚˜ì˜¤ë©´ ì•ˆ ë¨
+                int zi = L.zoneIndex[c.x, c.y];
+                if (zi < 0) return L.zoneDistance[c.x, c.y] >= 2 && InForest(c); // ì¼ë°˜ ë•…: ì§€ì—­ì—ì„œ 2ì¹¸ ì´ìƒ + ìˆ² ì§€ëŒ€ë§Œ
+                if (zones[zi].type != ZoneType.Highland) return false; // ì§€ì—­ ì¤‘ì—” ë†’ì€ ì§€ëŒ€ë§Œ
+                if (IsMountainStone(L, c.x, c.y, L.level[c.x, c.y])) { reason = 3; return false; } // ì‚°ì—ì„  ì”ë”” ì¹¸ì—ë§Œ ë‚˜ë¬´
+                // ì‚° ìœ„ ë‚˜ë¬´ ì–‘: ì¹¸ë§ˆë‹¤ ê³ ì •ëœ ë¬´ì‘ìœ„ ê°’ìœ¼ë¡œ ì†ì•„ëƒ„ (ê°™ì€ ì‹œë“œ = ê°™ì€ ê²°ê³¼)
+                uint h = (uint)(c.x * 73856093) ^ (uint)(c.y * 19349663) ^ (uint)seed;
+                h ^= h >> 13; h *= 0x5bd1e995; h ^= h >> 15;
+                if ((h % 1000) / 1000f < mountainTreeDensity) return true;
+                reason = 4;
+                return false;
+            }
+
+            // ë‚˜ë¬´ë¼ë¦¬ ê°„ê²©: Tree Spacing, ìì´ ì•ˆ ê²¹ì¹˜ê²Œ í•˜ëŠ” ì˜µì…˜ì´ë©´ ë‚˜ë¬´ ì í­(ì§€ë¦„)ê³¼ ë¹„êµí•´ í° ìª½
+            float spacing = treeSpacing;
+            if (keepCanopiesApart) spacing = Mathf.Max(spacing, MeasureTreeCanopyDiameterCells() * 0.85f);
+            int mtPlanted = 0;
+            foreach (Vector2 p in MapAlgorithms.PoissonDisk(L.width, L.depth, spacing, rng, CanPlace))
             {
                 var c = new Vector2Int(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y));
                 used.Add(c);
                 L.treePositions.Add(p);
+                if (L.zoneIndex[c.x, c.y] >= 0 && zones[L.zoneIndex[c.x, c.y]].type == ZoneType.Highland) mtPlanted++;
             }
+            if (mtTried > 0)
+                Debug.Log($"[ë‚˜ë¬´] ì‚°: ì‹¬ì–´ ë³¸ ìë¦¬ {mtTried}ê³³ â†’ ì‹¬ìŒ {mtPlanted} / ë¿Œë¦¬ ë“¤ì–´ê°ˆ í‰ì§€ ë¶€ì¡± {mtRoot} / ëŒ ì¹¸ {mtStone} / " +
+                          $"ì‚° ë‚˜ë¬´ ì–‘(Mountain Tree Density)ìœ¼ë¡œ ì†ìŒ {mtDensity} / ê¸°íƒ€(ê¸¸Â·ì…êµ¬ ê·¼ì²˜ ë“±) {mtOther}");
 
-            // ¹ÙÀ§´Â ½£ ¿©ºÎ¿Í »ó°ü¾øÀÌ µå¹®µå¹® (Áö¿ª¡¤±æ¡¤¸ğ·¡»çÀåÀº Á¦¿Ü)
+            // ë°”ìœ„ëŠ” ìˆ² ì—¬ë¶€ì™€ ìƒê´€ì—†ì´ ë“œë¬¸ë“œë¬¸ (ì§€ì—­Â·ê¸¸Â·ëª¨ë˜ì‚¬ì¥ì€ ì œì™¸)
             bool CanPlaceRock(Vector2 p)
             {
                 var c = new Vector2Int(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y));
                 if (!L.InBounds(c) || !L.land[c.x, c.y] || L.shore[c.x, c.y] || used.Contains(c)) return false;
+                if (L.mineDir >= 0 && (c - L.mineFront).sqrMagnitude <= 5) return false;
                 if (roadDistance[c.x, c.y] < 2 || L.coastDistance[c.x, c.y] < 1) return false;
                 int zi = L.zoneIndex[c.x, c.y];
                 return zi < 0 ? L.zoneDistance[c.x, c.y] >= 2 : zones[zi].type == ZoneType.Highland;
@@ -910,14 +1275,14 @@ namespace FarmingSystem.World
             }
         }
 
-        // ==================== 2´Ü°è: ¾À¿¡ ¹èÄ¡ ====================
+        // ==================== 2ë‹¨ê³„: ì”¬ì— ë°°ì¹˜ ====================
 
         private void BuildScene(IslandLayout L)
         {
             if (prefabs.grassTop == null)
             {
-                L.warnings.Add("ÇÁ¸®ÆÕ: Grass TopÀÌ ºñ¾î ÀÖ¾î ºí·ÏÀ» ¸¸µé ¼ö ¾øÀ½");
-                Debug.LogWarning("[IslandMapGenerator] Grass Top ÇÁ¸®ÆÕÀ» ¸ÕÀú ³Ö¾îÁÖ¼¼¿ä.");
+                L.warnings.Add("í”„ë¦¬íŒ¹: Grass Topì´ ë¹„ì–´ ìˆì–´ ë¸”ë¡ì„ ë§Œë“¤ ìˆ˜ ì—†ìŒ");
+                Debug.LogWarning("[IslandMapGenerator] Grass Top í”„ë¦¬íŒ¹ì„ ë¨¼ì € ë„£ì–´ì£¼ì„¸ìš”.");
                 return;
             }
 
@@ -925,7 +1290,7 @@ namespace FarmingSystem.World
             root.transform.SetParent(transform, false);
             root.transform.SetPositionAndRotation(transform.position, Quaternion.identity);
 #if UNITY_EDITOR
-            if (!Application.isPlaying) Undo.RegisterCreatedObjectUndo(root, "¼¶ ¸Ê »ı¼º");
+            if (!Application.isPlaying) Undo.RegisterCreatedObjectUndo(root, "ì„¬ ë§µ ìƒì„±");
 #endif
             Transform ground = Group(root.transform, "Ground");
             Transform water = Group(root.transform, "Water");
@@ -938,9 +1303,9 @@ namespace FarmingSystem.World
             int farmLayer = LayerMask.NameToLayer(farmableLayerName);
             int groundLayer = LayerMask.NameToLayer(groundLayerName);
             int blockerLayer = LayerMask.NameToLayer(blockerLayerName);
-            if (farmLayer < 0) L.warnings.Add($"·¹ÀÌ¾î '{farmableLayerName}'°¡ ¾øÀ½ (¹ç ÆÇÁ¤ÀÌ ¾È µÉ ¼ö ÀÖÀ½)");
+            if (farmLayer < 0) L.warnings.Add($"ë ˆì´ì–´ '{farmableLayerName}'ê°€ ì—†ìŒ (ë°­ íŒì •ì´ ì•ˆ ë  ìˆ˜ ìˆìŒ)");
 
-            // ÁöÇü (Å« ¸ÊÀº ¿À·¡ °É·Á¼­ ÁøÇà Ç¥½ÃÁÙÀ» ¶ç¿ò)
+            // ì§€í˜• (í° ë§µì€ ì˜¤ë˜ ê±¸ë ¤ì„œ ì§„í–‰ í‘œì‹œì¤„ì„ ë„ì›€)
             int[,] landDistance = MapAlgorithms.DistanceField(L.width, L.depth, (x, z) => L.land[x, z]);
             bool useOcean = prefabs.oceanPlane != null;
             try
@@ -949,7 +1314,7 @@ namespace FarmingSystem.World
                 {
 #if UNITY_EDITOR
                     if (!Application.isPlaying && x % 4 == 0)
-                        EditorUtility.DisplayProgressBar("¼¶ ¸Ê »ı¼º", $"ÁöÇü ¹èÄ¡ Áß... ({x}/{L.width})", (float)x / L.width);
+                        EditorUtility.DisplayProgressBar("ì„¬ ë§µ ìƒì„±", $"ì§€í˜• ë°°ì¹˜ ì¤‘... ({x}/{L.width})", (float)x / L.width);
 #endif
                     for (int z = 0; z < L.depth; z++)
                     {
@@ -973,17 +1338,17 @@ namespace FarmingSystem.World
             if (prefabs.oceanPlane != null)
             {
                 GameObject ocean = Spawn(prefabs.oceanPlane, CellToWorld(L, L.width / 2, L.depth / 2, WaterY - 0.02f), Quaternion.identity, water, OceanS);
-                // ¹Ù´Ù ÆÇÀÌ ½Ã¼±¡¤¸¶¿ì½º ÆÇÁ¤À» °¡·ÎÃ¤Áö ¾Ê°Ô Äİ¶óÀÌ´õ Á¦°Å
+                // ë°”ë‹¤ íŒì´ ì‹œì„ Â·ë§ˆìš°ìŠ¤ íŒì •ì„ ê°€ë¡œì±„ì§€ ì•Šê²Œ ì½œë¼ì´ë” ì œê±°
                 if (ocean != null) { ocean.name = "Ocean"; SetLayer(ocean, IgnoreRaycastLayer); RemoveColliders(ocean); }
             }
 
-            // Àá±ä Áö¿ª ±×·ì (ºÎ¼­Áø ´Ù¸®¡¤º®Àº locked ÂÊ, ¼ö¸®µÈ ´Ù¸®´Â unlocked ÂÊ)
+            // ì ê¸´ ì§€ì—­ ê·¸ë£¹ (ë¶€ì„œì§„ ë‹¤ë¦¬Â·ë²½ì€ locked ìª½, ìˆ˜ë¦¬ëœ ë‹¤ë¦¬ëŠ” unlocked ìª½)
             var lockedGroups = new Dictionary<int, Transform>();
             var unlockedGroups = new Dictionary<int, Transform>();
             var gates = new Dictionary<int, LockedAreaGate>();
             for (int i = 0; i < zones.Count; i++)
             {
-                if (!zones[i].locked || !L.gateCells.ContainsKey(i)) continue;
+                if (!IsLocked(i) || !L.gateCells.ContainsKey(i)) continue;
 
                 var area = new GameObject($"LockedArea_{zones[i].displayName}");
                 area.transform.SetParent(lockedRoot, false);
@@ -1012,25 +1377,55 @@ namespace FarmingSystem.World
             foreach (Transform g in unlockedGroups.Values) g.gameObject.SetActive(false);
 
             int blockCount = ground.childCount;
-            Debug.Log($"[IslandMapGenerator] ½Ãµå {seed} ¸Ê »ı¼º ¿Ï·á - ÁöÇü ºí·Ï {blockCount}°³, ³ª¹« {L.treePositions.Count}°³, ¹ÙÀ§ {L.rockPositions.Count}°³" +
-                      (L.warnings.Count > 0 ? $", °æ°í {L.warnings.Count}°³" : ""));
+            Debug.Log($"[IslandMapGenerator] ì‹œë“œ {seed} ë§µ ìƒì„± ì™„ë£Œ - ì§€í˜• ë¸”ë¡ {blockCount}ê°œ, ë‚˜ë¬´ {L.treePositions.Count}ê°œ, ë°”ìœ„ {L.rockPositions.Count}ê°œ" +
+                      (L.warnings.Count > 0 ? $", ê²½ê³  {L.warnings.Count}ê°œ" : ""));
             foreach (string w in L.warnings) Debug.LogWarning($"[IslandMapGenerator] {w}");
         }
 
-        // ¶¥ 1Ä­ = À§ÂÊ ºí·Ï + ¿·¿¡¼­ º¸ÀÌ´Â ¾Æ·¡ ºí·Ïµé (°¡·ÁÁö´Â ºí·ÏÀº ¸¸µéÁö ¾Ê¾Æ ÃÖÀûÈ­)
+        // ë•… 1ì¹¸ = ìœ„ìª½ ë¸”ë¡ + ì˜†ì—ì„œ ë³´ì´ëŠ” ì•„ë˜ ë¸”ë¡ë“¤ (ê°€ë ¤ì§€ëŠ” ë¸”ë¡ì€ ë§Œë“¤ì§€ ì•Šì•„ ìµœì í™”)
         private void BuildColumn(IslandLayout L, int x, int z, Transform parent, int farmLayer, int groundLayer)
         {
             int top = L.level[x, z];
             int zi = L.zoneIndex[x, z];
             ZoneType type = zi >= 0 ? zones[zi].type : ZoneType.Wild;
 
-            for (int y = 0; y <= top; y++)
+            // ì ˆë²½ ì˜†ë©´(ìœ„ìª½ ë¸”ë¡ ì•„ë˜ ì¹¸): ì˜†ì—ì„œ ë³´ì´ëŠ” ì¹¸ë§Œ ë§Œë“¤ê³ ,
+            // ìœ„ì•„ë˜ë¡œ ì´ì–´ì§„ ì¹¸ì€ ì„¸ë¡œë¡œ ëŠ˜ë¦° ë¸”ë¡ í•˜ë‚˜ë¡œ í•©ì¹¨ (í¬ì½”í”¼ì•„ì²˜ëŸ¼ ì´ìŒìƒˆ ì—†ì´ ì­‰ ë»—ì€ ì ˆë²½)
+            int fy = 0;
+            while (fy < top)
             {
-                bool isTop = y == top;
-                if (!isTop && !IsSideExposed(L, x, z, y)) continue;
+                if (!IsSideExposed(L, x, z, fy)) { fy++; continue; }
+                int start = fy;
+                int maxRun = mergeCliffBlocks ? (cliffMergeCount <= 0 ? int.MaxValue : cliffMergeCount) : 1;
+                while (fy + 1 < top && IsSideExposed(L, x, z, fy + 1) && fy + 1 - start < maxRun) fy++;
+                int count = fy - start + 1;
 
-                GameObject prefab = isTop ? TopPrefab(L, x, z, type) : FillPrefab(type);
-                GameObject block = Spawn(prefab, CellToWorld(L, x, z, y * LevelH) + blockOffset, Quaternion.identity, parent, BlockS);
+                GameObject fillPrefab = FillPrefab(L, x, z, start, type);
+                GameObject fill = Spawn(fillPrefab, CellToWorld(L, x, z, start * LevelH) + blockOffset + BottomFix(fillPrefab, count), Quaternion.identity, parent, BlockS);
+                if (fill != null)
+                {
+                    if (count > 1)
+                    {
+                        Vector3 sc = fill.transform.localScale;
+                        sc.y *= count;
+                        fill.transform.localScale = sc;
+                    }
+                    fill.name = count > 1 ? $"Cliff_{x}_{z}_{start}-{fy}" : $"Block_{x}_{z}_{start}";
+                    EnsureCollider(fill);
+                    if (smoothSurface) HideRenderers(fill);
+                    SetLayer(fill, groundLayer);
+                    MarkStatic(fill);
+                }
+                fy++;
+            }
+
+            // ë§¨ ìœ„ ë¸”ë¡ (ë°­ì´ ë˜ëŠ” ì¹¸)
+            for (int y = top; y <= top; y++)
+            {
+                bool isTop = true;
+
+                GameObject prefab = TopPrefab(L, x, z, type);
+                GameObject block = Spawn(prefab, CellToWorld(L, x, z, y * LevelH) + blockOffset + BottomFix(prefab), Quaternion.identity, parent, BlockS);
                 if (block == null) continue;
                 block.name = $"Block_{x}_{z}_{y}";
                 EnsureCollider(block);
@@ -1038,11 +1433,13 @@ namespace FarmingSystem.World
 
                 if (isTop && IsFarmable(L, x, z, zi, type, prefab))
                 {
-                    // ³óÀå ±¸¿ªÀº ¹ç Àü¿ë ºñÁÖ¾ó, ±× ¿Ü ¸Ç¶¥Àº ¿ø·¡ ºí·Ï ¸ğ½À ±×´ë·Î µÎ°í °¥¸é ¹çÀ¸·Î ¹Ù²ñ
-                    // ¸Å²öÇÑ Áö¸éÀÌ¸é °¥±â Àü¿£ ¾Æ¹« ¸ğµ¨µµ ¾È ¶ç¿ò (¸Å²öÇÑ Áö¸éÀÌ ´ë½Å º¸ÀÓ), °¥¸é ¹ç ºí·ÏÀÌ ³ªÅ¸³²
+                    // ë†ì¥ êµ¬ì—­ì€ ë°­ ì „ìš© ë¹„ì£¼ì–¼, ê·¸ ì™¸ ë§¨ë•…ì€ ì›ë˜ ë¸”ë¡ ëª¨ìŠµ ê·¸ëŒ€ë¡œ ë‘ê³  ê°ˆë©´ ë°­ìœ¼ë¡œ ë°”ë€œ
+                    // ë§¤ëˆí•œ ì§€ë©´ì´ë©´ ê°ˆê¸° ì „ì—” ì•„ë¬´ ëª¨ë¸ë„ ì•ˆ ë„ì›€ (ë§¤ëˆí•œ ì§€ë©´ì´ ëŒ€ì‹  ë³´ì„), ê°ˆë©´ ë°­ ë¸”ë¡ì´ ë‚˜íƒ€ë‚¨
                     GameObject natural = smoothSurface ? null
                         : prefab;
                     SetupFarmTile(block, natural);
+                    // ê°„ ë°­ ëª¨ë¸ë„ ë°”ë‹¥ì„ ì¹¸ ë°”ë‹¥ì— ë§ì¶¤ (ë°­ ì¹¸ ìœ„ì¹˜ì—ëŠ” ì´ë¯¸ ì´ ë¸”ë¡ì˜ ë°”ë‹¥ ë³´ì •ì´ ë“¤ì–´ê°€ ìˆì–´ì„œ ê·¸ ì°¨ì´ë§Œí¼)
+                    block.GetComponent<FarmTile>().SetTilledVisualOffset(BottomFix(prefabs.farmTilledVisual) - BottomFix(prefab));
                     SetLayer(block, farmLayer);
                 }
                 else
@@ -1053,9 +1450,9 @@ namespace FarmingSystem.World
             }
         }
 
-        // ---------- ¸Å²öÇÑ ¹° ¹Ø¹Ù´Ú ----------
-        // Ä­ ²ÀÁşÁ¡¸¶´Ù "°¡Àå °¡±î¿î ¶¥±îÁö °Å¸®"·Î ±íÀÌ¸¦ Á¤ÇÑ °æ»ç¸é ¸Ş½Ã ÇÏ³ª¸¦ ¸¸µç´Ù
-        // ÇØ¾È ±ÙÃ³´Â ¾è¾Æ¼­ ¹°ÀÌ ¹à°í Åõ¸íÇÏ°Ô, ¸Ö¾îÁú¼ö·Ï ±í¾îÁ® ¹° »öÀÌ ÁøÇØÁü (¹° ¼ÎÀÌ´õÀÇ ±íÀÌ Ç¥Çö°ú ¸Â¹°¸²)
+        // ---------- ë§¤ëˆí•œ ë¬¼ ë°‘ë°”ë‹¥ ----------
+        // ì¹¸ ê¼­ì§“ì ë§ˆë‹¤ "ê°€ì¥ ê°€ê¹Œìš´ ë•…ê¹Œì§€ ê±°ë¦¬"ë¡œ ê¹Šì´ë¥¼ ì •í•œ ê²½ì‚¬ë©´ ë©”ì‹œ í•˜ë‚˜ë¥¼ ë§Œë“ ë‹¤
+        // í•´ì•ˆ ê·¼ì²˜ëŠ” ì–•ì•„ì„œ ë¬¼ì´ ë°ê³  íˆ¬ëª…í•˜ê²Œ, ë©€ì–´ì§ˆìˆ˜ë¡ ê¹Šì–´ì ¸ ë¬¼ ìƒ‰ì´ ì§„í•´ì§ (ë¬¼ ì…°ì´ë”ì˜ ê¹Šì´ í‘œí˜„ê³¼ ë§ë¬¼ë¦¼)
         private void BuildSeabedMesh(IslandLayout L, Transform parent)
         {
             int[,] landDist = MapAlgorithms.DistanceField(L.width, L.depth, (x, z) => L.land[x, z]);
@@ -1069,7 +1466,7 @@ namespace FarmingSystem.World
             {
                 for (int vz = 0; vz < vd; vz++)
                 {
-                    // ²ÀÁşÁ¡À» µÑ·¯½Ñ 4Ä­ Áß ¶¥°ú °¡Àå °¡±î¿î °Å¸®
+                    // ê¼­ì§“ì ì„ ë‘˜ëŸ¬ì‹¼ 4ì¹¸ ì¤‘ ë•…ê³¼ ê°€ì¥ ê°€ê¹Œìš´ ê±°ë¦¬
                     int best = int.MaxValue;
                     for (int dx = -1; dx <= 0; dx++)
                         for (int dz = -1; dz <= 0; dz++)
@@ -1107,10 +1504,10 @@ namespace FarmingSystem.World
             SetLayer(go, IgnoreRaycastLayer);
         }
 
-        // ---------- ºí·Ï Æ´ ¸Ş¿ì±â ----------
-        // ºí·Ï ¸ğ¼­¸®°¡ µÕ±Û¾î¼­ ºí·Ï »çÀÌ¿¡ ¾ãÀº Æ´ÀÌ »ı±â´Âµ¥, »ı¼º±â´Â ¾È º¸ÀÌ´Â ¾Æ·¡ ºí·ÏÀ» ¸¸µéÁö ¾ÊÀ¸¹Ç·Î
-        // ±× Æ´À¸·Î ºó °ø°£(ÇÏ´Ã¡¤¹Ù´Ù)ÀÌ ºñÃÄ º¸ÀÎ´Ù. ºí·Ïº¸´Ù »ìÂ¦ ¾ÈÂÊ¡¤¾Æ·¡¿¡ »ö »óÀÚ¸¦ ¸Ş½Ã ÇÏ³ª·Î ±ò¾Æ Æ´À» ¸·´Â´Ù.
-        // À­¸éÀº ÀÜµğ ±×¸²ÀÚ »ö, ¿·¸éÀº Èë »ö (¼­ºê¸Ş½Ã 2°³)
+        // ---------- ë¸”ë¡ í‹ˆ ë©”ìš°ê¸° ----------
+        // ë¸”ë¡ ëª¨ì„œë¦¬ê°€ ë‘¥ê¸€ì–´ì„œ ë¸”ë¡ ì‚¬ì´ì— ì–‡ì€ í‹ˆì´ ìƒê¸°ëŠ”ë°, ìƒì„±ê¸°ëŠ” ì•ˆ ë³´ì´ëŠ” ì•„ë˜ ë¸”ë¡ì„ ë§Œë“¤ì§€ ì•Šìœ¼ë¯€ë¡œ
+        // ê·¸ í‹ˆìœ¼ë¡œ ë¹ˆ ê³µê°„(í•˜ëŠ˜Â·ë°”ë‹¤)ì´ ë¹„ì³ ë³´ì¸ë‹¤. ë¸”ë¡ë³´ë‹¤ ì‚´ì§ ì•ˆìª½Â·ì•„ë˜ì— ìƒ‰ ìƒìë¥¼ ë©”ì‹œ í•˜ë‚˜ë¡œ ê¹”ì•„ í‹ˆì„ ë§‰ëŠ”ë‹¤.
+        // ìœ—ë©´ì€ ì”ë”” ê·¸ë¦¼ì ìƒ‰, ì˜†ë©´ì€ í™ ìƒ‰ (ì„œë¸Œë©”ì‹œ 2ê°œ)
         private void BuildGapMesh(IslandLayout L, Transform parent)
         {
             var verts = new List<Vector3>();
@@ -1118,7 +1515,7 @@ namespace FarmingSystem.World
             var topTris = new List<int>();
             var sideTris = new List<int>();
             float half = Cell * 0.5f;
-            float sink = LevelH * 0.12f;   // À­¸éº¸´Ù ÀÌ¸¸Å­ ¾Æ·¡ (ºí·Ï À­¸éÀ» °¡¸®Áö ¾Êµµ·Ï)
+            float sink = LevelH * 0.12f;   // ìœ—ë©´ë³´ë‹¤ ì´ë§Œí¼ ì•„ë˜ (ë¸”ë¡ ìœ—ë©´ì„ ê°€ë¦¬ì§€ ì•Šë„ë¡)
             float bottom = -LevelH;
 
             void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 n, List<int> tris)
@@ -1138,11 +1535,11 @@ namespace FarmingSystem.World
                     float top = (L.level[x, z] + 1) * LevelH - sink;
                     Vector3 c = LocalCell(L, x, z, 0f);
 
-                    // À­¸é (½Ã°è ¹æÇâÀ¸·Î °¨¾Æ À§¸¦ ÇâÇÏ°Ô)
+                    // ìœ—ë©´ (ì‹œê³„ ë°©í–¥ìœ¼ë¡œ ê°ì•„ ìœ„ë¥¼ í–¥í•˜ê²Œ)
                     Quad(c + new Vector3(-half, top, -half), c + new Vector3(-half, top, half),
                          c + new Vector3(half, top, half), c + new Vector3(half, top, -half), Vector3.up, topTris);
 
-                    // ¿·¸é: ¿· Ä­ÀÌ ´õ ³·À» ¶§¸¸ (±× ³ôÀÌºÎÅÍ ³» À­¸é±îÁö)
+                    // ì˜†ë©´: ì˜† ì¹¸ì´ ë” ë‚®ì„ ë•Œë§Œ (ê·¸ ë†’ì´ë¶€í„° ë‚´ ìœ—ë©´ê¹Œì§€)
                     for (int d = 0; d < 4; d++)
                     {
                         Vector2Int dir = MapAlgorithms.Dirs4[d];
@@ -1152,7 +1549,7 @@ namespace FarmingSystem.World
 
                         float from = nTop < 0 ? bottom : (nTop + 1) * LevelH - sink;
                         Vector3 n = new Vector3(dir.x, 0f, dir.y);
-                        Vector3 right = new Vector3(-dir.y, 0f, dir.x); // ¹Ù±ù¿¡¼­ ÀÌ ¸éÀ» ¹Ù¶óº¼ ¶§ ¿À¸¥ÂÊ
+                        Vector3 right = new Vector3(-dir.y, 0f, dir.x); // ë°”ê¹¥ì—ì„œ ì´ ë©´ì„ ë°”ë¼ë³¼ ë•Œ ì˜¤ë¥¸ìª½
                         Vector3 face = c + n * half;
                         Quad(face - right * half + Vector3.up * from, face - right * half + Vector3.up * top,
                              face + right * half + Vector3.up * top, face + right * half + Vector3.up * from, n, sideTris);
@@ -1177,15 +1574,15 @@ namespace FarmingSystem.World
             MarkStatic(go);
         }
 
-        // ---------- ¸Å²öÇÑ Áö¸é ----------
-        // Ä­¸¶´Ù À­¸é »ç°¢Çü + ¿· Ä­ÀÌ ³·À» ¶§ ¿·¸é »ç°¢ÇüÀ» ÀÌ¾î ºÙ¿© ¼¶ ÀüÃ¼¸¦ ¸Ş½Ã ÇÏ³ª·Î ±×¸°´Ù
-        // °°Àº Á¾·ù(ÀÜµğ¡¤±æ¡¤¸ğ·¡¡¤±¤Àå¡¤¹ÙÀ§)³¢¸® °°Àº ´Ü»ö ¸ÓÆ¼¸®¾óÀ» ½á¼­ Ä­ °æ°è°¡ ÀüÇô º¸ÀÌÁö ¾ÊÀ½
-        // À­¸éÀº ½ÇÁ¦ ºí·Ï À­¸éº¸´Ù ¾ÆÁÖ »ìÂ¦ ³·°Ô ±×·Á¼­, °¥¾Æ³õÀº ¹ç ºí·ÏÀÌ Áö¸é À§·Î ±ò²ûÇÏ°Ô µå·¯³ª°Ô ÇÔ
+        // ---------- ë§¤ëˆí•œ ì§€ë©´ ----------
+        // ì¹¸ë§ˆë‹¤ ìœ—ë©´ ì‚¬ê°í˜• + ì˜† ì¹¸ì´ ë‚®ì„ ë•Œ ì˜†ë©´ ì‚¬ê°í˜•ì„ ì´ì–´ ë¶™ì—¬ ì„¬ ì „ì²´ë¥¼ ë©”ì‹œ í•˜ë‚˜ë¡œ ê·¸ë¦°ë‹¤
+        // ê°™ì€ ì¢…ë¥˜(ì”ë””Â·ê¸¸Â·ëª¨ë˜Â·ê´‘ì¥Â·ë°”ìœ„)ë¼ë¦¬ ê°™ì€ ë‹¨ìƒ‰ ë¨¸í‹°ë¦¬ì–¼ì„ ì¨ì„œ ì¹¸ ê²½ê³„ê°€ ì „í˜€ ë³´ì´ì§€ ì•ŠìŒ
+        // ìœ—ë©´ì€ ì‹¤ì œ ë¸”ë¡ ìœ—ë©´ë³´ë‹¤ ì•„ì£¼ ì‚´ì§ ë‚®ê²Œ ê·¸ë ¤ì„œ, ê°ˆì•„ë†“ì€ ë°­ ë¸”ë¡ì´ ì§€ë©´ ìœ„ë¡œ ê¹”ë”í•˜ê²Œ ë“œëŸ¬ë‚˜ê²Œ í•¨
         private enum SurfaceKind { Grass, Path, Sand, Plaza, Rock, Dirt, Stone, Count }
 
-        // Áö¸é À­¸éÀº Ä­¸¶´Ù »öÀ» Ä¥ÇÑ "Áöµµ ÅØ½ºÃ³" ÇÑ ÀåÀ¸·Î ±×¸²:
-        // - Ä­ °æ°è°¡ ¾Æ´Ñ ¶¥ Á¾·ù °æ°è¿¡¼­¸¸ »öÀÌ ¹Ù²î°í, ±× °æ°èµµ »ìÂ¦ ¹øÁ®¼­ ÀÚ¿¬½º·´°Ô ¼¯ÀÓ
-        // - ³ëÀÌÁî·Î ¹à°í ¾îµÎ¿î ¾ó·èÀ» ³Ö¾î ³ĞÀº Ç®¹çµµ ¹Ô¹ÔÇÏÁö ¾ÊÀ½
+        // ì§€ë©´ ìœ—ë©´ì€ ì¹¸ë§ˆë‹¤ ìƒ‰ì„ ì¹ í•œ "ì§€ë„ í…ìŠ¤ì²˜" í•œ ì¥ìœ¼ë¡œ ê·¸ë¦¼:
+        // - ì¹¸ ê²½ê³„ê°€ ì•„ë‹Œ ë•… ì¢…ë¥˜ ê²½ê³„ì—ì„œë§Œ ìƒ‰ì´ ë°”ë€Œê³ , ê·¸ ê²½ê³„ë„ ì‚´ì§ ë²ˆì ¸ì„œ ìì—°ìŠ¤ëŸ½ê²Œ ì„ì„
+        // - ë…¸ì´ì¦ˆë¡œ ë°ê³  ì–´ë‘ìš´ ì–¼ë£©ì„ ë„£ì–´ ë„“ì€ í’€ë°­ë„ ë°‹ë°‹í•˜ì§€ ì•ŠìŒ
         private Texture2D BuildSurfaceTexture(IslandLayout L)
         {
             int tpc = Mathf.Clamp(surfaceTexelsPerCell, 2, 8);
@@ -1207,9 +1604,9 @@ namespace FarmingSystem.World
                         kind = TopSurfaceKind(L, x, z, zi >= 0 ? zones[zi].type : ZoneType.Wild);
                         c = KindColor(kind);
                     }
-                    else c = surfaceSandColor; // ¹° Ä­ (À­¸éÀÌ ¾ø¾î ½ÇÁ¦·Î º¸ÀÌÁø ¾ÊÀ½, ¹øÁü¿ë)
+                    else c = surfaceSandColor; // ë¬¼ ì¹¸ (ìœ—ë©´ì´ ì—†ì–´ ì‹¤ì œë¡œ ë³´ì´ì§„ ì•ŠìŒ, ë²ˆì§ìš©)
 
-                    // Ä­ ´ÜÀ§°¡ ¾Æ´Ñ ½ÇÁ¦ À§Ä¡ ±âÁØ ³ëÀÌÁî (Å« ¾ó·è + ÀÜ ¹«´Ì)
+                    // ì¹¸ ë‹¨ìœ„ê°€ ì•„ë‹Œ ì‹¤ì œ ìœ„ì¹˜ ê¸°ì¤€ ë…¸ì´ì¦ˆ (í° ì–¼ë£© + ì” ë¬´ëŠ¬)
                     float wx = (px + 0.5f) / tpc, wz = (py + 0.5f) / tpc;
                     float big = MapAlgorithms.Fbm(wx * surfaceNoiseScale + off.x, wz * surfaceNoiseScale + off.y, 3) - 0.5f;
                     float fine = Mathf.PerlinNoise(wx * 0.9f + off.y, wz * 0.9f + off.x) - 0.5f;
@@ -1226,7 +1623,7 @@ namespace FarmingSystem.World
                 }
             }
 
-            // ¹Ú½º ºí·¯·Î ¶¥ Á¾·ù °æ°è¸¦ ºÎµå·´°Ô
+            // ë°•ìŠ¤ ë¸”ëŸ¬ë¡œ ë•… ì¢…ë¥˜ ê²½ê³„ë¥¼ ë¶€ë“œëŸ½ê²Œ
             for (int pass = 0; pass < surfaceEdgeBlur; pass++)
             {
                 var blurred = new Color[pixels.Length];
@@ -1286,9 +1683,9 @@ namespace FarmingSystem.World
             float half = Cell * 0.5f;
             float sink = 0.02f;
             float bottom = -LevelH;
-            int cx0 = 0, cz0 = 0; // Áö±İ ±×¸®´Â Ä­ (Áöµµ ÅØ½ºÃ³ UV °è»ê¿ë)
+            int cx0 = 0, cz0 = 0; // ì§€ê¸ˆ ê·¸ë¦¬ëŠ” ì¹¸ (ì§€ë„ í…ìŠ¤ì²˜ UV ê³„ì‚°ìš©)
 
-            // À­¸éÀº ¸ğµÎ Grass ¼­ºê¸Ş½Ã(Áöµµ ÅØ½ºÃ³)¿¡ ³Ö°í, Ä­ À§Ä¡·Î UV¸¦ °è»ê
+            // ìœ—ë©´ì€ ëª¨ë‘ Grass ì„œë¸Œë©”ì‹œ(ì§€ë„ í…ìŠ¤ì²˜)ì— ë„£ê³ , ì¹¸ ìœ„ì¹˜ë¡œ UVë¥¼ ê³„ì‚°
             void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 n, SurfaceKind kind)
             {
                 int i = verts.Count;
@@ -1327,11 +1724,11 @@ namespace FarmingSystem.World
                     float top = (L.level[x, z] + 1) * LevelH - sink;
                     Vector3 c = LocalCell(L, x, z, 0f);
 
-                    // À­¸é
+                    // ìœ—ë©´
                     Quad(c + new Vector3(-half, top, -half), c + new Vector3(-half, top, half),
                          c + new Vector3(half, top, half), c + new Vector3(half, top, -half), Vector3.up, topKind);
 
-                    // ¿·¸é (¿· Ä­ÀÌ ´õ ³·À» ¶§, ±× ³ôÀÌºÎÅÍ ³» À­¸é±îÁö)
+                    // ì˜†ë©´ (ì˜† ì¹¸ì´ ë” ë‚®ì„ ë•Œ, ê·¸ ë†’ì´ë¶€í„° ë‚´ ìœ—ë©´ê¹Œì§€)
                     for (int d = 0; d < 4; d++)
                     {
                         Vector2Int dir = MapAlgorithms.Dirs4[d];
@@ -1358,7 +1755,7 @@ namespace FarmingSystem.World
             mesh.RecalculateBounds();
 
             var materials = new Material[kinds];
-            // À­¸é ÀüÃ¼ = Áöµµ ÅØ½ºÃ³ (Èò»ö ¸ÓÆ¼¸®¾ó¿¡ ÅØ½ºÃ³¸¦ ÀÔÈû)
+            // ìœ—ë©´ ì „ì²´ = ì§€ë„ í…ìŠ¤ì²˜ (í°ìƒ‰ ë¨¸í‹°ë¦¬ì–¼ì— í…ìŠ¤ì²˜ë¥¼ ì…í˜)
             Material topMat = MakeColorMaterial("IslandSurface_Top", Color.white);
             Texture2D surfaceMap = BuildSurfaceTexture(L);
             if (topMat.HasProperty("_BaseMap")) topMat.SetTexture("_BaseMap", surfaceMap);
@@ -1381,7 +1778,7 @@ namespace FarmingSystem.World
             MarkStatic(go);
         }
 
-        // Ä­ À­¸é Á¾·ù (TopPrefab°ú °°Àº ±ÔÄ¢)
+        // ì¹¸ ìœ—ë©´ ì¢…ë¥˜ (TopPrefabê³¼ ê°™ì€ ê·œì¹™)
         private SurfaceKind TopSurfaceKind(IslandLayout L, int x, int z, ZoneType type)
         {
             if (L.road[x, z]) return SurfaceKind.Path;
@@ -1392,20 +1789,20 @@ namespace FarmingSystem.World
                 case ZoneType.Highland:
                     {
                         int zi = L.zoneIndex[x, z];
-                        int peak = zi >= 0 ? zones[zi].level + mountainHeight : L.level[x, z];
+                        int peak = zi >= 0 ? zones[zi].level + mountainHeight * Mathf.Max(1, mountainTierLevels) : L.level[x, z];
                         return mountainRockTiers > 0 && L.level[x, z] > peak - mountainRockTiers ? SurfaceKind.Rock : SurfaceKind.Grass;
                     }
                 default: return SurfaceKind.Grass;
             }
         }
 
-        // ºí·Ï ¸ğµ¨Àº ¼û±â°í Äİ¶óÀÌ´õ¸¸ ³²±è (¸Å²öÇÑ Áö¸é ¸ğµå)
+        // ë¸”ë¡ ëª¨ë¸ì€ ìˆ¨ê¸°ê³  ì½œë¼ì´ë”ë§Œ ë‚¨ê¹€ (ë§¤ëˆí•œ ì§€ë©´ ëª¨ë“œ)
         private static void HideRenderers(GameObject go)
         {
             foreach (Renderer r in go.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
         }
 
-        // ¸Ş½Ã¸¦ º¸¿©ÁÖ´Â ¿ÀºêÁ§Æ® »ı¼º (¿¡µğÅÍ¿¡¼­´Â ¸Ş½Ã¸¦ ¿¡¼Â ÆÄÀÏ·Î ÀúÀåÇØ¾ß ¾ÀÀ» ´Ù½Ã ¿­¾îµµ ³²À½)
+        // ë©”ì‹œë¥¼ ë³´ì—¬ì£¼ëŠ” ì˜¤ë¸Œì íŠ¸ ìƒì„± (ì—ë””í„°ì—ì„œëŠ” ë©”ì‹œë¥¼ ì—ì…‹ íŒŒì¼ë¡œ ì €ì¥í•´ì•¼ ì”¬ì„ ë‹¤ì‹œ ì—´ì–´ë„ ë‚¨ìŒ)
         private GameObject CreateMeshObject(string name, Transform parent, Mesh mesh, Material[] materials)
         {
             var go = new GameObject(name);
@@ -1417,7 +1814,7 @@ namespace FarmingSystem.World
             return go;
         }
 
-        // ´Ü»ö ¸ÓÆ¼¸®¾ó »ı¼º (URP Lit, ¾øÀ¸¸é ±âº» ¼ÎÀÌ´õ)
+        // ë‹¨ìƒ‰ ë¨¸í‹°ë¦¬ì–¼ ìƒì„± (URP Lit, ì—†ìœ¼ë©´ ê¸°ë³¸ ì…°ì´ë”)
         private Material MakeColorMaterial(string name, Color color)
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Lit");
@@ -1429,8 +1826,8 @@ namespace FarmingSystem.World
             return SaveGeneratedAsset(mat, name + ".mat");
         }
 
-        // »ı¼ºÇÑ ¸Ş½Ã¡¤¸ÓÆ¼¸®¾óÀ» Assets/IslandGenerated Æú´õ¿¡ ÀúÀå (°°Àº ÀÌ¸§ÀÌ ÀÖÀ¸¸é ±³Ã¼)
-        // ÀúÀåÇÏÁö ¾ÊÀ¸¸é ¾ÀÀ» ´İ¾Ò´Ù ¿­ ¶§ ¸Ş½Ã¡¤¸ÓÆ¼¸®¾óÀÌ »ç¶óÁ® ºĞÈ«»ö¡¤ºó ¿ÀºêÁ§Æ®°¡ µÊ
+        // ìƒì„±í•œ ë©”ì‹œÂ·ë¨¸í‹°ë¦¬ì–¼ì„ Assets/IslandGenerated í´ë”ì— ì €ì¥ (ê°™ì€ ì´ë¦„ì´ ìˆìœ¼ë©´ êµì²´)
+        // ì €ì¥í•˜ì§€ ì•Šìœ¼ë©´ ì”¬ì„ ë‹«ì•˜ë‹¤ ì—´ ë•Œ ë©”ì‹œÂ·ë¨¸í‹°ë¦¬ì–¼ì´ ì‚¬ë¼ì ¸ ë¶„í™ìƒ‰Â·ë¹ˆ ì˜¤ë¸Œì íŠ¸ê°€ ë¨
         private static T SaveGeneratedAsset<T>(T obj, string fileName) where T : UnityEngine.Object
         {
 #if UNITY_EDITOR
@@ -1445,30 +1842,30 @@ namespace FarmingSystem.World
             return obj;
         }
 
-        // ¶¥ ¼Ó Ã¤¿ì±â: ÃÖÀûÈ­ ¶§¹®¿¡ ¿·¿¡¼­ ¾È º¸ÀÌ´Â ¾Æ·¡ÂÊ ºí·ÏÀº ¸¸µéÁö ¾Ê´Âµ¥,
-        // ±×·¯¸é À­¸é ºí·Ï ¹ØÀÌ ºñ¾î¼­ Ä³¸¯ÅÍ°¡ ±× ºó °ø°£¿¡ ºüÁö¸é À§·Î ¸ø ¿Ã¶ó¿Â´Ù.
-        // ±×·¡¼­ ´«¿¡ ¾È º¸ÀÌ´Â Äİ¶óÀÌ´õ·Î Ä­¸¶´Ù "¹° ¹Ø¹Ù´Ú ³ôÀÌ ~ À­¸é ºí·Ï ¹Ù´Ú"À» ²Ë Ã¤¿î´Ù.
-        // °°Àº ÁÙ¿¡¼­ ³ôÀÌ°¡ °°Àº Ä­ÀÌ ÀÌ¾îÁö¸é »óÀÚ ÇÏ³ª·Î ÇÕÃÄ Äİ¶óÀÌ´õ ¼ö¸¦ ÁÙÀÎ´Ù (·± ·À½º º´ÇÕ)
+        // ë•… ì† ì±„ìš°ê¸°: ìµœì í™” ë•Œë¬¸ì— ì˜†ì—ì„œ ì•ˆ ë³´ì´ëŠ” ì•„ë˜ìª½ ë¸”ë¡ì€ ë§Œë“¤ì§€ ì•ŠëŠ”ë°,
+        // ê·¸ëŸ¬ë©´ ìœ—ë©´ ë¸”ë¡ ë°‘ì´ ë¹„ì–´ì„œ ìºë¦­í„°ê°€ ê·¸ ë¹ˆ ê³µê°„ì— ë¹ ì§€ë©´ ìœ„ë¡œ ëª» ì˜¬ë¼ì˜¨ë‹¤.
+        // ê·¸ë˜ì„œ ëˆˆì— ì•ˆ ë³´ì´ëŠ” ì½œë¼ì´ë”ë¡œ ì¹¸ë§ˆë‹¤ "ë¬¼ ë°‘ë°”ë‹¥ ë†’ì´ ~ ìœ—ë©´ ë¸”ë¡ ë°”ë‹¥"ì„ ê½‰ ì±„ìš´ë‹¤.
+        // ê°™ì€ ì¤„ì—ì„œ ë†’ì´ê°€ ê°™ì€ ì¹¸ì´ ì´ì–´ì§€ë©´ ìƒì í•˜ë‚˜ë¡œ í•©ì³ ì½œë¼ì´ë” ìˆ˜ë¥¼ ì¤„ì¸ë‹¤ (ëŸ° ë ìŠ¤ ë³‘í•©)
         private void BuildGroundFill(IslandLayout L, Transform parent, int groundLayer)
         {
             var go = new GameObject("GroundFill");
             go.transform.SetParent(parent, false);
             if (groundLayer >= 0) go.layer = groundLayer;
-            float bottom = -LevelH; // ¹° ¹Ø¹Ù´Ú ºí·ÏÀÇ ¾Æ·¡ÂÊ
+            float bottom = -LevelH; // ë¬¼ ë°‘ë°”ë‹¥ ë¸”ë¡ì˜ ì•„ë˜ìª½
 
             for (int z = 0; z < L.depth; z++)
             {
                 int runStart = -1, runLevel = -1;
                 for (int x = 0; x <= L.width; x++)
                 {
-                    // ³ôÀÌ 1 ÀÌ»óÀÎ ¶¥ Ä­¸¸ Ã¤¿ò (³ôÀÌ 0Àº À­¸é ºí·ÏÀÌ ÀÌ¹Ì ¹Ù´Ú±îÁö ´ê¾Æ ÀÖÀ½)
+                    // ë†’ì´ 1 ì´ìƒì¸ ë•… ì¹¸ë§Œ ì±„ì›€ (ë†’ì´ 0ì€ ìœ—ë©´ ë¸”ë¡ì´ ì´ë¯¸ ë°”ë‹¥ê¹Œì§€ ë‹¿ì•„ ìˆìŒ)
                     int level = x < L.width && L.land[x, z] ? L.level[x, z] : -1;
                     bool needFill = level >= 1;
 
                     if (runStart >= 0 && (!needFill || level != runLevel))
                     {
                         int runEnd = x - 1;
-                        float top = runLevel * LevelH; // À­¸é ºí·ÏÀÇ ¹Ù´Ú ³ôÀÌ
+                        float top = runLevel * LevelH; // ìœ—ë©´ ë¸”ë¡ì˜ ë°”ë‹¥ ë†’ì´
                         Vector3 a = LocalCell(L, runStart, z, 0f), b = LocalCell(L, runEnd, z, 0f);
                         Vector3 center = (a + b) * 0.5f + Vector3.up * ((bottom + top) * 0.5f);
                         AddBox(go, center, new Vector3((runEnd - runStart + 1) * Cell, top - bottom, Cell));
@@ -1479,7 +1876,7 @@ namespace FarmingSystem.World
             }
         }
 
-        // ÀÌ ³ôÀÌÀÇ ºí·ÏÀÌ ¿· Ä­¿¡¼­ º¸ÀÌ´ÂÁö (¿· Ä­ÀÌ ´õ ³·°Å³ª ¹°ÀÌ¸é º¸ÀÓ)
+        // ì´ ë†’ì´ì˜ ë¸”ë¡ì´ ì˜† ì¹¸ì—ì„œ ë³´ì´ëŠ”ì§€ (ì˜† ì¹¸ì´ ë” ë‚®ê±°ë‚˜ ë¬¼ì´ë©´ ë³´ì„)
         private static bool IsSideExposed(IslandLayout L, int x, int z, int y)
         {
             foreach (Vector2Int d in MapAlgorithms.Dirs4)
@@ -1491,21 +1888,24 @@ namespace FarmingSystem.World
             return false;
         }
 
-        // ÀÌ Ä­ À­¸é¿¡ ³ó»ç¸¦ ÁöÀ» ¼ö ÀÖ´ÂÁö (½ºÅ¸µà¹ë¸® ¹æ½Ä: ¸ÊÀÇ ¸ğµç ¶¥¿¡¼­ °¡´É)
-        // - °¡´É: ÀÜµğ, ¸ğ·¡, ¾ğ´ö, »ê, Áı ¸¶´ç, Àá±ä Áö¿ª(¿­¸®¸é ¹Ù·Î ³ó»ç °¡´É) µî ¸ğµç ¶¥
-        // - Á¦¿Ü: µ¹±æ(±æ), °æ»ç·Î(ºñÅ»ÀÌ¶ó ¹ç ºí·ÏÀÌ ¾È ¸ÂÀ½)
-        // - ±¤Àåµµ °¡´É: ±¤Àå Àü¿ë ºí·ÏÀ» ¾È ³ÖÀ¸¸é ÀÜµğ ºí·ÏÀ¸·Î ±ò·Á¼­ °Ñº¸±â¿£ ±×³É ÀÜµğ¹çÀÎµ¥
-        //   ³ó»ç°¡ ¾È µÅ¼­ °íÀåÃ³·³ º¸¿´À½
-        // - ¹°Àº ¶¥ Ä­ÀÌ ¾Æ´Ï¶ó¼­ ¾ÖÃÊ¿¡ ´ë»óÀÌ ¾Æ´Ô
-        // - °Ç¹°¡¤³ª¹«¡¤¹ÙÀ§¡¤¿ÀºêÁ§Æ®°¡ ¼­ ÀÖ´Â Ä­Àº FarmPlacementValidator°¡ °¥ ¶§ ¸·À½
+        // ì´ ì¹¸ ìœ—ë©´ì— ë†ì‚¬ë¥¼ ì§€ì„ ìˆ˜ ìˆëŠ”ì§€ (ìŠ¤íƒ€ë“€ë°¸ë¦¬ ë°©ì‹: ë§µì˜ ëª¨ë“  ë•…ì—ì„œ ê°€ëŠ¥)
+        // - ê°€ëŠ¥: ì”ë””, ëª¨ë˜, ì–¸ë•, ì‚°, ì§‘ ë§ˆë‹¹, ì ê¸´ ì§€ì—­(ì—´ë¦¬ë©´ ë°”ë¡œ ë†ì‚¬ ê°€ëŠ¥) ë“± ëª¨ë“  ë•…
+        // - ì œì™¸: ëŒê¸¸(ê¸¸), ê²½ì‚¬ë¡œ(ë¹„íƒˆì´ë¼ ë°­ ë¸”ë¡ì´ ì•ˆ ë§ìŒ)
+        // - ê´‘ì¥ë„ ê°€ëŠ¥: ê´‘ì¥ ì „ìš© ë¸”ë¡ì„ ì•ˆ ë„£ìœ¼ë©´ ì”ë”” ë¸”ë¡ìœ¼ë¡œ ê¹”ë ¤ì„œ ê²‰ë³´ê¸°ì—” ê·¸ëƒ¥ ì”ë””ë°­ì¸ë°
+        //   ë†ì‚¬ê°€ ì•ˆ ë¼ì„œ ê³ ì¥ì²˜ëŸ¼ ë³´ì˜€ìŒ
+        // - ë¬¼ì€ ë•… ì¹¸ì´ ì•„ë‹ˆë¼ì„œ ì• ì´ˆì— ëŒ€ìƒì´ ì•„ë‹˜
+        // - ê±´ë¬¼Â·ë‚˜ë¬´Â·ë°”ìœ„Â·ì˜¤ë¸Œì íŠ¸ê°€ ì„œ ìˆëŠ” ì¹¸ì€ FarmPlacementValidatorê°€ ê°ˆ ë•Œ ë§‰ìŒ
         private bool IsFarmable(IslandLayout L, int x, int z, int zoneIndex, ZoneType type, GameObject topPrefab)
         {
             if (!L.land[x, z]) return false;
-            if (L.road[x, z] || L.rampDir[x, z] >= 0) return false;
+            if (L.rampDir[x, z] >= 0) return false;
+            if (L.road[x, z] && showRoads) return false;
+            if (L.mineDir >= 0 && L.mineFront.x == x && L.mineFront.y == z) return false; // ê´‘ì‚° ì…êµ¬ ì•
+            if (type == ZoneType.Highland && topPrefab != prefabs.grassTop) return false;    // ì‚°ì˜ ëŒ ë¸”ë¡ì€ ë†ì‚¬ ë¶ˆê°€
             return true;
         }
 
-        // ¹ç ºí·Ï¿¡ FarmTile ºÙÀÌ±â (FarmGrid°¡ °ÔÀÓ ½ÃÀÛ ½Ã ÀÚµ¿ µî·Ï)
+        // ë°­ ë¸”ë¡ì— FarmTile ë¶™ì´ê¸° (FarmGridê°€ ê²Œì„ ì‹œì‘ ì‹œ ìë™ ë“±ë¡)
         private void SetupFarmTile(GameObject block, GameObject naturalVisual)
         {
             FarmTile tile = block.GetComponent<FarmTile>();
@@ -1518,13 +1918,13 @@ namespace FarmingSystem.World
 #endif
         }
 
-        // ¹° 1Ä­ = ¹Ø¹Ù´Ú ºí·Ï + ¹° Ç¥¸é
+        // ë¬¼ 1ì¹¸ = ë°‘ë°”ë‹¥ ë¸”ë¡ + ë¬¼ í‘œë©´
         private void BuildWaterCell(IslandLayout L, int x, int z, Transform parent, int groundLayer)
         {
             if (placeSeabed && !smoothSeabed)
             {
                 GameObject bedPrefab = Or(prefabs.seabed, Or(prefabs.sandTop, Or(prefabs.dirtFill, prefabs.grassTop)));
-                GameObject bed = Spawn(bedPrefab, CellToWorld(L, x, z, -LevelH) + blockOffset, Quaternion.identity, parent, BlockS);
+                GameObject bed = Spawn(bedPrefab, CellToWorld(L, x, z, -LevelH) + blockOffset + BottomFix(bedPrefab), Quaternion.identity, parent, BlockS);
                 if (bed != null) { bed.name = $"Seabed_{x}_{z}"; EnsureCollider(bed); SetLayer(bed, groundLayer); MarkStatic(bed); }
             }
 
@@ -1535,7 +1935,7 @@ namespace FarmingSystem.World
             }
         }
 
-        // °­ À§ ´Ù¸® (Àá±ä Áö¿ª ÂÊÀº ºÎ¼­Áø ´Ù¸®, ¼ö¸®µÈ ´Ù¸®´Â ¹Ì¸® ¸¸µé¾î ²¨µÒ)
+        // ê°• ìœ„ ë‹¤ë¦¬ (ì ê¸´ ì§€ì—­ ìª½ì€ ë¶€ì„œì§„ ë‹¤ë¦¬, ìˆ˜ë¦¬ëœ ë‹¤ë¦¬ëŠ” ë¯¸ë¦¬ ë§Œë“¤ì–´ êº¼ë‘ )
         private void BuildBridges(IslandLayout L, Transform parent, Dictionary<int, Transform> lockedGroups,
                                   Dictionary<int, Transform> unlockedGroups, int groundLayer)
         {
@@ -1550,13 +1950,13 @@ namespace FarmingSystem.World
 
                     if (lockZone >= 0 && lockedGroups.ContainsKey(lockZone))
                     {
-                        // Àá±ä »óÅÂ: ºÎ¼­Áø ´Ù¸® + Áö³ª°¡Áö ¸øÇÏ°Ô ¸·´Â º®
+                        // ì ê¸´ ìƒíƒœ: ë¶€ì„œì§„ ë‹¤ë¦¬ + ì§€ë‚˜ê°€ì§€ ëª»í•˜ê²Œ ë§‰ëŠ” ë²½
                         if (prefabs.brokenBridge != null)
                             Spawn(prefabs.brokenBridge, CellToWorld(L, x, z, (baseLevel + 1) * LevelH), rot, lockedGroups[lockZone], BlockS);
                         AddBox(lockedGroups[lockZone].gameObject, LocalCell(L, x, z, (baseLevel + 1) * LevelH + WallH * 0.5f),
                                new Vector3(Cell, WallH + LevelH * 2f, Cell));
 
-                        // ÇØ±İ ÈÄ: Á¤»ó ´Ù¸®
+                        // í•´ê¸ˆ í›„: ì •ìƒ ë‹¤ë¦¬
                         SpawnBridge(L, x, z, rot, unlockedGroups[lockZone], groundLayer);
                     }
                     else
@@ -1573,11 +1973,14 @@ namespace FarmingSystem.World
             if (prefabs.bridge != null)
                 b = Spawn(prefabs.bridge, CellToWorld(L, x, z, (baseLevel + 1) * LevelH), rot, parent, BlockS);
             else
-                b = Spawn(Or(prefabs.pathTop, prefabs.grassTop), CellToWorld(L, x, z, baseLevel * LevelH) + blockOffset, Quaternion.identity, parent, BlockS);
+            {
+                GameObject crossPrefab = Or(showRoads ? prefabs.pathTop : null, prefabs.grassTop);
+                b = Spawn(crossPrefab, CellToWorld(L, x, z, baseLevel * LevelH) + blockOffset + BottomFix(crossPrefab), Quaternion.identity, parent, BlockS);
+            }
             if (b != null) { b.name = $"Bridge_{x}_{z}"; EnsureCollider(b); SetLayer(b, groundLayer); }
         }
 
-        // °æ»ç·Î ºí·Ï (³·Àº Ä­ À§¿¡ ³õ¿© ³ôÀº Ä­À¸·Î ¿Ã¶ó°¨)
+        // ê²½ì‚¬ë¡œ ë¸”ë¡ (ë‚®ì€ ì¹¸ ìœ„ì— ë†“ì—¬ ë†’ì€ ì¹¸ìœ¼ë¡œ ì˜¬ë¼ê°)
         private void BuildRamps(IslandLayout L, Transform parent, int groundLayer)
         {
             if (prefabs.slope == null)
@@ -1586,7 +1989,7 @@ namespace FarmingSystem.World
                 for (int x = 0; x < L.width && !any; x++)
                     for (int z = 0; z < L.depth && !any; z++)
                         if (L.rampDir[x, z] >= 0) any = true;
-                if (any) L.warnings.Add("ÇÁ¸®ÆÕ: Slope°¡ ºñ¾î ÀÖ¾î ³ôÀÌ°¡ ´Ù¸¥ ±æÀ» ¿Ã¶ó°¥ ¼ö ¾øÀ½");
+                if (any) L.warnings.Add("í”„ë¦¬íŒ¹: Slopeê°€ ë¹„ì–´ ìˆì–´ ë†’ì´ê°€ ë‹¤ë¥¸ ê¸¸ì„ ì˜¬ë¼ê°ˆ ìˆ˜ ì—†ìŒ");
                 return;
             }
 
@@ -1598,25 +2001,25 @@ namespace FarmingSystem.World
                     if (dir < 0 || !L.land[x, z]) continue;
 
                     Quaternion rot = Quaternion.Euler(0f, MapAlgorithms.DirToYaw(dir) + prefabs.slopeYawOffset, 0f);
-                    GameObject ramp = Spawn(prefabs.slope, CellToWorld(L, x, z, (L.level[x, z] + 1) * LevelH) + blockOffset, rot, parent, BlockS);
+                    GameObject ramp = Spawn(prefabs.slope, CellToWorld(L, x, z, (L.level[x, z] + 1) * LevelH) + blockOffset + BottomFix(prefabs.slope), rot, parent, BlockS);
                     if (ramp == null) continue;
                     ramp.name = $"Ramp_{x}_{z}";
                     SetLayer(ramp, groundLayer);
-                    if (prefabs.fixSlopeCollider) UseMeshCollider(ramp);
+                    MakeRampCollider(ramp); // ê²½ì‚¬ë©´ ëª¨ì–‘ ê·¸ëŒ€ë¡œ ë°Ÿê³  ì˜¬ë¼ê°ˆ ìˆ˜ ìˆê²Œ (ìƒì ì½œë¼ì´ë”ë©´ ë²½ì²˜ëŸ¼ ë§‰í˜)
                 }
             }
         }
 
-        // ³ª¹«¡¤¹ÙÀ§
+        // ë‚˜ë¬´Â·ë°”ìœ„
         private void BuildProps(IslandLayout L, Transform parent, int blockerLayer)
         {
             var rng = new System.Random(seed + 7);
-            PlaceProps(L, L.treePositions, prefabs.trees, parent, blockerLayer, rng, "Tree");
-            PlaceProps(L, L.rockPositions, prefabs.rocks, parent, blockerLayer, rng, "Rock");
+            PlaceProps(L, L.treePositions, prefabs.trees, parent, blockerLayer, rng, "Tree", true, prefabs.seasonalTreeSet, treeSinkRatio);
+            PlaceProps(L, L.rockPositions, prefabs.rocks, parent, blockerLayer, rng, "Rock", false, null);
         }
 
         private void PlaceProps(IslandLayout L, List<Vector2> positions, GameObject[] options, Transform parent,
-                                int blockerLayer, System.Random rng, string label)
+                                int blockerLayer, System.Random rng, string label, bool isTree, SeasonalBlockSet seasonalSet, float sinkRatio = 0f)
         {
             if (options == null || options.Length == 0) return;
             foreach (Vector2 p in positions)
@@ -1625,13 +2028,33 @@ namespace FarmingSystem.World
                 if (prefab == null) continue;
 
                 int cx = Mathf.FloorToInt(p.x), cz = Mathf.FloorToInt(p.y);
-                // Ä­ ¾È¿¡¼­ »ìÂ¦ Èçµé¾î °İÀÚ ´À³¦ ÁÙÀÌ±â
+                // ì¹¸ ì•ˆì—ì„œ ì‚´ì§ í”ë“¤ì–´ ê²©ì ëŠë‚Œ ì¤„ì´ê¸°
+                // ì¹¸ ì•ˆì—ì„œ ì‚´ì§ í”ë“¤ê¸° (ë‚˜ë¬´ëŠ” ë¿Œë¦¬ê°€ ì¹¸ ë°–ìœ¼ë¡œ ì•ˆ ë‚˜ê°ˆ ë§Œí¼ë§Œ - ì‹¬ì„ ìë¦¬ ê²€ì‚¬ì™€ ê°™ì€ ê³„ì‚°)
+                float j = isTree ? 2f * L.treeJitter : 0.6f;
                 Vector3 pos = CellToWorld(L, cx, cz, (L.level[cx, cz] + 1) * LevelH)
-                              + new Vector3((p.x - cx - 0.5f) * Cell * 0.6f, 0f, (p.y - cz - 0.5f) * Cell * 0.6f);
+                              + new Vector3((p.x - cx - 0.5f) * Cell * j, 0f, (p.y - cz - 0.5f) * Cell * j);
                 Quaternion rot = Quaternion.Euler(0f, (float)rng.NextDouble() * 360f, 0f);
-                float scale = (1f + ((float)rng.NextDouble() * 2f - 1f) * propScaleJitter) * propScale * worldScale;
+                float jitter = 1f + ((float)rng.NextDouble() * 2f - 1f) * propScaleJitter;
+                float scale = jitter * (isTree ? TreeBaseScale(TreeSizeRef(prefab)) : propScale * worldScale);
 
-                GameObject prop = Spawn(prefab, pos, rot, parent, scale);
+                // ê³„ì ˆ ë‚˜ë¬´: ë´„Â·ì—¬ë¦„Â·ê°€ì„Â·ê²¨ìš¸ ëª¨ë¸ì„ ëª¨ë‘ ìì‹ìœ¼ë¡œ ë§Œë“¤ê³ , SeasonalObjectê°€ ì§€ê¸ˆ ê³„ì ˆ ê²ƒë§Œ ì¼¬
+                SeasonalBlockSet.Entry seasonal = FindSeasonalEntry(seasonalSet, prefab);
+                if (seasonal != null)
+                {
+                    var holder = new GameObject($"{label}_{cx}_{cz}");
+                    holder.transform.SetParent(parent, false);
+                    holder.transform.SetPositionAndRotation(pos, rot);
+                    GameObject sp = SpawnPropVariant(seasonal.Get(Season.Spring), pos, rot, holder.transform, scale, "Spring", sinkRatio);
+                    GameObject su = SpawnPropVariant(seasonal.Get(Season.Summer), pos, rot, holder.transform, scale, "Summer", sinkRatio);
+                    GameObject au = SpawnPropVariant(seasonal.Get(Season.Autumn), pos, rot, holder.transform, scale, "Autumn", sinkRatio);
+                    GameObject wi = SpawnPropVariant(seasonal.Get(Season.Winter), pos, rot, holder.transform, scale, "Winter", sinkRatio);
+                    EnsureTrunkCollider(holder, sp);
+                    SetLayer(holder, blockerLayer);
+                    holder.AddComponent<SeasonalObject>().Configure(sp, su, au, wi);
+                    continue;
+                }
+
+                GameObject prop = Spawn(prefab, pos + PropBottomFix(prefab, scale) + Vector3.down * (ModelHeight(prefab) * scale * sinkRatio), rot, parent, scale);
                 if (prop == null) continue;
                 prop.name = $"{label}_{cx}_{cz}";
                 SetLayer(prop, blockerLayer);
@@ -1639,7 +2062,81 @@ namespace FarmingSystem.World
             }
         }
 
-        // start¿¡¼­ °¡Àå °¡±î¿î ³ó»ç °¡´ÉÇÑ ¸Ç¶¥ Ä­ (±æ¡¤¸ğ·¡¡¤°æ»ç·Î°¡ ¾Æ´Ñ Ä­). ¾øÀ¸¸é start ±×´ë·Î
+        // ë‚˜ë¬´ ëª¨ë¸ì— ì¶©ëŒì²´ê°€ ì—†ìœ¼ë©´ ë°‘ë™ì— ì›ê¸°ë‘¥ ì¶©ëŒì²´ë¥¼ ë¶™ì„
+        // (ì—†ìœ¼ë©´ ë‚˜ë¬´ë¥¼ í†µê³¼í•´ ê±¸ì–´ê°€ê³ , ë‚˜ë¬´ ë°”ë¡œ ì•„ë˜ ë•…ë„ ê°ˆì•„ì§ - ë°­ íŒì •ì€ FarmingBlocker ë ˆì´ì–´ì˜ ì¶©ëŒì²´ë¡œ ë§‰ìŒ)
+        private static void EnsureTrunkCollider(GameObject holder, GameObject model)
+        {
+            if (model == null || model.GetComponentInChildren<Collider>(true) != null) return;
+            Renderer[] rs = model.GetComponentsInChildren<Renderer>(true);
+            if (rs.Length == 0) return;
+            Bounds b = rs[0].bounds;
+            foreach (Renderer r in rs) b.Encapsulate(r.bounds);
+
+            var cap = holder.AddComponent<CapsuleCollider>();
+            float radius = Mathf.Max(0.2f, Mathf.Min(b.size.x, b.size.z) * 0.18f);
+            cap.radius = radius;
+            cap.height = Mathf.Max(b.size.y, radius * 2f);
+            cap.center = holder.transform.InverseTransformPoint(new Vector3(b.center.x, b.min.y + cap.height * 0.5f, b.center.z));
+        }
+
+        private GameObject SpawnPropVariant(GameObject prefab, Vector3 pos, Quaternion rot, Transform holder, float scale, string name, float sinkRatio)
+        {
+            if (prefab == null) return null;
+            // ë°”ë‹¥ ë§ì¶¤ í›„ ë‚˜ë¬´ ë†’ì´ì˜ ì¼ì • ë¹„ìœ¨ë§Œí¼ ë•…ì— ë°•ìŒ (ë¿Œë¦¬ê°€ ë“œëŸ¬ë‚˜ ë–  ë³´ì´ì§€ ì•Šê²Œ)
+            Vector3 sink = Vector3.down * (ModelHeight(prefab) * scale * sinkRatio);
+            GameObject g = Spawn(prefab, pos + PropBottomFix(prefab, scale) + sink, rot, holder, scale);
+            if (g != null) g.name = name;
+            return g;
+        }
+
+        // ë¬¶ìŒì—ì„œ ì´ í”„ë¦¬íŒ¹ì´ ë“¤ì–´ ìˆëŠ” ì¤„ (ë´„Â·ì—¬ë¦„Â·ê°€ì„Â·ê²¨ìš¸ ì–´ëŠ ì¹¸ì´ë“ )
+        private static SeasonalBlockSet.Entry FindSeasonalEntry(SeasonalBlockSet set, GameObject prefab)
+        {
+            if (set == null || prefab == null) return null;
+            foreach (SeasonalBlockSet.Entry e in set.entries)
+                foreach (GameObject p in e.All())
+                    if (p == prefab) return e;
+            return null;
+        }
+
+        // ë‚˜ë¬´Â·ë°”ìœ„ ë°”ë‹¥ ë§ì¶¤: ëª¨ë¸ ê¸°ì¤€ì ì´ ê°€ìš´ë°ì—¬ë„ ë°‘ë™ì´ ë•…ì— ë‹¿ê²Œ (ê·¸ë˜í”½íŒ€ ë‚˜ë¬´ëŠ” ê¸°ì¤€ì ì´ ë‚˜ë¬´ í•œê°€ìš´ë°)
+        private Vector3 PropBottomFix(GameObject prefab, float scale)
+        {
+            if (!alignBlockBottoms || prefab == null) return Vector3.zero;
+            if (!propBottomCache.TryGetValue(prefab, out float local))
+            {
+                local = -ModelMinY(prefab);
+                propBottomCache[prefab] = local;
+            }
+            return new Vector3(0f, local * scale, 0f);
+        }
+
+        private readonly Dictionary<GameObject, float> propBottomCache = new Dictionary<GameObject, float>();
+
+        // ëª¨ë¸ì˜ ê°€ì¥ ë‚®ì€ ì : í”„ë¦¬íŒ¹ì„ ì›ì ì— ë†“ì•˜ì„ ë•Œ ê¸°ì¤€ (í”„ë¦¬íŒ¹ ë£¨íŠ¸ì˜ íšŒì „Â·í¬ê¸°ëŠ” í¬í•¨, ë°°ì¹˜ ë°°ìœ¨ì€ ì œì™¸)
+        private static float ModelMinY(GameObject prefab)
+        {
+            Transform t = prefab.transform;
+            Matrix4x4 toRoot = Matrix4x4.TRS(Vector3.zero, t.localRotation, t.localScale) * t.worldToLocalMatrix;
+            float minY = float.MaxValue;
+            bool found = false;
+            foreach (MeshFilter mf in prefab.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.sharedMesh == null) continue;
+                Bounds b = mf.sharedMesh.bounds;
+                Matrix4x4 m = toRoot * mf.transform.localToWorldMatrix;
+                for (int i = 0; i < 8; i++)
+                {
+                    Vector3 corner = b.center + Vector3.Scale(b.extents,
+                        new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
+                    minY = Mathf.Min(minY, m.MultiplyPoint3x4(corner).y);
+                    found = true;
+                }
+            }
+            return found ? minY : 0f;
+        }
+
+        // startì—ì„œ ê°€ì¥ ê°€ê¹Œìš´ ë†ì‚¬ ê°€ëŠ¥í•œ ë§¨ë•… ì¹¸ (ê¸¸Â·ëª¨ë˜Â·ê²½ì‚¬ë¡œê°€ ì•„ë‹Œ ì¹¸). ì—†ìœ¼ë©´ start ê·¸ëŒ€ë¡œ
         private Vector2Int NearestFarmableCell(IslandLayout L, Vector2Int start, int zoneIndex)
         {
             for (int r = 0; r <= 8; r++)
@@ -1659,7 +2156,7 @@ namespace FarmingSystem.World
             return start;
         }
 
-        // Áı¡¤»óÁ¡¡¤½ºÆù À§Ä¡ Ç¥½Ã (±âÁ¸ ÇÃ·¹ÀÌ¾î, NPC_Merchant µîÀ» ÀÌ À§Ä¡·Î ¿Å±â¸é µÊ)
+        // ì§‘Â·ìƒì Â·ìŠ¤í° ìœ„ì¹˜ í‘œì‹œ (ê¸°ì¡´ í”Œë ˆì´ì–´, NPC_Merchant ë“±ì„ ì´ ìœ„ì¹˜ë¡œ ì˜®ê¸°ë©´ ë¨)
         private void BuildAnchors(IslandLayout L, Transform parent, int blockerLayer)
         {
             int home = FindZone(ZoneType.Home);
@@ -1668,8 +2165,8 @@ namespace FarmingSystem.World
                 Vector2Int c = ZoneCenterCellOnLand(L, home);
                 if (c.x >= 0)
                 {
-                    // ±æÀº Áı Áö¿ª °¡¿îµ¥·Î ¸ğÀÌ±â ¶§¹®¿¡ °¡¿îµ¥°¡ °ÅÀÇ Ç×»ó ±æ À§´Ù.
-                    // ½ÃÀÛÇÏÀÚ¸¶ÀÚ ¹ß¹ØÀÌ ±æÀÌ¸é ¶¥À» °¥ ¼ö ¾ø¾î °íÀå³­ °ÍÃ³·³ º¸ÀÌ¹Ç·Î, °¡Àå °¡±î¿î ÀÜµğ Ä­¿¡¼­ ½ÃÀÛ
+                    // ê¸¸ì€ ì§‘ ì§€ì—­ ê°€ìš´ë°ë¡œ ëª¨ì´ê¸° ë•Œë¬¸ì— ê°€ìš´ë°ê°€ ê±°ì˜ í•­ìƒ ê¸¸ ìœ„ë‹¤.
+                    // ì‹œì‘í•˜ìë§ˆì ë°œë°‘ì´ ê¸¸ì´ë©´ ë•…ì„ ê°ˆ ìˆ˜ ì—†ì–´ ê³ ì¥ë‚œ ê²ƒì²˜ëŸ¼ ë³´ì´ë¯€ë¡œ, ê°€ì¥ ê°€ê¹Œìš´ ì”ë”” ì¹¸ì—ì„œ ì‹œì‘
                     Vector2Int spawn = NearestFarmableCell(L, c, home);
                     Anchor(parent, "Anchor_PlayerSpawn", CellTop(L, spawn.x, spawn.y), 0f);
                     Vector2Int houseCell = new Vector2Int(c.x, Mathf.Min(L.depth - 1, c.y + 2));
@@ -1697,9 +2194,94 @@ namespace FarmingSystem.World
                 Vector2Int c = ZoneCenterCellOnLand(L, farm);
                 if (c.x >= 0) Anchor(parent, "Anchor_FarmCenter", CellTop(L, c.x, c.y), 0f);
             }
+
+            if (buildMineEntrance && L.mineDir >= 0) BuildMineEntrance(L, parent, blockerLayer);
         }
 
-        // Àá±ä Áö¿ª °æ°è¸¦ Åõ¸í º®À¸·Î ¸·°í ÀÔ±¸¿¡ ÀÜÇØ¸¦ ³õÀ½
+        // ê´‘ì‚° ì…êµ¬: ì ˆë²½ ë²½ë©´ì— ë™êµ´ ì…êµ¬ + ì•ì— 'ì¶œì…ê¸ˆì§€' í‘œì§€íŒ, MineEntranceê°€ ì ê¸ˆ/ì—´ë¦¼ì„ ê´€ë¦¬
+        private void BuildMineEntrance(IslandLayout L, Transform parent, int blockerLayer)
+        {
+            Vector2Int f = L.mineFront;
+            Vector2Int d = MapAlgorithms.Dirs4[L.mineDir];
+            Vector3 toCliff = new Vector3(d.x, 0f, d.y);
+            Quaternion facing = Quaternion.LookRotation(-toCliff, Vector3.up); // ì…êµ¬ ì•ë©´ì´ ë°”ê¹¥(í”Œë ˆì´ì–´ ìª½)ì„ ë´„
+
+            // ë²½ë©´ ìœ„ì¹˜ = ì• ì¹¸ ê°€ìš´ë°ì—ì„œ ì ˆë²½ ìª½ìœ¼ë¡œ ë°˜ ì¹¸, ì• ì¹¸ ë•… ë†’ì´
+            Vector3 wall = CellTop(L, f.x, f.y) + toCliff * (Cell * 0.5f);
+            Transform root = Anchor(parent, "MineEntrance", wall, Quaternion.LookRotation(-toCliff).eulerAngles.y);
+
+            // ë™êµ´ ì…êµ¬
+            GameObject cave = prefabs.mineEntrance != null
+                ? Spawn(prefabs.mineEntrance, wall, facing, root, worldScale)
+                : MakeMinePlaceholderCave(root, wall, facing);
+            if (cave != null) cave.name = "Cave";
+
+            // ì ê²¨ ìˆëŠ” ë™ì•ˆ ë³´ì´ëŠ” ê²ƒë“¤ (í‘œì§€íŒ)
+            var lockedGroup = new GameObject("WhileLocked");
+            lockedGroup.transform.SetParent(root, false);
+            Vector3 signPos = CellTop(L, f.x, f.y) - toCliff * (Cell * 0.1f);
+            GameObject sign = prefabs.mineClosedSign != null
+                ? Spawn(prefabs.mineClosedSign, signPos, facing, lockedGroup.transform, worldScale)
+                : MakeMinePlaceholderSign(lockedGroup.transform, signPos, facing);
+            if (sign != null) { sign.name = "ClosedSign"; SetLayer(sign, blockerLayer); }
+
+            // ì—´ë¦° ë’¤ ë³´ì´ëŠ” ê²ƒë“¤ (ì§€ê¸ˆì€ ë¹„ì–´ ìˆìŒ - ë‚˜ì¤‘ì— ë“±ë¶ˆÂ·ì—´ë¦° ë¬¸ ë“±ì„ ë„£ìœ¼ë©´ ë¨)
+            var unlockedGroup = new GameObject("AfterUnlock");
+            unlockedGroup.transform.SetParent(root, false);
+            unlockedGroup.SetActive(false);
+
+            var mine = root.gameObject.AddComponent<MineEntrance>();
+            mine.Configure(mineLockedMessage, mineSceneName, lockedGroup, unlockedGroup, root);
+        }
+
+        // ì„ì‹œ ë™êµ´ ì…êµ¬: ë²½ë©´ì— ë¶™ì€ ê²€ì€ ì•„ì¹˜ (ê·¸ë˜í”½ ëª¨ë¸ì´ ë‚˜ì˜¤ë©´ Prefabsì˜ Mine Entranceì— ë„£ê¸°)
+        private GameObject MakeMinePlaceholderCave(Transform parent, Vector3 wall, Quaternion facing)
+        {
+            var cave = new GameObject("Cave");
+            cave.transform.SetParent(parent, false);
+            cave.transform.SetPositionAndRotation(wall, facing);
+            Material dark = MakeColorMaterial("MineCaveDark", new Color(0.05f, 0.04f, 0.04f));
+            Material frame = MakeColorMaterial("MineCaveFrame", new Color(0.42f, 0.30f, 0.18f));
+            float w = Cell * 0.8f, h = Mathf.Min(LevelH * 0.95f, Cell * 0.95f);
+            PlaceholderBox(cave.transform, "Opening", new Vector3(0f, h * 0.5f, 0.07f), new Vector3(w, h, 0.06f), dark); // ë¸”ë¡ ì•ë©´ë³´ë‹¤ ì‚´ì§ ì•ì—
+            PlaceholderBox(cave.transform, "PostL", new Vector3(-w * 0.5f, h * 0.5f, 0.08f), new Vector3(0.15f, h, 0.15f), frame);
+            PlaceholderBox(cave.transform, "PostR", new Vector3(w * 0.5f, h * 0.5f, 0.08f), new Vector3(0.15f, h, 0.15f), frame);
+            PlaceholderBox(cave.transform, "Beam", new Vector3(0f, h, 0.08f), new Vector3(w + 0.3f, 0.18f, 0.18f), frame);
+            return cave;
+        }
+
+        // ì„ì‹œ 'ì¶œì…ê¸ˆì§€' í‘œì§€íŒ: ê¸°ë‘¥ 2ê°œ + ê°€ë¡œ íŒì 2ì¥ (Xì ë°”ë¦¬ì¼€ì´ë“œ ëŠë‚Œ)
+        private GameObject MakeMinePlaceholderSign(Transform parent, Vector3 pos, Quaternion facing)
+        {
+            var sign = new GameObject("ClosedSign");
+            sign.transform.SetParent(parent, false);
+            sign.transform.SetPositionAndRotation(pos, facing);
+            Material wood = MakeColorMaterial("MineSignWood", new Color(0.55f, 0.38f, 0.2f));
+            Material red = MakeColorMaterial("MineSignRed", new Color(0.8f, 0.15f, 0.12f));
+            float w = Cell * 0.8f;
+            PlaceholderBox(sign.transform, "PostL", new Vector3(-w * 0.5f, 0.5f, 0f), new Vector3(0.12f, 1f, 0.12f), wood);
+            PlaceholderBox(sign.transform, "PostR", new Vector3(w * 0.5f, 0.5f, 0f), new Vector3(0.12f, 1f, 0.12f), wood);
+            PlaceholderBox(sign.transform, "BoardTop", new Vector3(0f, 0.8f, 0.05f), new Vector3(w + 0.2f, 0.22f, 0.05f), red);
+            PlaceholderBox(sign.transform, "BoardBottom", new Vector3(0f, 0.45f, 0.05f), new Vector3(w + 0.2f, 0.22f, 0.05f), wood);
+            // ì§€ë‚˜ê°€ì§€ ëª»í•˜ê²Œ ë§‰ëŠ” ì¶©ëŒì²´ (í‘œì§€íŒì´ ì‚¬ë¼ì§€ë©´ ê°™ì´ ì‚¬ë¼ì§)
+            var box = sign.AddComponent<BoxCollider>();
+            box.center = new Vector3(0f, 0.6f, 0f);
+            box.size = new Vector3(w + 0.2f, 1.2f, 0.3f);
+            return sign;
+        }
+
+        private static void PlaceholderBox(Transform parent, string name, Vector3 localPos, Vector3 size, Material mat)
+        {
+            GameObject g = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            g.name = name;
+            g.transform.SetParent(parent, false);
+            g.transform.localPosition = localPos;
+            g.transform.localScale = size;
+            g.GetComponent<Renderer>().sharedMaterial = mat;
+            DestroyImmediate(g.GetComponent<Collider>()); // ëª¨ì–‘ë§Œ (ë§‰ëŠ” ê±´ í‘œì§€íŒ ì¶©ëŒì²´ í•˜ë‚˜ë¡œ)
+        }
+
+        // ì ê¸´ ì§€ì—­ ê²½ê³„ë¥¼ íˆ¬ëª… ë²½ìœ¼ë¡œ ë§‰ê³  ì…êµ¬ì— ì”í•´ë¥¼ ë†“ìŒ
         private void BuildLockedWalls(IslandLayout L, Dictionary<int, Transform> lockedGroups, int blockerLayer)
         {
             foreach (var pair in lockedGroups)
@@ -1722,7 +2304,7 @@ namespace FarmingSystem.World
                             if (!L.InBounds(n) || !L.IsWalkable(n)) continue;
                             if (L.land[n.x, n.y] && L.zoneIndex[n.x, n.y] == zi) continue;
 
-                            // µÎ Ä­ »çÀÌ °æ°è¼±¿¡ ¾ãÀº º®
+                            // ë‘ ì¹¸ ì‚¬ì´ ê²½ê³„ì„ ì— ì–‡ì€ ë²½
                             int low = Mathf.Min(L.level[x, z], L.TopLevel(n.x, n.y) < 0 ? baseLevel : L.TopLevel(n.x, n.y));
                             int high = Mathf.Max(L.level[x, z], L.TopLevel(n.x, n.y) < 0 ? baseLevel : L.TopLevel(n.x, n.y));
                             float bottom = (low + 1) * LevelH;
@@ -1737,7 +2319,7 @@ namespace FarmingSystem.World
                     }
                 }
 
-                // ÀÔ±¸ ÀÜÇØ (½Ã°¢ÀûÀ¸·Î ¸·Çô º¸ÀÌ°Ô)
+                // ì…êµ¬ ì”í•´ (ì‹œê°ì ìœ¼ë¡œ ë§‰í˜€ ë³´ì´ê²Œ)
                 if (prefabs.gateRubble != null && L.gateCells.TryGetValue(zi, out Vector2Int gate))
                 {
                     float yaw = L.gateDirs.TryGetValue(zi, out int gd) ? MapAlgorithms.DirToYaw(gd) : 0f;
@@ -1747,7 +2329,7 @@ namespace FarmingSystem.World
             }
         }
 
-        // ¹° Ä­À» Åõ¸í º®À¸·Î ¸·±â (°°Àº ÁÙÀÇ ¿¬¼ÓµÈ ¹° Ä­Àº ¹Ú½º ÇÏ³ª·Î ÇÕÃÄ Äİ¶óÀÌ´õ ¼ö¸¦ ÁÙÀÓ)
+        // ë¬¼ ì¹¸ì„ íˆ¬ëª… ë²½ìœ¼ë¡œ ë§‰ê¸° (ê°™ì€ ì¤„ì˜ ì—°ì†ëœ ë¬¼ ì¹¸ì€ ë°•ìŠ¤ í•˜ë‚˜ë¡œ í•©ì³ ì½œë¼ì´ë” ìˆ˜ë¥¼ ì¤„ì„)
         private void BuildWaterBlockers(IslandLayout L, Transform parent)
         {
             var go = new GameObject("WaterBlockers");
@@ -1775,7 +2357,7 @@ namespace FarmingSystem.World
             }
         }
 
-        // ==================== µµ¿ì¹Ì ====================
+        // ==================== ë„ìš°ë¯¸ ====================
 
         private bool IsBorder(IslandLayout L, int x, int z) =>
             x < borderWater || z < borderWater || x >= L.width - borderWater || z >= L.depth - borderWater;
@@ -1786,13 +2368,13 @@ namespace FarmingSystem.World
             return -1;
         }
 
-        // Áö¿ª Áß½É Ä­ (0~1 ÁÂÇ¥ ¡æ Ä­ ÁÂÇ¥)
+        // ì§€ì—­ ì¤‘ì‹¬ ì¹¸ (0~1 ì¢Œí‘œ â†’ ì¹¸ ì¢Œí‘œ)
         private Vector2Int ZoneCenterCell(IslandLayout L, int i)
         {
             return new Vector2Int(Mathf.RoundToInt(zones[i].center.x * (L.width - 1)), Mathf.RoundToInt(zones[i].center.y * (L.depth - 1)));
         }
 
-        // Áö¿ª Áß½É¿¡¼­ °¡Àå °¡±î¿î, ½ÇÁ¦·Î ±× Áö¿ª¿¡ ¼ÓÇÑ ¶¥ Ä­ (¾øÀ¸¸é (-1,-1))
+        // ì§€ì—­ ì¤‘ì‹¬ì—ì„œ ê°€ì¥ ê°€ê¹Œìš´, ì‹¤ì œë¡œ ê·¸ ì§€ì—­ì— ì†í•œ ë•… ì¹¸ (ì—†ìœ¼ë©´ (-1,-1))
         private Vector2Int ZoneCenterCellOnLand(IslandLayout L, int i)
         {
             Vector2Int c = ZoneCenterCell(L, i);
@@ -1808,7 +2390,7 @@ namespace FarmingSystem.World
             return best;
         }
 
-        // Ä­ ÁÂÇ¥ ¡æ ¿ùµå ÁÂÇ¥ (FarmGrid°¡ °°Àº Ä­À¸·Î °è»êÇÏµµ·Ï »ı¼º±â À§Ä¡ ±âÁØ, Á¤¼ö Ä­ °£°İ)
+        // ì¹¸ ì¢Œí‘œ â†’ ì›”ë“œ ì¢Œí‘œ (FarmGridê°€ ê°™ì€ ì¹¸ìœ¼ë¡œ ê³„ì‚°í•˜ë„ë¡ ìƒì„±ê¸° ìœ„ì¹˜ ê¸°ì¤€, ì •ìˆ˜ ì¹¸ ê°„ê²©)
         private Vector3 CellToWorld(IslandLayout L, int x, int z, float y)
         {
             return transform.position + LocalCell(L, x, z, y);
@@ -1819,7 +2401,7 @@ namespace FarmingSystem.World
             return new Vector3((x - L.width / 2) * Cell, y, (z - L.depth / 2) * Cell);
         }
 
-        // Ä­ À­¸é À§Ä¡ (»ç¶÷¡¤°Ç¹°ÀÌ ¼­´Â ³ôÀÌ)
+        // ì¹¸ ìœ—ë©´ ìœ„ì¹˜ (ì‚¬ëŒÂ·ê±´ë¬¼ì´ ì„œëŠ” ë†’ì´)
         private Vector3 CellTop(IslandLayout L, int x, int z)
         {
             int top = L.land[x, z] ? L.level[x, z] : baseLevel;
@@ -1828,32 +2410,90 @@ namespace FarmingSystem.World
 
         private GameObject TopPrefab(IslandLayout L, int x, int z, ZoneType type)
         {
-            if (L.road[x, z]) return Or(prefabs.pathTop, prefabs.grassTop);
+            if (L.road[x, z] && showRoads) return Or(prefabs.pathTop, prefabs.grassTop);
             if (L.shore[x, z]) return Or(prefabs.sandTop, prefabs.grassTop);
             switch (type)
             {
                 case ZoneType.Beach: return Or(prefabs.sandTop, prefabs.grassTop);
                 case ZoneType.Highland:
                     {
-                        // ²À´ë±â ÂÊ ¸î ´ÜÀº ¹ÙÀ§, ¾Æ·¡ÂÊÀº ÀÜµğ
+                        // ê¼­ëŒ€ê¸° ìª½ ëª‡ ë‹¨ì€ ë°”ìœ„, ì•„ë˜ìª½ì€ ì”ë””
                         int zi = L.zoneIndex[x, z];
-                        int peak = zi >= 0 ? zones[zi].level + mountainHeight : L.level[x, z];
+                        int peak = zi >= 0 ? zones[zi].level + mountainHeight * Mathf.Max(1, mountainTierLevels) : L.level[x, z];
                         if (mountainRockTiers > 0 && L.level[x, z] > peak - mountainRockTiers)
                             return Or(prefabs.mountainRockTop, Or(prefabs.stoneFill, Or(prefabs.highlandTop, prefabs.grassTop)));
-                        return Or(prefabs.highlandTop, prefabs.grassTop);
+                        // ì‚° ìœ—ë©´: ëŒ ì–¼ë£©ì€ ëŒ ë¸”ë¡, ë‚˜ë¨¸ì§€ëŠ” ì”ë”” ë¸”ë¡ (ì”ë””ë¼ì„œ ê³„ì ˆë§ˆë‹¤ ìƒ‰ë„ ë°”ë€Œê³  ë‚˜ë¬´ë„ ìëŒ)
+                        return IsMountainStone(L, x, z, L.level[x, z])
+                            ? Or(prefabs.highlandTop, Or(prefabs.mountainRockTop, Or(prefabs.stoneFill, prefabs.grassTop)))
+                            : prefabs.grassTop;
                     }
                 default: return prefabs.grassTop;
             }
         }
 
-        private GameObject FillPrefab(ZoneType type)
+        private GameObject FillPrefab(IslandLayout L, int x, int z, int y, ZoneType type)
         {
-            if (type == ZoneType.Highland) return Or(prefabs.stoneFill, Or(prefabs.dirtFill, prefabs.grassTop));
+            // ì‚° ì ˆë²½: ëŒê³¼ í™ì´ ì„ì¸ ë§ˆí¬ ì‚° ëŠë‚Œ (ì¹¸Â·ë†’ì´ë§ˆë‹¤ ì–¼ë£© ë…¸ì´ì¦ˆë¡œ ëŒ/í™ ê²°ì •)
+            if (type == ZoneType.Highland)
+                return IsMountainStone(L, x, z, y)
+                    ? Or(prefabs.stoneFill, Or(prefabs.dirtFill, prefabs.grassTop))
+                    : Or(prefabs.dirtFill, prefabs.grassTop);
             if (type == ZoneType.Beach) return Or(prefabs.sandTop, Or(prefabs.dirtFill, prefabs.grassTop));
             return Or(prefabs.dirtFill, prefabs.grassTop);
         }
 
         private static GameObject Or(GameObject a, GameObject b) => a != null ? a : b;
+
+        // ì‚°ì˜ ì´ ì¹¸Â·ë†’ì´ê°€ ëŒì¸ì§€ (ì–¼ë£© ë…¸ì´ì¦ˆ + ë†’ì„ìˆ˜ë¡ ëŒì´ ë§ì•„ì§). ê°™ì€ ì‹œë“œë©´ í•­ìƒ ê°™ì€ ê²°ê³¼
+        private bool IsMountainStone(IslandLayout L, int x, int z, int y)
+        {
+            int zi = L.zoneIndex[x, z];
+            if (zi < 0 || zones[zi].type != ZoneType.Highland) return false;
+            if (mountainStoneRatio <= 0f) return false;
+            if (mountainStoneRatio >= 1f) return true;
+
+            int peakLevels = Mathf.Max(1, mountainHeight * Mathf.Max(1, mountainTierLevels));
+            float heightT = Mathf.Clamp01((y - zones[zi].level) / (float)peakLevels);
+            float ratio = Mathf.Clamp01(mountainStoneRatio + (heightT - 0.5f) * mountainStoneByHeight);
+
+            Vector2 o = new Vector2((seed % 997) * 1.37f + 50f, (seed % 787) * 0.73f + 90f);
+            float n = MapAlgorithms.Fbm(x * mountainStoneNoiseScale + o.x, z * mountainStoneNoiseScale + y * 0.31f + o.y, 2);
+            // ë…¸ì´ì¦ˆ ê°’ì€ ëŒ€ë¶€ë¶„ 0.3~0.7 ì‚¬ì´ë¼ì„œ ë¹„ìœ¨ì„ ê·¸ ë²”ìœ„ì˜ ê¸°ì¤€ê°’ìœ¼ë¡œ ë°”ê¿ˆ (ratio 0.5 â†’ 0.5)
+            float threshold = 0.5f + (ratio - 0.5f) * 0.45f;
+            return n < threshold;
+        }
+
+        // ì´ ì§€ì—­ì´ ì ê²¨ ìˆëŠ”ì§€ (ì ê¸´ ì§€ì—­ ê¸°ëŠ¥ì„ ë„ë©´ í•­ìƒ ì—´ë¦¼)
+        private bool IsLocked(int zoneIndex) => useLockedAreas && zoneIndex >= 0 && zoneIndex < zones.Count && zones[zoneIndex].locked;
+
+        // ---------- ë¸”ë¡ ë°”ë‹¥ ìë™ ë§ì¶¤ ----------
+        // ë¸”ë¡ ëª¨ë¸ë§ˆë‹¤ ê¸°ì¤€ì (pivot) ìœ„ì¹˜ê°€ ë‹¤ë¦„: ê·¸ë˜í”½íŒ€ ë¸”ë¡ì€ ë°”ë‹¥ ê°€ìš´ë°, ì˜ˆì „ ì—ì…‹ì€ ë¸”ë¡ ì •ê°€ìš´ë°ì¼ ìˆ˜ ìˆìŒ
+        // ê¸°ì¤€ì ì´ ê°€ìš´ë°ì¸ ë¸”ë¡ì€ ì¹¸ ë°”ë‹¥ì— ë†“ìœ¼ë©´ ì ˆë°˜(1m)ì´ ì•„ë˜ë¡œ ë¬»í˜€ì„œ, ëª¨ë˜ì‚¬ì¥Â·ì‚°ì´ í•œ ì¹¸ ë‚®ì•„ì§€ê±°ë‚˜ ë¬¼ì— ì ê²¨ ë³´ì˜€ìŒ
+        // â†’ ëª¨ë¸ì˜ ì‹¤ì œ ë°”ë‹¥ ë†’ì´ë¥¼ ì¬ì„œ, ë°”ë‹¥ì´ ì¹¸ ë°”ë‹¥ì— ì˜¤ë„ë¡ ìœ„ë¡œ(ë˜ëŠ” ì•„ë˜ë¡œ) ì˜®ê¸´ë‹¤
+        private readonly Dictionary<GameObject, float> bottomFixCache = new Dictionary<GameObject, float>();
+
+        // yScale: ì ˆë²½ í•©ì¹˜ê¸°ì²˜ëŸ¼ ì„¸ë¡œë¡œ ëŠ˜ë¦° ë¸”ë¡ì´ë©´ ëŠ˜ë¦° ë°°ìœ¨ (ë³´ì •ê°’ë„ ê°™ì´ ëŠ˜ì–´ë‚¨)
+        private Vector3 BottomFix(GameObject prefab, float yScale = 1f)
+        {
+            if (!alignBlockBottoms || prefab == null) return Vector3.zero;
+            if (!bottomFixCache.TryGetValue(prefab, out float fix))
+            {
+                fix = MeasureBottomFix(prefab);
+                bottomFixCache[prefab] = fix;
+            }
+            return new Vector3(0f, fix * yScale, 0f);
+        }
+
+        private float MeasureBottomFix(GameObject prefab)
+        {
+            float minY = ModelMinY(prefab);
+
+            // í”„ë¦¬íŒ¹ ê¸°ì¤€ì  â†’ ëª¨ë¸ ë°”ë‹¥ ê±°ë¦¬ (ë°°ì¹˜ ë°°ìœ¨ ì ìš©í•œ ì›”ë“œ m)
+            float fix = -minY * BlockS;
+            if (Mathf.Abs(fix) < 0.01f) return 0f;
+            Debug.Log($"[ë¸”ë¡ ë°”ë‹¥ ë§ì¶¤] {prefab.name}: ëª¨ë¸ ë°”ë‹¥ì´ ê¸°ì¤€ì ë³´ë‹¤ {Mathf.Abs(fix):0.##}m {(fix > 0f ? "ì•„ë˜" : "ìœ„")}ì— ìˆìŒ â†’ {(fix > 0f ? "ìœ„ë¡œ" : "ì•„ë˜ë¡œ")} {Mathf.Abs(fix):0.##}m ì˜®ê²¨ì„œ ì¹¸ ë°”ë‹¥ì— ë§ì¶¤");
+            return fix;
+        }
 
         private static Transform Group(Transform parent, string name)
         {
@@ -1870,7 +2510,7 @@ namespace FarmingSystem.World
             return a.transform;
         }
 
-        // ÇÁ¸®ÆÕ »ı¼º (¿¡µğÅÍ¿¡¼­´Â ÇÁ¸®ÆÕ ¿¬°áÀ» À¯ÁöÇØ¼­, ¿øº» ÇÁ¸®ÆÕÀ» °íÄ¡¸é ¸Ê¿¡µµ ¹İ¿µµÊ)
+        // í”„ë¦¬íŒ¹ ìƒì„± (ì—ë””í„°ì—ì„œëŠ” í”„ë¦¬íŒ¹ ì—°ê²°ì„ ìœ ì§€í•´ì„œ, ì›ë³¸ í”„ë¦¬íŒ¹ì„ ê³ ì¹˜ë©´ ë§µì—ë„ ë°˜ì˜ë¨)
         private static GameObject Spawn(GameObject prefab, Vector3 position, Quaternion rotation, Transform parent, float scaleMultiplier)
         {
             if (prefab == null) return null;
@@ -1879,7 +2519,9 @@ namespace FarmingSystem.World
             if (!Application.isPlaying) go = PrefabUtility.InstantiatePrefab(prefab, parent) as GameObject;
 #endif
             if (go == null) go = Instantiate(prefab, parent);
-            go.transform.SetPositionAndRotation(position, rotation);
+            // í”„ë¦¬íŒ¹ ìì²´ì˜ íšŒì „ì€ ì‚´ë¦¼ (ê·¸ë˜í”½íŒ€ ë‚˜ë¬´ì²˜ëŸ¼ ëª¨ë¸ì´ í•˜ë‚˜ë¿ì¸ FBXëŠ” ë£¨íŠ¸ì— X -90ë„ íšŒì „ì´ ë“¤ì–´ ìˆì–´ì„œ,
+            // ë®ì–´ì“°ë©´ ë‚˜ë¬´ê°€ ì˜†ìœ¼ë¡œ ëˆ„ì›€). ë°°ì¹˜ ë°©í–¥(rotation)ì€ ê·¸ ìœ„ì— ë”í•¨
+            go.transform.SetPositionAndRotation(position, rotation * prefab.transform.localRotation);
             go.transform.localScale = prefab.transform.localScale * scaleMultiplier;
             return go;
         }
@@ -1897,9 +2539,9 @@ namespace FarmingSystem.World
             foreach (Transform t in go.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = layer;
         }
 
-        // ÇÁ¸®ÆÕ¿¡ Äİ¶óÀÌ´õ°¡ ¾øÀ¸¸é ¸ğµ¨ Å©±â¿¡ ¸Â´Â »óÀÚ Äİ¶óÀÌ´õ¸¦ ºÙÀÓ
-        // (¿¡¼Â Áß ÀÏºÎ ºí·ÏÀº Äİ¶óÀÌ´õ ¾øÀÌ µé¾î ÀÖ¾î¼­, ±× ºí·Ï À§¿¡¼± Ä³¸¯ÅÍ°¡ ¹Ù´ÚÀ» ¶Õ°í ÆÄ¹¯Èû)
-        // BoxCollider´Â ºÙÀÌ´Â ¼ø°£ MeshRenderer Å©±â¿¡ ÀÚµ¿À¸·Î ¸ÂÃçÁü
+        // í”„ë¦¬íŒ¹ì— ì½œë¼ì´ë”ê°€ ì—†ìœ¼ë©´ ëª¨ë¸ í¬ê¸°ì— ë§ëŠ” ìƒì ì½œë¼ì´ë”ë¥¼ ë¶™ì„
+        // (ì—ì…‹ ì¤‘ ì¼ë¶€ ë¸”ë¡ì€ ì½œë¼ì´ë” ì—†ì´ ë“¤ì–´ ìˆì–´ì„œ, ê·¸ ë¸”ë¡ ìœ„ì—ì„  ìºë¦­í„°ê°€ ë°”ë‹¥ì„ ëš«ê³  íŒŒë¬»í˜)
+        // BoxColliderëŠ” ë¶™ì´ëŠ” ìˆœê°„ MeshRenderer í¬ê¸°ì— ìë™ìœ¼ë¡œ ë§ì¶°ì§
         private static void EnsureCollider(GameObject go)
         {
             if (go == null || go.GetComponentInChildren<Collider>(true) != null) return;
@@ -1909,13 +2551,13 @@ namespace FarmingSystem.World
             owner.AddComponent<BoxCollider>();
         }
 
-        // ¹° Ç¥¸éÀÌ ¸¶¿ì½º¡¤½Ã¼± ÆÇÁ¤À» °¡·ÎÃ¤Áö ¾Êµµ·Ï Äİ¶óÀÌ´õ Á¦°Å
+        // ë¬¼ í‘œë©´ì´ ë§ˆìš°ìŠ¤Â·ì‹œì„  íŒì •ì„ ê°€ë¡œì±„ì§€ ì•Šë„ë¡ ì½œë¼ì´ë” ì œê±°
         private static void RemoveColliders(GameObject go)
         {
             foreach (Collider c in go.GetComponentsInChildren<Collider>(true)) DestroyImmediate(c);
         }
 
-        // °æ»ç ºí·ÏÀ» ½ÇÁ¦·Î °É¾î ¿Ã¶ó°¥ ¼ö ÀÖ°Ô »óÀÚ Äİ¶óÀÌ´õ ¡æ ¸Ş½Ã Äİ¶óÀÌ´õ
+        // ê²½ì‚¬ ë¸”ë¡ì„ ì‹¤ì œë¡œ ê±¸ì–´ ì˜¬ë¼ê°ˆ ìˆ˜ ìˆê²Œ ìƒì ì½œë¼ì´ë” â†’ ë©”ì‹œ ì½œë¼ì´ë”
         private static void UseMeshCollider(GameObject go)
         {
             foreach (BoxCollider box in go.GetComponentsInChildren<BoxCollider>(true))
@@ -1928,7 +2570,20 @@ namespace FarmingSystem.World
             }
         }
 
-        // ¿òÁ÷ÀÌÁö ¾Ê´Â ºí·ÏÀº Á¤Àû ¹èÄª ´ë»óÀ¸·Î (µå·Î¿ìÄİ °¨¼Ò)
+        // ê²½ì‚¬ë¡œ ì½œë¼ì´ë”: ìƒì ì½œë¼ì´ë”ëŠ” ì§€ìš°ê³ , ëª¨ë¸ ëª¨ì–‘ ê·¸ëŒ€ë¡œì˜ ë©”ì‹œ ì½œë¼ì´ë”ë¡œ (ì—†ìœ¼ë©´ ìƒˆë¡œ ë¶™ì„)
+        private static void MakeRampCollider(GameObject go)
+        {
+            foreach (BoxCollider box in go.GetComponentsInChildren<BoxCollider>(true)) DestroyImmediate(box);
+            foreach (MeshFilter mf in go.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.sharedMesh == null) continue;
+                MeshCollider mc = mf.GetComponent<MeshCollider>();
+                if (mc == null) mc = mf.gameObject.AddComponent<MeshCollider>();
+                mc.sharedMesh = mf.sharedMesh;
+            }
+        }
+
+        // ì›€ì§ì´ì§€ ì•ŠëŠ” ë¸”ë¡ì€ ì •ì  ë°°ì¹­ ëŒ€ìƒìœ¼ë¡œ (ë“œë¡œìš°ì½œ ê°ì†Œ)
         private static void MarkStatic(GameObject go)
         {
 #if UNITY_EDITOR
@@ -1938,10 +2593,10 @@ namespace FarmingSystem.World
 #endif
         }
 
-        // ==================== Scene ºä ¹Ì¸®º¸±â ====================
+        // ==================== Scene ë·° ë¯¸ë¦¬ë³´ê¸° ====================
 
-        // ¹Ì¸®º¸±â »ö: ¹° ÆÄ¶û / °­ ÇÏ´Ã»ö / ÀÏ¹İ ¶¥ ÃÊ·Ï(¾ğ´öÀº ÁøÇÏ°Ô) / ±æ º£ÀÌÁö / ´Ù¸® °¥»ö / ºÎ¼­Áø ´Ù¸® »¡°­
-        // Áı ÁÖÈ² / ³óÀå °¥»ö / ±¤Àå º¸¶ó / ÇØº¯ ¸ğ·¡»ö / ³ôÀº Áö´ë È¸»ö / Àá±ä ÀÔ±¸ ÀÚÈ« / ³ª¹« ÁøÃÊ·Ï Á¡
+        // ë¯¸ë¦¬ë³´ê¸° ìƒ‰: ë¬¼ íŒŒë‘ / ê°• í•˜ëŠ˜ìƒ‰ / ì¼ë°˜ ë•… ì´ˆë¡(ì–¸ë•ì€ ì§„í•˜ê²Œ) / ê¸¸ ë² ì´ì§€ / ë‹¤ë¦¬ ê°ˆìƒ‰ / ë¶€ì„œì§„ ë‹¤ë¦¬ ë¹¨ê°•
+        // ì§‘ ì£¼í™© / ë†ì¥ ê°ˆìƒ‰ / ê´‘ì¥ ë³´ë¼ / í•´ë³€ ëª¨ë˜ìƒ‰ / ë†’ì€ ì§€ëŒ€ íšŒìƒ‰ / ì ê¸´ ì…êµ¬ ìí™ / ë‚˜ë¬´ ì§„ì´ˆë¡ ì 
         private void OnDrawGizmos()
         {
             if (!showPreview || previewLayout == null) return;
@@ -1963,12 +2618,14 @@ namespace FarmingSystem.World
                     {
                         top = (L.level[x, z] + 1) * LevelH;
                         int zi = L.zoneIndex[x, z];
-                        color = zi < 0
+                        // ì§‘Â·ìƒì¸ ìë¦¬ëŠ” ë”°ë¡œ êµ¬ì—­ì´ ì•„ë‹ˆë¼ ê·¸ëƒ¥ ì”ë”” ë•… â†’ ë¯¸ë¦¬ë³´ê¸°ì—ì„œë„ ì¼ë°˜ ë•…ê³¼ ê°™ì€ ìƒ‰ (ì‚°Â·í•´ë³€ë§Œ ì§€í˜•ì´ ë‹¬ë¼ì„œ ë”°ë¡œ í‘œì‹œ)
+                        bool plainGround = zi < 0 || zones[zi].type == ZoneType.Home || zones[zi].type == ZoneType.Plaza || zones[zi].type == ZoneType.Farm;
+                        color = plainGround
                             ? (L.level[x, z] > baseLevel ? new Color(0.2f, 0.55f, 0.2f) : new Color(0.45f, 0.75f, 0.35f))
                             : ZoneColor(zones[zi].type);
-                        // »êÀº ³ôÀ»¼ö·Ï ¹à°Ô (°è´ÜÀÌ º¸ÀÌµµ·Ï)
+                        // ì‚°ì€ ë†’ì„ìˆ˜ë¡ ë°ê²Œ (ê³„ë‹¨ì´ ë³´ì´ë„ë¡)
                         if (zi >= 0 && zones[zi].type == ZoneType.Highland)
-                            color = Color.Lerp(new Color(0.35f, 0.35f, 0.35f), Color.white, (L.level[x, z] - zones[zi].level) / (float)Mathf.Max(1, mountainHeight));
+                            color = Color.Lerp(new Color(0.35f, 0.35f, 0.35f), Color.white, (L.level[x, z] - zones[zi].level) / (float)Mathf.Max(1, mountainHeight * Mathf.Max(1, mountainTierLevels)));
                         if (L.shore[x, z]) color = new Color(0.95f, 0.88f, 0.6f);
                         if (L.road[x, z]) color = new Color(0.9f, 0.8f, 0.6f);
                         if (L.rampDir[x, z] >= 0) color = Color.yellow;

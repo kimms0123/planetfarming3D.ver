@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5479c011c2dfc8b4abd9e38b9063db59, type: 3}
+  m_Name: Seed_q
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Farming.SeedData
+  itemName: "\uC791\uBB3C Q \uC528\uC557"
+  category: 0
+  icon: {fileID: 21300000, guid: 266738ada1493c9438812ab70b633898, type: 3}
+  maxStack: 99
+  description: 
+  resultCrop: {fileID: 11400000, guid: a145aaef13772874e8967843c482c8d1, type: 2}

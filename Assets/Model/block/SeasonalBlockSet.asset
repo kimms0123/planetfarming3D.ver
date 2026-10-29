@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e5a8ef1f26bca3d48b93dc86fc3f29d1, type: 3}
+  m_Name: SeasonalBlockSet
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.World.SeasonalBlockSet
+  entries:
+  - name: block
+    spring: {fileID: 679118526176188928, guid: 2a4a60aefb15f854fa4c0bdf7e83d065, type: 3}
+    summer: {fileID: 6751502961265883451, guid: 50e8aa263b83c1a42924dc80b13b0587, type: 3}
+    autumn: {fileID: 5027643372745166470, guid: 0f9110f56aa9ff843866ea5c9a4c5ee1, type: 3}
+    winter: {fileID: 3518538343417324527, guid: ee9356f41af48ca4782eace8cd1a7f1c, type: 3}
+  - name: Block_Slab
+    spring: {fileID: 5722572450722888740, guid: 280378ee574a8b544a028c9e1ba9a435, type: 3}
+    summer: {fileID: 7366507502637666773, guid: 95a91af29a356eb478ea8f5b47511a6b, type: 3}
+    autumn: {fileID: 4341652828381404613, guid: 97999ff0fdeec4748a3452d2335fc774, type: 3}
+    winter: {fileID: 9054661480795483790, guid: 3f32321dd126d8b48aa4ec5d00002898, type: 3}
+  - name: Block_Slope
+    spring: {fileID: 5070063063805939774, guid: 94e400d5b876318418e80e7925be1cba, type: 3}
+    summer: {fileID: 6530406421257724924, guid: d22fbff684ee9534791fbe8022306764, type: 3}
+    autumn: {fileID: 5959338758458498515, guid: cc69ae695893d9f4facff6d0318cfdd5, type: 3}
+    winter: {fileID: 3664430975662948807, guid: 6edfd4947c0d99948bb23b03fd2aba59, type: 3}

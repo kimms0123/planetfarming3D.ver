@@ -26,6 +26,9 @@ namespace FarmingSystem.Farming
         [Tooltip("성장 단계별로 보여줄 모델. 배열 순서대로 씨앗->새싹->...->수확 직전")]
         public GameObject[] growthStagePrefabs;
 
+        [Tooltip("수확했을 때 나오는 수확물 모델 (선택, 작물 모델의 4번째 단계). 나중에 뽑히는 연출·아이콘에 사용")]
+        public GameObject harvestedPrefab;
+
         [Header("시듦")]
         [Tooltip("계절이 지나 시들었을 때 보여줄 모델 (선택). 비워두면 현재 모델을 갈색으로 칠해서 표현")]
         public GameObject witheredPrefab;
@@ -63,13 +66,19 @@ namespace FarmingSystem.Farming
             return false;
         }
 
-        /// <summary>현재 성장일수를 기준으로 몇 번째 비주얼 스테이지인지 계산 (Day0=Stage0, 1:1 매칭)</summary>
+        // 현재 성장일수 → 보여줄 모델 단계
+        // 재배일과 모델 개수가 달라도 고르게 나눔. 마지막 모델(다 자란 모습)은 수확 가능한 날에만 보임
+        //   예) 모델 3개(씨앗·새싹·다 자람), 재배일 5일 → 0~2일 씨앗, 3~4일 새싹, 5일 다 자람
+        //   모델 개수 = 재배일 + 1이면 예전처럼 하루에 한 단계씩 (Day0 = 0단계, Day1 = 1단계 ...)
         public int GetStageIndex(int currentGrowthDay)
         {
             if (growthStagePrefabs == null || growthStagePrefabs.Length == 0) return -1;
 
-            int stage = Mathf.Clamp(currentGrowthDay, 0, growthStagePrefabs.Length - 1);
-            return stage;
+            int last = growthStagePrefabs.Length - 1;
+            if (last == 0) return 0;
+            if (currentGrowthDay >= totalGrowthDays) return last;
+            int days = Mathf.Max(1, totalGrowthDays);
+            return Mathf.Clamp(currentGrowthDay * last / days, 0, last - 1);
         }
     }
 }

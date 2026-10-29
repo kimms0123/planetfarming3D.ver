@@ -33,6 +33,9 @@ namespace FarmingSystem.Farming
         [Tooltip("작물 크기 배율. 1 = 밭 블록과 동일 배율, 값을 올리면 더 크게, 내리면 더 작게 표시")]
         [SerializeField] private float cropScaleMultiplier = 1f;
 
+        [Tooltip("간 밭 모델 위치 보정 (맵 생성기가 모델 바닥 높이를 재서 자동으로 채움)")]
+        [SerializeField] private Vector3 tilledVisualOffset = Vector3.zero;
+
         private GameObject currentVisualObject;
         private bool isInitialized = false;
         private bool isSubscribedToClock = false;
@@ -81,6 +84,11 @@ namespace FarmingSystem.Farming
         {
             naturalVisualPrefab = natural;
             tilledVisualPrefab = tilled;
+        }
+
+        public void SetTilledVisualOffset(Vector3 offset)
+        {
+            tilledVisualOffset = offset;
         }
 
         public void SetWateredTint(Color tint)
@@ -320,7 +328,10 @@ namespace FarmingSystem.Farming
             if (currentVisualObject != null)
                 Destroy(currentVisualObject);
 
-            currentVisualObject = Instantiate(targetPrefab, transform.position, transform.rotation, transform);
+            Vector3 visualPos = transform.position + (state == TileState.Tilled ? tilledVisualOffset : Vector3.zero);
+            currentVisualObject = Instantiate(targetPrefab, visualPos, transform.rotation, transform);
+            // 계절 블록이면 지금 계절 색으로 맞춤 (씬에 계절 블록 교체기가 있을 때만)
+            FarmingSystem.World.SeasonalBlockSwapper.ApplyTo(currentVisualObject);
 
             if (state == TileState.Tilled && isWatered)
                 ApplyWateredTint();

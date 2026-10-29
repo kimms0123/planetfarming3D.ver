@@ -1,20 +1,20 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 namespace FarmingSystem.Rhythm
 {
-    // °¡Àå ´Ü¼øÇÑ ³­ÀÌµµ ¸ğµ¨: ³­ÀÌµµ = ±âº»°ª + ¥Ò(Æ¯Â¡°ª ¡¿ °¡ÁßÄ¡), 0~1·Î ÀÚ¸§
-    // Project Ã¢ ¿ìÅ¬¸¯ ¡æ Create ¡æ FarmingSystem ¡æ Rhythm ¡æ Rule Based Difficulty ·Î ¿¡¼ÂÀ» ¸¸µé¾î °¡ÁßÄ¡¸¦ Á¶ÀıÇÒ ¼ö ÀÖ´Ù
-    // ¿¡¼ÂÀ» ¾È ³ÖÀ¸¸é HarvestRhythmGameÀÌ ¾Æ·¡ ±âº» °¡ÁßÄ¡(Default)·Î °è»êÇÑ´Ù
+    // ê°€ì¥ ë‹¨ìˆœí•œ ë‚œì´ë„ ëª¨ë¸: ë‚œì´ë„ = ê¸°ë³¸ê°’ + Î£(íŠ¹ì§•ê°’ Ã— ê°€ì¤‘ì¹˜), 0~1ë¡œ ìë¦„
+    // Project ì°½ ìš°í´ë¦­ â†’ Create â†’ FarmingSystem â†’ Rhythm â†’ Rule Based Difficulty ë¡œ ì—ì…‹ì„ ë§Œë“¤ì–´ ê°€ì¤‘ì¹˜ë¥¼ ì¡°ì ˆí•  ìˆ˜ ìˆë‹¤
+    // ì—ì…‹ì„ ì•ˆ ë„£ìœ¼ë©´ HarvestRhythmGameì´ ì•„ë˜ ê¸°ë³¸ ê°€ì¤‘ì¹˜(Default)ë¡œ ê³„ì‚°í•œë‹¤
     [CreateAssetMenu(fileName = "RuleBasedDifficulty", menuName = "FarmingSystem/Rhythm/Rule Based Difficulty")]
     public class RuleBasedDifficultyModel : HarvestDifficultyModel
     {
-        // ±âº» °¡ÁßÄ¡ (HarvestContext.FeatureNames ¼ø¼­: ÀÛ¹° º¹Àâµµ, ¹æÄ¡ ÀÏ¼ö, ½Ã°£´ë, °èÀı ÀûÇÕµµ, °èÀı ÁøÇàµµ, ³¯¾¾)
+        // ê¸°ë³¸ ê°€ì¤‘ì¹˜ (HarvestContext.FeatureNames ìˆœì„œ: ì‘ë¬¼ ë³µì¡ë„, ë°©ì¹˜ ì¼ìˆ˜, ì‹œê°„ëŒ€, ê³„ì ˆ ì í•©ë„, ê³„ì ˆ ì§„í–‰ë„, ë‚ ì”¨)
         public static readonly float[] DefaultWeights = { 0.35f, 0.25f, 0.15f, 0.1f, 0.1f, 0.15f };
         public const float DefaultBias = 0.1f;
 
-        [Tooltip("¸ğµç ¼öÈ®ÀÇ ±âº» ³­ÀÌµµ")]
+        [Tooltip("ëª¨ë“  ìˆ˜í™•ì˜ ê¸°ë³¸ ë‚œì´ë„")]
         [Range(0f, 1f)] public float bias = DefaultBias;
-        [Tooltip("Æ¯Â¡°ªº° °¡ÁßÄ¡ (¼ø¼­: ÀÛ¹° º¹Àâµµ, ¹æÄ¡ ÀÏ¼ö, ½Ã°£´ë, °èÀı ÀûÇÕµµ, °èÀı ÁøÇàµµ, ³¯¾¾)")]
+        [Tooltip("íŠ¹ì§•ê°’ë³„ ê°€ì¤‘ì¹˜ (ìˆœì„œ: ì‘ë¬¼ ë³µì¡ë„, ë°©ì¹˜ ì¼ìˆ˜, ì‹œê°„ëŒ€, ê³„ì ˆ ì í•©ë„, ê³„ì ˆ ì§„í–‰ë„, ë‚ ì”¨)")]
         public float[] weights = (float[])DefaultWeights.Clone();
 
         public override float Evaluate(float[] features) => Compute(features, weights, bias);

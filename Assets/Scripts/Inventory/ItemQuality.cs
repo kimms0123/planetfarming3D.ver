@@ -1,11 +1,11 @@
-namespace FarmingSystem.Inventory
+ï»¿namespace FarmingSystem.Inventory
 {
-    // ÀÛ¹° µî±Ş (¼öÈ® ¸®µë°ÔÀÓ °á°ú·Î °áÁ¤)
-    // ¼ø¼­ ÁÖÀÇ: ÀÌ¹Ì ÀúÀåµÈ ¾ÆÀÌÅÛ¡¤¿¡¼Â °ªÀÌ ¹Ğ¸®Áö ¾Êµµ·Ï »õ °ªÀº Ç×»ó ¸Ç ³¡¿¡ Ãß°¡
-    //   Normal  = ±âº»
-    //   Good    = »ó±Ş
-    //   Perfect = ÃÖ»ó±Ş
-    //   Trash   = ¾²·¹±â (ÆÇ¸Å°¡ 1º§ °íÁ¤)
+    // ì‘ë¬¼ ë“±ê¸‰ (ìˆ˜í™• ë¦¬ë“¬ê²Œì„ ê²°ê³¼ë¡œ ê²°ì •)
+    // ìˆœì„œ ì£¼ì˜: ì´ë¯¸ ì €ì¥ëœ ì•„ì´í…œÂ·ì—ì…‹ ê°’ì´ ë°€ë¦¬ì§€ ì•Šë„ë¡ ìƒˆ ê°’ì€ í•­ìƒ ë§¨ ëì— ì¶”ê°€
+    //   Normal  = ê¸°ë³¸
+    //   Good    = ìƒê¸‰
+    //   Perfect = ìµœìƒê¸‰
+    //   Trash   = ì“°ë ˆê¸° (íŒë§¤ê°€ 1ë²¨ ê³ ì •)
     public enum ItemQuality
     {
         Normal,
@@ -14,13 +14,13 @@ namespace FarmingSystem.Inventory
         Trash
     }
 
-    // µî±Şº° °¡°İ¡¤ÀÌ¸§¡¤¼øÀ§¸¦ ÇÑ °÷¿¡¼­ °ü¸®
+    // ë“±ê¸‰ë³„ ê°€ê²©Â·ì´ë¦„Â·ìˆœìœ„ë¥¼ í•œ ê³³ì—ì„œ ê´€ë¦¬
     public static class ItemQualityUtility
     {
-        // ¾²·¹±â µî±ŞÀÇ °³´ç ÆÇ¸Å°¡ (ÀÛ¹° Á¾·ù¿Í »ó°ü¾øÀÌ °íÁ¤)
+        // ì“°ë ˆê¸° ë“±ê¸‰ì˜ ê°œë‹¹ íŒë§¤ê°€ (ì‘ë¬¼ ì¢…ë¥˜ì™€ ìƒê´€ì—†ì´ ê³ ì •)
         public const float TrashUnitPrice = 1f;
 
-        // ÆÇ¸Å°¡ ¹èÀ² (¾²·¹±â´Â ¹èÀ² ´ë½Å TrashUnitPrice °íÁ¤°¡¸¦ ¾¸)
+        // íŒë§¤ê°€ ë°°ìœ¨ (ì“°ë ˆê¸°ëŠ” ë°°ìœ¨ ëŒ€ì‹  TrashUnitPrice ê³ ì •ê°€ë¥¼ ì”€)
         public static float GetPriceMultiplier(ItemQuality quality)
         {
             switch (quality)
@@ -34,19 +34,19 @@ namespace FarmingSystem.Inventory
 
         public static bool IsFixedPrice(ItemQuality quality) => quality == ItemQuality.Trash;
 
-        // È­¸é¿¡ º¸¿©ÁÙ ÀÌ¸§
+        // í™”ë©´ì— ë³´ì—¬ì¤„ ì´ë¦„
         public static string GetDisplayName(ItemQuality quality)
         {
             switch (quality)
             {
-                case ItemQuality.Perfect: return "ÃÖ»ó±Ş";
-                case ItemQuality.Good: return "»ó±Ş";
-                case ItemQuality.Trash: return "¾²·¹±â";
-                default: return "±âº»";
+                case ItemQuality.Perfect: return "ìµœìƒê¸‰";
+                case ItemQuality.Good: return "ìƒê¸‰";
+                case ItemQuality.Trash: return "ì“°ë ˆê¸°";
+                default: return "ê¸°ë³¸";
             }
         }
 
-        // µî±Ş ¼øÀ§ (0 = ¾²·¹±â, 1 = ±âº», 2 = »ó±Ş, 3 = ÃÖ»ó±Ş). ºñ±³¡¤º° °³¼ö¿¡ »ç¿ë (enum ¼ıÀÚ ¼ø¼­¿Í ´Ù¸§)
+        // ë“±ê¸‰ ìˆœìœ„ (0 = ì“°ë ˆê¸°, 1 = ê¸°ë³¸, 2 = ìƒê¸‰, 3 = ìµœìƒê¸‰). ë¹„êµÂ·ë³„ ê°œìˆ˜ì— ì‚¬ìš© (enum ìˆ«ì ìˆœì„œì™€ ë‹¤ë¦„)
         public static int GetRank(ItemQuality quality)
         {
             switch (quality)

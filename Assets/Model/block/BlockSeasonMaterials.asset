@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5494ac080efb85429e30605e59d5ab2, type: 3}
+  m_Name: BlockSeasonMaterials
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.World.SeasonalMaterialSet
+  entries:
+  - name: "\uBE14\uB85D"
+    spring: {fileID: 2100000, guid: 5bc147ea8c1d02447a795c6f20febc23, type: 2}
+    summer: {fileID: 2100000, guid: c9ac57d122c46c64b89c54240467ff7a, type: 2}
+    autumn: {fileID: 2100000, guid: a6f67b04098b87d438525ed69f11a9f5, type: 2}
+    winter: {fileID: 2100000, guid: a5861a036fb02194a9dbbf4c70384890, type: 2}
+  - name: "\uBC18\uBE14\uB85D"
+    spring: {fileID: 2100000, guid: 9252d6c489e52e040b895869dd7ae9f3, type: 2}
+    summer: {fileID: 2100000, guid: af03043f4e87aab449545a94cf12bd26, type: 2}
+    autumn: {fileID: 2100000, guid: 81df671315914f546a5dd1ec70f9f37b, type: 2}
+    winter: {fileID: 2100000, guid: 4d801a76d4f34e047aeaef12f7b8f557, type: 2}
+  - name: "\uACBD\uC0AC \uBE14\uB85D"
+    spring: {fileID: 2100000, guid: de373c8cd30c3114f9104f2f586ad050, type: 2}
+    summer: {fileID: 2100000, guid: 67e226dabba51364baf8d1b0d929ed3e, type: 2}
+    autumn: {fileID: 2100000, guid: b6aacd141c9948f4da0ff9c5f4b6023c, type: 2}
+    winter: {fileID: 2100000, guid: 847e8139c35da7e4c9ba9f8e6e54cc89, type: 2}
+  - name: "\uBC14\uC704 \uBE14\uB85D"
+    spring: {fileID: 2100000, guid: 22bf4aa113a35014c9ae7a1d823ae3fc, type: 2}
+    summer: {fileID: 2100000, guid: 22bf4aa113a35014c9ae7a1d823ae3fc, type: 2}
+    autumn: {fileID: 2100000, guid: 22bf4aa113a35014c9ae7a1d823ae3fc, type: 2}
+    winter: {fileID: 2100000, guid: 9c48cd4627bbdef4285f9cf13ec27e97, type: 2}

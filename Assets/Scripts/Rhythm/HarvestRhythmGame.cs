@@ -263,7 +263,7 @@ namespace FarmingSystem.Rhythm
         {
             if (font == null)
             {
-                foreach (TextMeshProUGUI t in FindObjectsByType<TextMeshProUGUI>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                foreach (TextMeshProUGUI t in FindObjectsByType<TextMeshProUGUI>(FindObjectsInactive.Include))
                 {
                     if (t.font == null || t.font.name.StartsWith("LiberationSans")) continue;
                     font = t.font;
@@ -366,8 +366,8 @@ namespace FarmingSystem.Rhythm
             hiddenGroups.Clear();
             hiddenAlphas.Clear();
             var targets = new List<GameObject>();
-            foreach (HotbarUI h in FindObjectsByType<HotbarUI>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)) targets.Add(h.gameObject);
-            foreach (CrosshairUI c in FindObjectsByType<CrosshairUI>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)) targets.Add(c.gameObject);
+            foreach (HotbarUI h in FindObjectsByType<HotbarUI>(FindObjectsInactive.Exclude)) targets.Add(h.gameObject);
+            foreach (CrosshairUI c in FindObjectsByType<CrosshairUI>(FindObjectsInactive.Exclude)) targets.Add(c.gameObject);
             if (hideDuringPlay != null) foreach (GameObject g in hideDuringPlay) if (g != null) targets.Add(g);
 
             foreach (GameObject g in targets)

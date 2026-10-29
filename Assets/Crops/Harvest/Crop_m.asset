@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 87944e27539aaf4499e0037d176fa40f, type: 3}
+  m_Name: Crop_m
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Farming.CropData
+  itemName: "\uC791\uBB3C M"
+  category: 1
+  icon: {fileID: 21300000, guid: 2c83e66eb718864459092eda02aae7f8, type: 3}
+  maxStack: 99
+  description: 
+  season: 0
+  additionalSeasons: 
+  totalGrowthDays: 3
+  growthStagePrefabs:
+  - {fileID: 7461620903701115130, guid: 9f0e0324b84954f4e9ada45362876d2c, type: 3}
+  - {fileID: 4627210007789238835, guid: 1e49275abfb5baa42b09e70aefc9a01f, type: 3}
+  - {fileID: 6645643212092510573, guid: 22e7d8a2a29dee64191ffc32556d6e54, type: 3}
+  harvestedPrefab: {fileID: 6495635000679516019, guid: 5bf82a892be98984a860fbf13e4922f7, type: 3}
+  witheredPrefab: {fileID: 0}
+  expectedYield: 8
+  basePrice: 1
+  harvestPattern: 
+  harvestTempo: 1
+  harvestShakeScale: 1
+  harvestDifficultyOffset: 0

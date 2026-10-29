@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e5a8ef1f26bca3d48b93dc86fc3f29d1, type: 3}
+  m_Name: TreeSeasonSet
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.World.SeasonalBlockSet
+  entries:
+  - name: tree
+    spring: {fileID: 4505785121162105982, guid: 67ce8773d3e03af45a1d49d298703774, type: 3}
+    summer: {fileID: 6303591311797503299, guid: dfeb2f9cf97313d44bdf117410870828, type: 3}
+    autumn: {fileID: 5967646699795602543, guid: a82a7ee31d1b92f439edbd53e353b829, type: 3}
+    winter: {fileID: 3533708048407316763, guid: 3008bc4e57e10eb43b9ffd157813cc86, type: 3}

@@ -25,8 +25,10 @@ namespace FarmingSystem.Player
         [SerializeField] private float rotationSpeed = 12f;
 
         [Header("점프 설정")]
-        [Tooltip("점프 높이 (미터). 지형 한 층 높이보다 낮으면 절벽은 못 올라가고 경사로를 써야 함")]
-        [SerializeField] private float jumpHeight = 1.2f;
+        [Tooltip("점프 사용 여부. 끄면 Space를 눌러도 안 뜀 (동숲처럼 높이가 다른 곳은 경사로로만 오르내림)")]
+        [SerializeField] private bool enableJump = true;
+        [Tooltip("점프 높이 (미터). 지형 한 층이 2m라서 2.5면 한 블록 위로 올라감 (잠긴 지역 벽은 6m라 못 넘음)")]
+        [SerializeField] private float jumpHeight = 2.5f;
         [SerializeField] private float gravity = -20f;
         [Tooltip("땅에서 떨어진 뒤에도 점프를 허용하는 시간 (초)")]
         [SerializeField] private float coyoteTime = 0.12f;
@@ -72,7 +74,7 @@ namespace FarmingSystem.Player
 
             Vector2 input = blocked ? Vector2.zero : moveInput;
             bool runHeld = !blocked && kb != null && kb.shiftKey.isPressed;
-            if (!blocked && kb != null && kb.spaceKey.wasPressedThisFrame)
+            if (enableJump && !blocked && kb != null && kb.spaceKey.wasPressedThisFrame)
                 lastJumpPressedTime = Time.time;
 
             if (controller.isGrounded) lastGroundedTime = Time.time;
