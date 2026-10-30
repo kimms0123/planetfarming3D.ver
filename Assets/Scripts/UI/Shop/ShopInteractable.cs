@@ -13,6 +13,7 @@ namespace FarmingSystem.UI.Shop
     /// </summary>
     public class ShopInteractable : MonoBehaviour
     {
+        [Tooltip("상인 몸(콜라이더) 표면에서 플레이어까지 수평 거리 기준")]
         [SerializeField] private float interactRange = 2f;
         [SerializeField] private Transform player;
         [SerializeField] private ShopDialogueUI dialogueUI;
@@ -34,7 +35,7 @@ namespace FarmingSystem.UI.Shop
 
             if (CanInteract)
             {
-                dialogueUI.OpenDialogue();
+                dialogueUI.OpenDialogue(transform, player); // 말을 건 상인을 넘겨줘서 클로즈업 카메라가 이 상인을 비춤
                 Debug.Log("[ShopInteractable] 상인과 대화 시작");
             }
             else if (logWhyNotOpening)
@@ -53,13 +54,29 @@ namespace FarmingSystem.UI.Shop
             if (UIInputBlocker.IsBlocked) return "이미 다른 UI가 열려 있음";
             if (InventoryManager.Instance != null && InventoryManager.Instance.IsInventoryOpen) return "인벤토리(Tab)가 열려 있음";
 
-            float distance = Vector3.Distance(transform.position, player.position);
+            float distance = GetDistanceToPlayer();
             if (distance > interactRange) return $"너무 멂 (거리 {distance:0.0}m, 허용 {interactRange}m)";
 
             float angle = GetLookAngle();
             if (angle > maxLookAngle) return $"상인을 바라보고 있지 않음 (각도 {angle:0}도, 허용 {maxLookAngle}도)";
 
             return null;
+        }
+
+        /// <summary>
+        /// 상인 콜라이더 표면에서 플레이어까지의 수평 거리 (높이 차이 무시).
+        /// 중심점 기준으로 재면 상인 몸이 크거나 피벗 높이가 다를 때 가까이 붙어도 "멂"으로 나와서 표면 기준으로 잰다.
+        /// </summary>
+        private float GetDistanceToPlayer()
+        {
+            Vector3 from = transform.position;
+            Collider col = GetComponentInChildren<Collider>();
+            if (col != null && col.enabled && !(col is MeshCollider m && !m.convex))
+                from = col.ClosestPoint(player.position);
+
+            Vector3 d = player.position - from;
+            d.y = 0f;
+            return d.magnitude;
         }
 
         /// <summary>시선(카메라 수평 방향)과 "플레이어 → 상인" 방향 사이 각도</summary>

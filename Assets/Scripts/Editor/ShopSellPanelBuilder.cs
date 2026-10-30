@@ -14,8 +14,9 @@ namespace FarmingSystem.EditorTools
     //  1) 판매 슬롯 프리팹(ShopSellSlot)과 선택 목록 한 줄 프리팹(SellCartRow)을 Assets/Prefabs/UI/Shop에 만듦
     //  2) 구매 창과 같은 Canvas 아래에 SellPanel(1300x700)을 만들고 ShopSellPanelUI의 모든 칸을 자동 연결
     //  3) 씬의 ShopDialogueUI에 Sell Panel을 자동 연결
-    // 레이아웃 (구매 창과 같은 구성): 왼쪽 = 상인 캐릭터(3D 초상화 RawImage + 대사 말풍선)
-    //   오른쪽 위 = 오늘의 특별 상품 / 가운데 = 내 인벤토리 30칸(10칸 x 3줄) / 아래 = 선택한 물품 목록 + 예상 금액 + 버튼
+    // 레이아웃 (구매 창과 같은 구성): 화면 전체를 덮지 않고 실제 3D 상인이 보이게
+    //   왼쪽 아래 = 구매 창 말풍선·이름표 복사본 (상인 대사) / 오른쪽 = 품목 창(ContentFrame, 오른쪽에서 미끄러져 들어옴)
+    //   품목 창: 오늘의 특별 상품 / 내 인벤토리(8칸씩, 스크롤) / 선택한 물품 목록 + 예상 금액 + 버튼
     // 색은 핫바 UI 시안(크림·갈색) 톤. 이미지는 유니티 기본 둥근 사각형이라, 디자이너 이미지가 나오면 Source Image만 바꾸면 됨
     // 이미 판매 창이 있으면 지우고 다시 만들지 물어봄
     public static class ShopSellPanelBuilder
@@ -106,6 +107,10 @@ namespace FarmingSystem.EditorTools
             }
             var so = new SerializedObject(dialogue);
             so.FindProperty("sellPanel").objectReferenceValue = panel;
+            // 판매 창도 구매 창과 같은 크기·자리라서 카메라 구도도 같게
+            SerializedProperty buyFraming = so.FindProperty("panelFraming");
+            SerializedProperty sellFraming = so.FindProperty("sellPanelFraming");
+            if (buyFraming != null && sellFraming != null) sellFraming.vector2Value = buyFraming.vector2Value;
             so.ApplyModifiedProperties();
             Debug.Log($"[판매 창 생성] {dialogue.name}의 Sell Panel에 자동 연결");
         }
@@ -226,40 +231,38 @@ namespace FarmingSystem.EditorTools
             return SavePrefab(root, "SellCartRow").GetComponent<SellCartRowUI>();
         }
 
-        // ---------- 판매 창 본체 (1300 x 700) ----------
+        // ---------- 판매 창 본체 ----------
+        // 구매 창과 같은 구성 (실제 3D 상인이 보이도록 전체 화면을 덮지 않음):
+        //   SellPanel (화면 전체 크기, 배경 없음)
+        //   ├─ CharacterArea : 구매 창의 말풍선·이름표를 그대로 복사 (화면 왼쪽 아래, 상인 대사)
+        //   └─ ContentFrame  : 화면 오른쪽 품목 창 (오늘의 특별 상품 / 내 인벤토리 / 선택한 물품 / 금액·버튼)
+        //                      UISlideIn이 붙어 있어서 열릴 때 오른쪽에서 미끄러져 들어옴
+        private const float FrameW = 800f, FrameH = 714f;
+
         private static ShopSellPanelUI BuildPanel(Transform canvas, ShopSellSlotUI slotPrefab, SellCartRowUI rowPrefab)
         {
             GameObject panel = NewUI("SellPanel", canvas);
             Undo.RegisterCreatedObjectUndo(panel, "판매 창 생성");
-            Place(panel, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1300f, 700f));
-            AddImage(panel, Border).raycastTarget = true; // 뒤쪽 클릭 막기
+            Stretch(panel, 0f);
 
-            GameObject inner = NewUI("Inner", panel.transform);
+            // 왼쪽 아래: 상인 대사 (구매 창의 CharacterArea를 복사해서 모양을 똑같이)
+            TextMeshProUGUI line = CopyBuyCharacterArea(panel.transform);
+            if (line == null) line = MakeSimpleBubble(panel.transform);
+            line.text = "어떤 작물을 팔고 싶어?";
+
+            // 오른쪽: 품목 창
+            GameObject frame = NewUI("ContentFrame", panel.transform);
+            Place(frame, new Vector2(1f, 0.5f), new Vector2(-40f - FrameW * 0.5f, 20f), new Vector2(FrameW, FrameH));
+            AddImage(frame, Border).raycastTarget = true; // 창 뒤쪽 클릭 막기
+            frame.AddComponent<FarmingSystem.UI.UISlideIn>();
+
+            GameObject inner = NewUI("Inner", frame.transform);
             Stretch(inner, -6f);
             AddImage(inner, Cream);
 
-            // 왼쪽: 상인 캐릭터 영역 (구매 창과 같은 구성: 3D 상인 RawImage + 대사 말풍선)
-            GameObject character = NewUI("CharacterArea", inner.transform);
-            PlaceTL(character, 18f, 18f, 300f, 652f);
-            AddImage(character, CreamDark);
-
-            GameObject portraitGO = NewUI("CharacterPortrait", character.transform);
-            PlaceTL(portraitGO, 10f, 10f, 280f, 400f);
-            RawImage portrait = portraitGO.AddComponent<RawImage>();
-            portrait.raycastTarget = false;
-            portrait.texture = FindPortraitTexture();
-            if (portrait.texture == null) portrait.color = new Color(1f, 1f, 1f, 0.25f);
-
-            GameObject bubble = NewUI("DialogueBubble", character.transform);
-            PlaceTL(bubble, 10f, 422f, 280f, 220f);
-            AddImage(bubble, White);
-            TextMeshProUGUI line = AddText(bubble.transform, "DialogueBubbleText", "어떤 작물을 팔고 싶어?", 22f, TextBrown, TextAlignmentOptions.TopLeft);
-            Stretch(line.gameObject, -16f, -14f);
-            line.textWrappingMode = TextWrappingModes.Normal;
-
-            // 오른쪽 위: 오늘의 특별 상품
+            // 맨 위: 오늘의 특별 상품
             GameObject special = NewUI("TodaysSpecial", inner.transform);
-            PlaceTL(special, 338f, 18f, 932f, 60f);
+            PlaceTL(special, 18f, 18f, FrameW - 48f, 56f);
             AddImage(special, Hex("FBE3C8"));
             GameObject sIconGO = NewUI("Icon", special.transform);
             Place(sIconGO, new Vector2(0f, 0.5f), new Vector2(34f, 0f), new Vector2(46f, 46f));
@@ -270,28 +273,28 @@ namespace FarmingSystem.EditorTools
             ((RectTransform)sText.transform).offsetMin = new Vector2(70f, 0f);
             ((RectTransform)sText.transform).offsetMax = new Vector2(-16f, 0f);
 
-            // 가운데: 내 인벤토리 30칸 (핫바처럼 10칸 x 3줄)
+            // 가운데: 내 인벤토리 (8칸씩, 넘치면 스크롤)
             TextMeshProUGUI invTitle = AddText(inner.transform, "InventoryTitle",
                 "내 인벤토리   <size=70%><color=#8A6E58>좌클릭 1개 · Shift+클릭 10개 · 우클릭 전부</color></size>",
                 22f, TextBrown, TextAlignmentOptions.MidlineLeft);
-            PlaceTL(invTitle.gameObject, 342f, 90f, 920f, 32f);
+            PlaceTL(invTitle.gameObject, 22f, 84f, FrameW - 56f, 30f);
             invTitle.fontStyle = FontStyles.Bold;
 
-            Transform slotContent = MakeScroll(inner.transform, "InventoryScroll", 338f, 126f, 932f, 328f, out _);
+            Transform slotContent = MakeScroll(inner.transform, "InventoryScroll", 18f, 118f, FrameW - 48f, 332f, out _);
             GridLayoutGroup grid = slotContent.gameObject.AddComponent<GridLayoutGroup>();
             grid.cellSize = new Vector2(84f, 96f);
             grid.spacing = new Vector2(7f, 8f);
             grid.padding = new RectOffset(10, 10, 10, 10);
             grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            grid.constraintCount = 10;
+            grid.constraintCount = 8;
             AddFitter(slotContent.gameObject);
 
             // 아래 왼쪽: 선택한 물품
             TextMeshProUGUI cartTitle = AddText(inner.transform, "CartTitle", "선택한 물품", 22f, TextBrown, TextAlignmentOptions.MidlineLeft);
-            PlaceTL(cartTitle.gameObject, 342f, 464f, 600f, 30f);
+            PlaceTL(cartTitle.gameObject, 22f, 460f, 420f, 30f);
             cartTitle.fontStyle = FontStyles.Bold;
 
-            Transform cartContent = MakeScroll(inner.transform, "CartScroll", 338f, 498f, 612f, 172f, out _);
+            Transform cartContent = MakeScroll(inner.transform, "CartScroll", 18f, 494f, 430f, 196f, out _);
             VerticalLayoutGroup vlg = cartContent.gameObject.AddComponent<VerticalLayoutGroup>();
             vlg.spacing = 6f;
             vlg.padding = new RectOffset(8, 8, 8, 8);
@@ -303,7 +306,7 @@ namespace FarmingSystem.EditorTools
 
             // 아래 오른쪽: 예상 판매 금액 + 버튼
             GameObject totalBox = NewUI("ExpectedTotal", inner.transform);
-            PlaceTL(totalBox, 966f, 464f, 304f, 60f);
+            PlaceTL(totalBox, 460f, 460f, 310f, 60f);
             AddImage(totalBox, CreamDark);
             TextMeshProUGUI totalLabel = AddText(totalBox.transform, "Label", "예상 판매 금액", 18f, TextBrown, TextAlignmentOptions.MidlineLeft);
             Stretch(totalLabel.gameObject, -14f, 0f);
@@ -311,14 +314,14 @@ namespace FarmingSystem.EditorTools
             Stretch(totalText.gameObject, -14f, 0f);
             totalText.fontStyle = FontStyles.Bold;
 
-            Button clearAll = MakeButton(inner.transform, "ClearAllButton", "전부 빼기", Brown, new Vector2(148f, 46f), 18f);
-            PlaceTL(clearAll.gameObject, 966f, 534f, 148f, 46f);
-            Button bargain = MakeButton(inner.transform, "BargainButton", "흥정 (준비 중)", Tan, new Vector2(148f, 46f), 16f);
-            PlaceTL(bargain.gameObject, 1122f, 534f, 148f, 46f);
-            Button cancel = MakeButton(inner.transform, "CancelButton", "취소", Red, new Vector2(148f, 80f), 22f);
-            PlaceTL(cancel.gameObject, 966f, 590f, 148f, 80f);
-            Button sell = MakeButton(inner.transform, "SellNowButton", "바로 판매", Green, new Vector2(148f, 80f), 22f);
-            PlaceTL(sell.gameObject, 1122f, 590f, 148f, 80f);
+            Button clearAll = MakeButton(inner.transform, "ClearAllButton", "전부 빼기", Brown, new Vector2(151f, 46f), 18f);
+            PlaceTL(clearAll.gameObject, 460f, 530f, 151f, 46f);
+            Button bargain = MakeButton(inner.transform, "BargainButton", "흥정 (준비 중)", Tan, new Vector2(151f, 46f), 16f);
+            PlaceTL(bargain.gameObject, 619f, 530f, 151f, 46f);
+            Button cancel = MakeButton(inner.transform, "CancelButton", "취소", Red, new Vector2(151f, 104f), 22f);
+            PlaceTL(cancel.gameObject, 460f, 586f, 151f, 104f);
+            Button sell = MakeButton(inner.transform, "SellNowButton", "바로 판매", Green, new Vector2(151f, 104f), 22f);
+            PlaceTL(sell.gameObject, 619f, 586f, 151f, 104f);
 
             // 스크립트 연결
             ShopSellPanelUI ui = panel.AddComponent<ShopSellPanelUI>();
@@ -341,6 +344,58 @@ namespace FarmingSystem.EditorTools
             panel.transform.SetAsLastSibling();
             panel.SetActive(false); // 평소엔 꺼져 있다가 대화창에서 [판매] 누르면 열림
             return ui;
+        }
+
+        // 구매 창의 CharacterArea(말풍선·이름표, 초상화는 꺼진 채)를 복사해서 판매 창에도 같은 모양으로
+        // 복사본의 말풍선 글자를 판매 창 대사 칸으로 씀. 구매 창을 못 찾으면 null
+        private static TextMeshProUGUI CopyBuyCharacterArea(Transform parent)
+        {
+            ShopBuyPanelUI buy = Object.FindAnyObjectByType<ShopBuyPanelUI>(FindObjectsInactive.Include);
+            if (buy == null) return null;
+            Transform area = FindDeep(buy.transform, "CharacterArea");
+            if (area == null) return null;
+
+            GameObject copy = Object.Instantiate(area.gameObject, parent, false);
+            copy.name = "CharacterArea";
+            // 초상화(RawImage)는 끔 - 실제 3D 상인이 보이므로
+            foreach (RawImage raw in copy.GetComponentsInChildren<RawImage>(true)) raw.gameObject.SetActive(false);
+
+            // 대사 글자: 구매 창 대사 칸과 같은 이름의 글자를 우선, 없으면 말풍선 안의 첫 글자
+            var buySo = new SerializedObject(buy);
+            Object buyLine = buySo.FindProperty("merchantLineText")?.objectReferenceValue;
+            TextMeshProUGUI found = null;
+            foreach (TextMeshProUGUI t in copy.GetComponentsInChildren<TextMeshProUGUI>(true))
+            {
+                if (buyLine != null && t.name == buyLine.name) { found = t; break; }
+                if (found == null && t.transform.parent != null && t.transform.parent.name.Contains("Bubble")) found = t;
+            }
+            if (found == null)
+            {
+                Debug.LogWarning("[판매 창 생성] 구매 창 말풍선의 글자를 못 찾아서 간단한 말풍선을 새로 만들었어요");
+                Object.DestroyImmediate(copy);
+                return null;
+            }
+            Debug.Log("[판매 창 생성] 구매 창의 말풍선·이름표를 복사해서 판매 창 왼쪽 아래에 넣었어요 (초상화는 끔)");
+            return found;
+        }
+
+        // 구매 창 말풍선을 못 찾았을 때: 왼쪽 아래 흰 말풍선
+        private static TextMeshProUGUI MakeSimpleBubble(Transform parent)
+        {
+            GameObject bubble = NewUI("DialogueBubble", parent);
+            Place(bubble, new Vector2(0f, 0f), new Vector2(330f, 150f), new Vector2(520f, 150f));
+            AddImage(bubble, White);
+            TextMeshProUGUI line = AddText(bubble.transform, "DialogueBubbleText", "어떤 작물을 팔고 싶어?", 24f, TextBrown, TextAlignmentOptions.MidlineLeft);
+            Stretch(line.gameObject, -24f, -16f);
+            line.textWrappingMode = TextWrappingModes.Normal;
+            return line;
+        }
+
+        private static Transform FindDeep(Transform root, string name)
+        {
+            foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+                if (t.name == name) return t;
+            return null;
         }
 
         // 구매 창에서 만든 상인 초상화 Render Texture(Portrait_RT)를 찾아 판매 창에도 같이 씀

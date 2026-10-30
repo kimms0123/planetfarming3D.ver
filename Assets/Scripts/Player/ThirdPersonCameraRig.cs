@@ -86,6 +86,24 @@ namespace FarmingSystem.Player
         private float pitchBeforeFocus;
         private const float FocusSharpness = 6f;
 
+        // 연출 시점 상태 (상점 상인 클로즈업처럼 카메라를 정해진 위치·방향으로 옮김)
+        private bool shotActive;
+        private Vector3 shotPosition;
+        private Quaternion shotRotation = Quaternion.identity;
+        private float shotFov = -1f;
+        private float shotWeight;              // 0 = 평소 카메라, 1 = 완전히 연출 시점
+        private float baseFov = -1f;
+        private Camera cam;
+        private const float ShotSharpness = 5f;
+        // 연출 시점끼리 옮겨갈 때(상인 얼굴 → 구매 창 구도) 지금 연출 위치가 새 위치로 부드럽게 따라가게
+        private Vector3 shotCurrentPosition;
+        private Quaternion shotCurrentRotation = Quaternion.identity;
+        private float shotCurrentFov = -1f;
+        private const float ShotMoveSharpness = 4f;
+
+        // 지금 연출 시점으로 옮겨져 있는지 (조금이라도)
+        public bool IsInShot => shotWeight > 0.01f;
+
         private float targetYaw;
         private float targetPitch;
         private float currentDistance;
@@ -126,6 +144,31 @@ namespace FarmingSystem.Player
             focusBlend = Mathf.Clamp01(blend);
             focusDistanceScale = Mathf.Clamp(distanceScale, 0.2f, 1f);
             if (pitch >= 0f) targetPitch = Mathf.Clamp(pitch, minPitch, maxPitch);
+        }
+
+        // 연출 시점 시작: 카메라를 position에서 rotation 방향으로 보게 부드럽게 옮김 (fov > 0이면 화각도 바꿈)
+        // 평소 카메라 계산은 그대로 돌아가고, 마지막에 이 시점으로 섞기만 해서 끝나면 자연스럽게 원래 자리로 돌아옴
+        public void BeginShot(Vector3 position, Quaternion rotation, float fov = -1f)
+        {
+            if (cam == null && cameraTransform != null) cam = cameraTransform.GetComponent<Camera>();
+            if (!shotActive && cam != null && shotWeight < 0.01f) baseFov = cam.fieldOfView;
+            // 연출 시점이 처음 시작될 때는 목표 위치에서 바로 시작 (평소 카메라 → 연출 시점 섞기로 부드럽게 들어감)
+            if (shotWeight < 0.01f)
+            {
+                shotCurrentPosition = position;
+                shotCurrentRotation = rotation;
+                shotCurrentFov = fov;
+            }
+            shotActive = true;
+            shotPosition = position;
+            shotRotation = rotation;
+            shotFov = fov;
+        }
+
+        // 연출 시점 끝 → 평소 카메라로 부드럽게 복귀
+        public void EndShot()
+        {
+            shotActive = false;
         }
 
         // 강조 끝 → 원래 각도·거리로 부드럽게 복귀
@@ -170,6 +213,32 @@ namespace FarmingSystem.Player
             currentDistance = CalculateDistance(dt);
 
             ApplyTransforms();
+            ApplyShot(dt);
+        }
+
+        // 연출 시점 섞기 (ApplyTransforms가 매 프레임 평소 위치로 되돌리므로 그 위에 덮어씀)
+        private void ApplyShot(float dt)
+        {
+            shotWeight = Mathf.Lerp(shotWeight, shotActive ? 1f : 0f, SmoothFactor(ShotSharpness, dt));
+            if (!shotActive && shotWeight < 0.001f) shotWeight = 0f;
+
+            if (cam == null) cam = cameraTransform.GetComponent<Camera>();
+            if (shotWeight <= 0f)
+            {
+                if (cam != null && baseFov > 0f) { cam.fieldOfView = baseFov; baseFov = -1f; }
+                return;
+            }
+
+            // 연출 위치끼리 이동 (BeginShot을 다시 부르면 새 위치로 미끄러지듯 옮겨감)
+            float m = SmoothFactor(ShotMoveSharpness, dt);
+            shotCurrentPosition = Vector3.Lerp(shotCurrentPosition, shotPosition, m);
+            shotCurrentRotation = Quaternion.Slerp(shotCurrentRotation, shotRotation, m);
+            if (shotFov > 0f) shotCurrentFov = shotCurrentFov > 0f ? Mathf.Lerp(shotCurrentFov, shotFov, m) : shotFov;
+
+            float w = Mathf.SmoothStep(0f, 1f, shotWeight);
+            cameraTransform.position = Vector3.Lerp(cameraTransform.position, shotCurrentPosition, w);
+            cameraTransform.rotation = Quaternion.Slerp(cameraTransform.rotation, shotCurrentRotation, w);
+            if (cam != null && baseFov > 0f && shotCurrentFov > 0f) cam.fieldOfView = Mathf.Lerp(baseFov, shotCurrentFov, w);
         }
 
         private void ApplyTransforms()
