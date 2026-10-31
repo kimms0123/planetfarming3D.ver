@@ -21,7 +21,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: UWa-Template-Wavy
-  m_Shader: {fileID: 4800000, guid: 8097978abb0800149a7a110f04640a53, type: 3}
+  m_Shader: {fileID: 4800000, guid: ff52725f431c4f54dbb06fabe3f69bd2, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
@@ -32,8 +32,9 @@ Material:
   m_LightmapFlags: 2
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
+  m_CustomRenderQueue: 3000
+  stringTagMap:
+    CurvedWorldOriginalShader: UberStylizedWater
   disabledShaderPasses: []
   m_LockedProperties: 
   m_SavedProperties:

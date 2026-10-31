@@ -1817,7 +1817,9 @@ namespace FarmingSystem.World
         // 단색 머티리얼 생성 (URP Lit, 없으면 기본 셰이더)
         private Material MakeColorMaterial(string name, Color color)
         {
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+            // 곡면 월드 셰이더가 있으면 그걸로 (물 밑바닥·틈 메우기·광산 임시 모양도 같이 휘게)
+            Shader shader = Shader.Find("FarmingSystem/Curved Lit");
+            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
             if (shader == null) shader = Shader.Find("Standard");
             var mat = new Material(shader) { name = name };
             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
