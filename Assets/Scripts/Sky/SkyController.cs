@@ -154,6 +154,9 @@ namespace FarmingSystem.World
         private static readonly int SunColorId = Shader.PropertyToID("_SunColor");
         private static readonly int SunSizeId = Shader.PropertyToID("_SunSize");
         private static readonly int SunVisibleId = Shader.PropertyToID("_SunVisible");
+        private static readonly int SkyNightId = Shader.PropertyToID("_SkyNight");
+        private static readonly int SkyHorizonId = Shader.PropertyToID("_SkyHorizonColor");
+        private static readonly int SkyTopId = Shader.PropertyToID("_SkyTopColor");
 
         // 지금 하늘이 따르는 시각 (0 ~ 24)
         public float CurrentHour
@@ -285,6 +288,11 @@ namespace FarmingSystem.World
 
             // 안개
             if (controlFog) RenderSettings.fogColor = current.fog;
+
+            // 몽환 행성 셰이더 등에서 쓰는 하늘 정보 (밤 정도, 하늘 색) → 행성이 하늘 색에 물들고 밤에 은은하게 빛남
+            Shader.SetGlobalFloat(SkyNightId, current.stars);
+            Shader.SetGlobalColor(SkyHorizonId, current.horizon);
+            Shader.SetGlobalColor(SkyTopId, current.top);
         }
 
         // 시각에 맞는 하늘: 앞뒤 키 두 개를 찾아 섞음 (자정을 넘어가도 이어짐)

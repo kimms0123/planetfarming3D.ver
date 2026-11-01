@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-4237712274081751061
+--- !u!114 &-6905064287502891977
 MonoBehaviour:
   m_ObjectHideFlags: 11
   m_CorrespondingSourceObject: {fileID: 0}
@@ -74,7 +74,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _NightTex:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 8900000, guid: fc4f24c1655c4ccdba33c045f5acfa33, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _OcclusionMap:
@@ -128,7 +128,7 @@ Material:
     - _HorizonSoftness: 0.35
     - _Metallic: 0
     - _NightRotation: 0
-    - _NightStrength: 0
+    - _NightStrength: 1
     - _OcclusionStrength: 1
     - _Parallax: 0.005
     - _QueueOffset: 0
@@ -139,22 +139,22 @@ Material:
     - _SrcBlend: 1
     - _SrcBlendAlpha: 1
     - _SunGlow: 0.6
-    - _SunSize: 0.04
-    - _SunVisible: 1
+    - _SunSize: 0.03
+    - _SunVisible: 0.7
     - _Surface: 0
     - _WorkflowMode: 1
     - _XRMotionVectorsPass: 1
     - _ZWrite: 1
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
-    - _BottomColor: {r: 0.82, g: 0.86, b: 0.95, a: 1}
+    - _BottomColor: {r: 0.12, g: 0.08, b: 0.22, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _DayTexTint: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _HorizonColor: {r: 0.82, g: 0.9, b: 1, a: 1}
+    - _HorizonColor: {r: 0.3, g: 0.16, b: 0.42, a: 1}
     - _NightTint: {r: 1, g: 0.9, b: 1, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
-    - _SunColor: {r: 1, g: 0.95, b: 0.85, a: 1}
-    - _TopColor: {r: 0.45, g: 0.72, b: 0.98, a: 1}
+    - _SunColor: {r: 0.85, g: 0.85, b: 1, a: 1}
+    - _TopColor: {r: 0.05, g: 0.05, b: 0.2, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
