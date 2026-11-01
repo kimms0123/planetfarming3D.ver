@@ -15,18 +15,18 @@ RenderSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 10
   m_Fog: 0
-  m_FogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  m_FogColor: {r: 0.84, g: 0.9, b: 1, a: 1}
   m_FogMode: 3
   m_FogDensity: 0.01
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
-  m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
-  m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
-  m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
+  m_AmbientSkyColor: {r: 0.7, g: 0.82, b: 1, a: 1}
+  m_AmbientEquatorColor: {r: 0.8, g: 0.85, b: 0.92, a: 1}
+  m_AmbientGroundColor: {r: 0.4, g: 0.38, b: 0.36, a: 1}
   m_AmbientIntensity: 1
-  m_AmbientMode: 0
+  m_AmbientMode: 1
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
+  m_SkyboxMaterial: {fileID: 2100000, guid: 4461dd6646961b7498af8bbfd612f4d4, type: 2}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -37,7 +37,7 @@ RenderSettings:
   m_ReflectionBounces: 1
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
-  m_Sun: {fileID: 0}
+  m_Sun: {fileID: 410087040}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -218928,8 +218928,8 @@ Light:
   m_Enabled: 1
   serializedVersion: 13
   m_Type: 1
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_Intensity: 2
+  m_Color: {r: 1, g: 0.98, b: 0.95, a: 1}
+  m_Intensity: 1.15
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -218991,7 +218991,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 410087039}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.40821788, y: -0.23456968, z: 0.10938163, w: 0.8754261}
+  m_LocalRotation: {x: 0.495784, y: -0.05240418, z: 0.029989406, w: 0.86634445}
   m_LocalPosition: {x: 0, y: 3, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -301262,6 +301262,181 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 2, y: 2, z: 2}
   m_Center: {x: -0.000000059604645, y: 1, z: 0.000000059604645}
+--- !u!1 &567787159
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 567787161}
+  - component: {fileID: 567787160}
+  m_Layer: 0
+  m_Name: SkyController
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &567787160
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 567787159}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca52ed10f421c824db53b3c5313b46e7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.World.SkyController
+  skyMaterial: {fileID: 2100000, guid: 4461dd6646961b7498af8bbfd612f4d4, type: 2}
+  sunLight: {fileID: 410087040}
+  followGameClock: 1
+  previewHour: 12
+  transitionSpeed: 1
+  sunriseHour: 6
+  sunsetHour: 19
+  sunMaxElevation: 60
+  moonMaxElevation: 45
+  sunPathYaw: 0
+  horizonFadeDegrees: 8
+  showMoonDisc: 1
+  moonDiscColor: {r: 0.85, g: 0.85, b: 1, a: 1}
+  moonDiscSize: 0.03
+  moonDiscBrightness: 0.7
+  sunDiscColor: {r: 1, g: 0.95, b: 0.85, a: 1}
+  sunDiscSize: 0.04
+  starSpinSpeed: 0.3
+  controlAmbient: 1
+  controlFog: 1
+  controlLight: 1
+  controlLightDirection: 1
+  keys:
+  - hour: 0
+    top: {r: 0.05, g: 0.05, b: 0.2, a: 1}
+    horizon: {r: 0.3, g: 0.16, b: 0.42, a: 1}
+    bottom: {r: 0.12, g: 0.08, b: 0.22, a: 1}
+    stars: 1
+    sunDisc: 0
+    lightColor: {r: 0.55, g: 0.6, b: 1, a: 1}
+    lightIntensity: 0.25
+    ambientSky: {r: 0.2, g: 0.2, b: 0.42, a: 1}
+    ambientEquator: {r: 0.24, g: 0.17, b: 0.36, a: 1}
+    ambientGround: {r: 0.1, g: 0.08, b: 0.16, a: 1}
+    fog: {r: 0.2, g: 0.14, b: 0.32, a: 1}
+  - hour: 4.5
+    top: {r: 0.08, g: 0.08, b: 0.26, a: 1}
+    horizon: {r: 0.4, g: 0.22, b: 0.48, a: 1}
+    bottom: {r: 0.12, g: 0.08, b: 0.22, a: 1}
+    stars: 0.9
+    sunDisc: 0
+    lightColor: {r: 0.55, g: 0.6, b: 1, a: 1}
+    lightIntensity: 0.25
+    ambientSky: {r: 0.22, g: 0.22, b: 0.44, a: 1}
+    ambientEquator: {r: 0.28, g: 0.2, b: 0.38, a: 1}
+    ambientGround: {r: 0.1, g: 0.08, b: 0.16, a: 1}
+    fog: {r: 0.26, g: 0.18, b: 0.36, a: 1}
+  - hour: 6.2
+    top: {r: 0.42, g: 0.5, b: 0.85, a: 1}
+    horizon: {r: 1, g: 0.68, b: 0.74, a: 1}
+    bottom: {r: 0.8, g: 0.58, b: 0.72, a: 1}
+    stars: 0.15
+    sunDisc: 1
+    lightColor: {r: 1, g: 0.75, b: 0.7, a: 1}
+    lightIntensity: 0.6
+    ambientSky: {r: 0.55, g: 0.55, b: 0.75, a: 1}
+    ambientEquator: {r: 0.8, g: 0.62, b: 0.68, a: 1}
+    ambientGround: {r: 0.3, g: 0.25, b: 0.3, a: 1}
+    fog: {r: 0.92, g: 0.7, b: 0.78, a: 1}
+  - hour: 8.5
+    top: {r: 0.55, g: 0.78, b: 0.98, a: 1}
+    horizon: {r: 0.98, g: 0.82, b: 0.9, a: 1}
+    bottom: {r: 0.86, g: 0.8, b: 0.92, a: 1}
+    stars: 0
+    sunDisc: 1
+    lightColor: {r: 1, g: 0.95, b: 0.9, a: 1}
+    lightIntensity: 1
+    ambientSky: {r: 0.68, g: 0.78, b: 0.95, a: 1}
+    ambientEquator: {r: 0.85, g: 0.78, b: 0.85, a: 1}
+    ambientGround: {r: 0.38, g: 0.35, b: 0.36, a: 1}
+    fog: {r: 0.92, g: 0.84, b: 0.92, a: 1}
+  - hour: 12
+    top: {r: 0.45, g: 0.72, b: 0.98, a: 1}
+    horizon: {r: 0.82, g: 0.9, b: 1, a: 1}
+    bottom: {r: 0.82, g: 0.86, b: 0.95, a: 1}
+    stars: 0
+    sunDisc: 1
+    lightColor: {r: 1, g: 0.98, b: 0.95, a: 1}
+    lightIntensity: 1.15
+    ambientSky: {r: 0.7, g: 0.82, b: 1, a: 1}
+    ambientEquator: {r: 0.8, g: 0.85, b: 0.92, a: 1}
+    ambientGround: {r: 0.4, g: 0.38, b: 0.36, a: 1}
+    fog: {r: 0.84, g: 0.9, b: 1, a: 1}
+  - hour: 16
+    top: {r: 0.5, g: 0.7, b: 0.96, a: 1}
+    horizon: {r: 0.98, g: 0.8, b: 0.88, a: 1}
+    bottom: {r: 0.86, g: 0.78, b: 0.9, a: 1}
+    stars: 0
+    sunDisc: 1
+    lightColor: {r: 1, g: 0.9, b: 0.85, a: 1}
+    lightIntensity: 1
+    ambientSky: {r: 0.68, g: 0.76, b: 0.95, a: 1}
+    ambientEquator: {r: 0.86, g: 0.76, b: 0.82, a: 1}
+    ambientGround: {r: 0.38, g: 0.34, b: 0.35, a: 1}
+    fog: {r: 0.94, g: 0.82, b: 0.9, a: 1}
+  - hour: 18.4
+    top: {r: 0.44, g: 0.44, b: 0.8, a: 1}
+    horizon: {r: 1, g: 0.6, b: 0.55, a: 1}
+    bottom: {r: 0.76, g: 0.5, b: 0.62, a: 1}
+    stars: 0
+    sunDisc: 1
+    lightColor: {r: 1, g: 0.62, b: 0.48, a: 1}
+    lightIntensity: 0.75
+    ambientSky: {r: 0.55, g: 0.5, b: 0.75, a: 1}
+    ambientEquator: {r: 0.88, g: 0.58, b: 0.58, a: 1}
+    ambientGround: {r: 0.3, g: 0.22, b: 0.26, a: 1}
+    fog: {r: 0.95, g: 0.64, b: 0.62, a: 1}
+  - hour: 19.8
+    top: {r: 0.15, g: 0.12, b: 0.38, a: 1}
+    horizon: {r: 0.58, g: 0.3, b: 0.6, a: 1}
+    bottom: {r: 0.26, g: 0.15, b: 0.35, a: 1}
+    stars: 0.55
+    sunDisc: 0
+    lightColor: {r: 0.55, g: 0.6, b: 1, a: 1}
+    lightIntensity: 0.3
+    ambientSky: {r: 0.26, g: 0.22, b: 0.46, a: 1}
+    ambientEquator: {r: 0.38, g: 0.24, b: 0.44, a: 1}
+    ambientGround: {r: 0.12, g: 0.09, b: 0.18, a: 1}
+    fog: {r: 0.36, g: 0.22, b: 0.44, a: 1}
+  - hour: 21.5
+    top: {r: 0.05, g: 0.05, b: 0.2, a: 1}
+    horizon: {r: 0.3, g: 0.16, b: 0.42, a: 1}
+    bottom: {r: 0.12, g: 0.08, b: 0.22, a: 1}
+    stars: 1
+    sunDisc: 0
+    lightColor: {r: 0.55, g: 0.6, b: 1, a: 1}
+    lightIntensity: 0.25
+    ambientSky: {r: 0.2, g: 0.2, b: 0.42, a: 1}
+    ambientEquator: {r: 0.24, g: 0.17, b: 0.36, a: 1}
+    ambientGround: {r: 0.1, g: 0.08, b: 0.16, a: 1}
+    fog: {r: 0.2, g: 0.14, b: 0.32, a: 1}
+--- !u!4 &567787161
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 567787159}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 47.30221, y: -0, z: 271.66797}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &567815166
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1176029,3 +1176204,4 @@ SceneRoots:
   - {fileID: 639671315}
   - {fileID: 1520194007}
   - {fileID: 1736392765}
+  - {fileID: 567787161}
