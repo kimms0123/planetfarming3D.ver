@@ -51,7 +51,7 @@ namespace FarmingSystem.UI
         [SerializeField, Range(1f, 1.6f)] private float popScale = 1.25f;
         [SerializeField, Range(0.1f, 1f)] private float popDuration = 0.35f;
 
-        private static readonly string[] WeekdaysKo = { "월", "화", "수", "목", "금", "토", "일" };
+        private static readonly string[] WeekdaysKo = { "월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일" };
         private static readonly string[] WeekdaysEn = { "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" };
         private static readonly string[] SeasonsKo = { "봄", "여름", "가을", "겨울" };
         private static readonly string[] SeasonsEn = { "SPR", "SUM", "AUT", "WIN" };
