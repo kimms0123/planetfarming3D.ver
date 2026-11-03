@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4d631e4b036a67429f4301a6d5360af, type: 3}
+  m_Name: Building_player_spaceship
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Building.BuildingData
+  displayName: "\uB0B4 \uC6B0\uC8FC\uC120"
+  description: "\uB0B4\uAC00 \uD0C0\uACE0 \uC628 \uC6B0\uC8FC\uC120. \uD589\uC131
+    \uC0DD\uD65C\uC758 \uBCF4\uAE08\uC790\uB9AC\uAC00 \uB418\uC5B4 \uC904 \uAC70\uC608\uC694."
+  icon: {fileID: 21300000, guid: a54bf81c89f47594a9c6bdae394b6f97, type: 3}
+  prefab: {fileID: 2098505683341402442, guid: eb598f55fd13d524884d81a2fb112f4a, type: 3}
+  modelYaw: 0
+  footprint: {x: 3, y: 3}
+  fill: 0.9
+  manualScale: 0
+  cost: 0
+  buildDays: 1
+  allowRotate: 1

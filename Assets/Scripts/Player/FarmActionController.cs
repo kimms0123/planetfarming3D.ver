@@ -91,6 +91,15 @@ namespace FarmingSystem.Player
                             && EventSystem.current != null
                             && EventSystem.current.IsPointerOverGameObject();
 
+            // 건물 키트를 들고 있거나 설치 중이면 농사 행동 안 함 (좌클릭이 건물 설치에 쓰임)
+            if (FarmingSystem.Building.BuildingPlacer.BlocksFarming)
+            {
+                HoveredTile = null;
+                HoveredInRange = false;
+                HoveredAction = FarmActionType.None;
+                return;
+            }
+
             UpdateHover();
 
             // 좌클릭 = 모든 농사 행동. E = 수확 가능한 작물을 보고 있을 때만 수확 (기획서 "[E] 수확하기")
