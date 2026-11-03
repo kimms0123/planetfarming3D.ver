@@ -692,6 +692,9 @@ namespace FarmingSystem.Rhythm
             else if (result.ScoreRatio >= highGradeRatio) result.Tier = 2;
             else if (result.ScoreRatio >= normalGradeRatio) result.Tier = 1;
             else result.Tier = 0;
+            // 회오리 피해 작물: 한 단계 낮추고 최대 '기본' (FarmTile.StormDamagedQuality와 같은 규칙)
+            bool stormDamaged = context != null && context.StormDamaged;
+            if (stormDamaged) result.Tier = Mathf.Clamp(Mathf.Min(result.Tier - 1, 1), 0, 3);
             result.Quality = ItemQualityUtility.FromRank(result.Tier);
             result.YieldMultiplier = result.Tier == 3 ? topGradeYield : result.Tier == 2 ? highGradeYield
                                    : result.Tier == 1 ? normalGradeYield : trashGradeYield;
@@ -708,7 +711,7 @@ namespace FarmingSystem.Rhythm
             resultTitle.color = result.AllPerfect ? Gold : Brown;
             resultBody.text =
                 $"<size=120%><b>{context?.CropName}</b></size>\n" +
-                $"\n\n등급  <b><color=#{ColorUtility.ToHtmlStringRGB(gradeColor)}>{ItemQualityUtility.GetDisplayName(result.Quality)}</color></b>   ·   수확량  <b>{finalYield}개</b>\n" +
+                $"\n\n등급  <b><color=#{ColorUtility.ToHtmlStringRGB(gradeColor)}>{ItemQualityUtility.GetDisplayName(result.Quality)}</color></b>{(stormDamaged ? " <size=75%><color=#8A6E58>(회오리 피해)</color></size>" : "")}   ·   수확량  <b>{finalYield}개</b>\n" +
                 $"<color=#{ColorUtility.ToHtmlStringRGB(perfectColor * 0.85f)}>Perfect {pP * 100f:0}%</color>   " +
                 $"<color=#{ColorUtility.ToHtmlStringRGB(goodColor * 0.8f)}>Good {pG * 100f:0}%</color>   " +
                 $"<color=#{ColorUtility.ToHtmlStringRGB(missColor * 0.9f)}>Miss {pM * 100f:0}%</color>\n" +

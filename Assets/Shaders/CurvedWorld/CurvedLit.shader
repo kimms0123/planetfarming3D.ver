@@ -3,6 +3,7 @@
 // - 휘는 정도는 씬의 CurvedWorldController가 모든 재질에 한꺼번에 알려줌 (조절기가 없거나 꺼지면 평평)
 // - 빛: 해(메인 라이트) + 그림자 + 주변광 + 추가 조명 + 안개 + SSAO 지원. 반짝임 없는 무광 (블록·나무 스타일에 맞춤)
 // - 그림자를 만드는 패스도 똑같이 휘어서 그림자가 물체와 어긋나지 않음
+// - 바람: 재질의 Wind Sway를 올리면 날씨 시스템의 바람에 맞춰 나무·풀이 흔들림 (태풍 때 강하게)
 Shader "FarmingSystem/Curved Lit"
 {
     Properties
@@ -14,6 +15,8 @@ Shader "FarmingSystem/Curved Lit"
         _Cutoff("Alpha Cutoff", Range(0, 1)) = 0.5
         [Enum(UnityEngine.Rendering.CullMode)] _Cull("Cull (Off = 양면)", Float) = 2
         [Toggle] _CurveIgnore("Curve Ignore (켜면 이 재질만 안 휨)", Float) = 0
+        [Toggle] _UseVertexColor("Use Vertex Color (메시에 칠해진 색 곱하기 - 물 밑바닥 깊이 색 등)", Float) = 0
+        _WindSway("Wind Sway (바람에 흔들리는 정도 - 나무 잎·풀만 0.3~1, 블록은 0)", Range(0, 2)) = 0
     }
 
     SubShader
@@ -29,6 +32,8 @@ Shader "FarmingSystem/Curved Lit"
             half _Smoothness;
             half _Cutoff;
             half _CurveIgnore;
+            half _WindSway;
+            half _UseVertexColor;
         CBUFFER_END
 
         TEXTURE2D(_BaseMap);
@@ -41,9 +46,27 @@ Shader "FarmingSystem/Curved Lit"
         float _CurveSide;       // 옆으로도 휘는 정도 (0 = 앞뒤로만 휨 / 1 = 사방으로 둥근 행성)
         float _CurveFlat;       // 기준점에서 이 거리(m)까지는 전혀 안 휨 → 가까운 산·나무는 원근감 그대로, 먼 지평선만 휨
 
-        // 월드 좌표를 휜 좌표로: 기준점에서의 거리² 만큼 아래로
+        // 날씨 시스템(WeatherVisuals)이 넣어주는 바람 값: x = 세기(맑음 0.15 / 비 0.35 / 태풍 1), y = 흔들리는 빠르기, zw = 바람 방향(xz)
+        float4 _WindParams;
+
+        // 바람 흔들림: 물체 밑동(피벗)보다 높은 부분일수록 바람 방향으로 더 많이 흔들림 (나무 꼭대기가 가장 많이)
+        // Wind Sway가 0인 재질(블록 등)은 그대로. 모든 패스가 같이 써서 그림자·깊이도 같이 흔들림
+        float3 ApplyWind(float3 positionWS)
+        {
+            if (_WindSway <= 0.0 || _WindParams.x <= 0.0) return positionWS;
+            float3 originWS = TransformObjectToWorld(float3(0, 0, 0));
+            float h = max(positionWS.y - originWS.y, 0.0);
+            float phase = dot(originWS.xz, float2(0.37, 0.71));           // 나무마다 흔들리는 박자를 다르게
+            float t = _Time.y * _WindParams.y;
+            float sway = sin(t + phase) * 0.6 + sin(t * 2.3 + phase * 1.7) * 0.25 + 0.5; // 바람 쪽으로 기운 채 흔들림
+            positionWS.xz += _WindParams.zw * (sway * _WindParams.x * _WindSway * h * h * 0.04);
+            return positionWS;
+        }
+
+        // 월드 좌표를 휜 좌표로: 기준점에서의 거리² 만큼 아래로 (바람 흔들림도 여기서 같이 적용)
         float3 CurveWorld(float3 positionWS)
         {
+            positionWS = ApplyWind(positionWS);
             if (_CurveIgnore > 0.5) return positionWS;
             float2 d = positionWS.xz - _CurveOrigin.xz;
             float2 f = _CurveForward.xz;
@@ -92,6 +115,7 @@ Shader "FarmingSystem/Curved Lit"
                 float4 positionOS : POSITION;
                 float3 normalOS   : NORMAL;
                 float2 uv         : TEXCOORD0;
+                half4  color      : COLOR;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -102,6 +126,7 @@ Shader "FarmingSystem/Curved Lit"
                 float3 positionWS : TEXCOORD1;
                 float3 normalWS   : TEXCOORD2;
                 half   fogFactor  : TEXCOORD3;
+                half4  color      : TEXCOORD4;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -117,6 +142,7 @@ Shader "FarmingSystem/Curved Lit"
                 o.normalWS = TransformObjectToWorldNormal(v.normalOS);
                 o.uv = TRANSFORM_TEX(v.uv, _BaseMap);
                 o.fogFactor = ComputeFogFactor(o.positionCS.z);
+                o.color = v.color;
                 return o;
             }
 
@@ -124,6 +150,7 @@ Shader "FarmingSystem/Curved Lit"
             {
                 UNITY_SETUP_INSTANCE_ID(i);
                 half4 albedo = SampleAlbedo(i.uv);
+                albedo.rgb *= lerp(half3(1, 1, 1), i.color.rgb, _UseVertexColor); // 정점 색 (켠 재질만)
                 float3 n = normalize(i.normalWS);
 
                 InputData inputData = (InputData)0;

@@ -30,6 +30,7 @@ namespace FarmingSystem.Rhythm
         public float SeasonProgress;   // 0 = 계절 첫날, 1 = 마지막 날
         public float Weather;          // 0 = 맑음 ~ 1 = 폭풍 (예약)
         public int Seed;               // 같은 작물·같은 날이면 같은 패턴이 나오게 하는 씨드
+        public bool StormDamaged;      // 회오리 피해를 입은 작물 → 결과 등급이 낮아짐
 
         public float[] Features { get; private set; }
 
@@ -45,6 +46,7 @@ namespace FarmingSystem.Rhythm
                 ctx.CropName = crop.Data.cropName;
                 ctx.GrowthDays = crop.Data.totalGrowthDays;
                 ctx.DaysSinceReady = crop.DaysSinceReady;
+                ctx.StormDamaged = crop.IsStormDamaged;
 
                 if (SeasonUtil.TryGetCurrentSeason(out Season now))
                     ctx.InMainSeason = crop.Data.season == now;

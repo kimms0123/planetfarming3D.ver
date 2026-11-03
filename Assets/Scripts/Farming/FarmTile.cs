@@ -242,7 +242,27 @@ namespace FarmingSystem.Farming
         public CropData Harvest(out ItemQuality quality)
         {
             quality = RollHarvestQuality();
+            if (CurrentCrop != null && CurrentCrop.IsStormDamaged) quality = StormDamagedQuality(quality);
             return Harvest(quality);
+        }
+
+        /// <summary>회오리 피해 작물의 등급: 한 단계 낮추고 최대 '기본' (최상급·상급 → 기본, 기본 → 쓰레기)</summary>
+        public static ItemQuality StormDamagedQuality(ItemQuality quality)
+        {
+            int rank = Mathf.Min(ItemQualityUtility.GetRank(quality) - 1, 1);
+            return ItemQualityUtility.FromRank(Mathf.Max(rank, 0));
+        }
+
+        /// <summary>회오리 등으로 작물이 통째로 날아감 (밭은 갈린 상태로 남음)</summary>
+        public bool DestroyCrop(string reason)
+        {
+            if (CurrentCrop == null) return false;
+            string cropName = CurrentCrop.Data != null ? CurrentCrop.Data.cropName : "작물";
+            Destroy(CurrentCrop.gameObject);
+            CurrentCrop = null;
+            RefreshVisual();
+            Debug.Log($"[{reason}] {name} (좌표 {GridPosition}) - {cropName}이(가) 날아갔어요");
+            return true;
         }
 
         // 리듬게임 결과처럼 이미 정해진 등급으로 수확

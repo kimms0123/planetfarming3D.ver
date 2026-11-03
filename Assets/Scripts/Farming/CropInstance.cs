@@ -12,10 +12,14 @@ namespace FarmingSystem.Farming
     public class CropInstance : MonoBehaviour
     {
         private static readonly Color WitheredTint = new Color(0.45f, 0.33f, 0.2f, 1f);
+        // 회오리 피해를 입은 작물 색 (시든 것보다는 덜 칙칙하게, 살짝 누렇고 어둡게)
+        private static readonly Color StormDamagedTint = new Color(0.75f, 0.68f, 0.5f, 1f);
 
         public CropData Data { get; private set; }
         public int CurrentGrowthDay { get; private set; }
         public bool IsWithered { get; private set; }
+        // 회오리에 휩쓸렸지만 살아남은 작물 → 수확할 때 등급이 낮아짐 (HarvestRhythmGame / FarmTile.Harvest가 반영)
+        public bool IsStormDamaged { get; private set; }
         // 다 자란 뒤 수확하지 않고 지난 날 수 (수확 리듬게임 난이도에 반영: 오래 둘수록 어려움)
         public int DaysSinceReady { get; private set; }
         public bool IsReadyToHarvest => !IsWithered && CurrentGrowthDay >= Data.totalGrowthDays;
@@ -86,6 +90,31 @@ namespace FarmingSystem.Farming
             if (IsReadyToHarvest) DaysSinceReady++;
         }
 
+        /// <summary>회오리 피해 표시 (살아남았지만 품질이 나빠짐). 작물 색이 살짝 누렇게 변함</summary>
+        public void MarkStormDamaged()
+        {
+            if (IsWithered || IsStormDamaged) return;
+            IsStormDamaged = true;
+            TintCurrent(StormDamagedTint);
+            Debug.Log($"[회오리 피해] {Data.cropName} - 간신히 살아남았지만 품질이 나빠졌어요");
+        }
+
+        private void TintCurrent(Color tint)
+        {
+            if (currentStageObject == null) return;
+            foreach (Renderer r in currentStageObject.GetComponentsInChildren<Renderer>())
+            {
+                Material mat = r.material;
+                if (mat.HasProperty("_BaseColor"))
+                    mat.SetColor("_BaseColor", mat.GetColor("_BaseColor") * tint);
+                else if (mat.HasProperty("_Color"))
+                    mat.color = mat.color * tint;
+            }
+        }
+
+        [ContextMenu("디버그: 회오리 피해 입히기")]
+        private void DebugStormDamage() => MarkStormDamaged();
+
         [ContextMenu("디버그: 지금 시들게 하기")]
         private void DebugWither() => Wither();
 
@@ -116,6 +145,7 @@ namespace FarmingSystem.Farming
                 currentStageObject.transform.localScale = Vector3.one; // 부모(작물 오브젝트)의 스케일을 그대로 상속받도록 로컬 스케일은 1 유지
             }
             currentStageIndex = stage;
+            if (IsStormDamaged) TintCurrent(StormDamagedTint); // 자라서 모델이 바뀌어도 피해 색 유지
         }
     }
 }

@@ -137,6 +137,18 @@ namespace FarmingSystem.World
         [Tooltip("해 빛 방향(그림자 방향)을 시간에 맞춰 돌림")]
         [SerializeField] private bool controlLightDirection = true;
 
+        [Header("날씨 (비·태풍)")]
+        [Tooltip("켜면 날씨 시스템(WeatherVisuals)에 맞춰 흐린 하늘·번개를 보여줌")]
+        [SerializeField] private bool useWeather = true;
+        [Tooltip("흐린 날 하늘 색조 (1,1,1 = 순수 회색, 파랑을 조금 높이면 차가운 비 느낌)")]
+        [SerializeField] private Color overcastTint = new Color(0.92f, 0.95f, 1.05f, 1f);
+        [Tooltip("흐린 날 하늘 밝기 (1 = 그대로, 0.75 = 조금 어둡게)")]
+        [SerializeField, Range(0.3f, 1f)] private float overcastDarkness = 0.75f;
+        [Tooltip("흐린 날 햇빛 세기 배율 (태풍일 때 기준)")]
+        [SerializeField, Range(0.1f, 1f)] private float overcastLightMultiplier = 0.45f;
+        [Tooltip("번개 칠 때 하늘이 밝아지는 색")]
+        [SerializeField] private Color lightningSkyColor = new Color(0.75f, 0.8f, 1f, 0f);
+
         [Header("시간대별 하늘 (시각 순서 상관없음)")]
         [SerializeField] private SkyKey[] keys = DefaultKeys();
 
@@ -241,13 +253,17 @@ namespace FarmingSystem.World
 
             if (Application.isPlaying) starRotation = Mathf.Repeat(starRotation + starSpinSpeed * Time.deltaTime, 360f);
 
+            // 날씨(비·태풍) 반영: 흐린 하늘 + 번개 번쩍임. 저장된 하늘(current)은 그대로 두고 보여주는 값만 바꿈 → 날씨가 그치면 자연스럽게 돌아옴
+            float overcast = useWeather ? FarmingSystem.Weather.WeatherVisuals.Overcast : 0f;
+            SkyState shown = ApplyWeather(current, overcast, useWeather ? FarmingSystem.Weather.WeatherVisuals.LightningFlash : 0f);
+
             // 하늘 재질
             if (mat != null)
             {
-                mat.SetColor(TopId, current.top);
-                mat.SetColor(HorizonId, current.horizon);
-                mat.SetColor(BottomId, current.bottom);
-                mat.SetFloat(NightId, current.stars);
+                mat.SetColor(TopId, shown.top);
+                mat.SetColor(HorizonId, shown.horizon);
+                mat.SetColor(BottomId, shown.bottom);
+                mat.SetFloat(NightId, shown.stars);
                 if (Application.isPlaying) mat.SetFloat(NightRotId, starRotation);
 
                 // 낮엔 해 원반, 밤엔 달 원반 (빛 방향에 그려짐)
@@ -255,13 +271,13 @@ namespace FarmingSystem.World
                 {
                     mat.SetColor(SunColorId, sunDiscColor);
                     mat.SetFloat(SunSizeId, sunDiscSize);
-                    mat.SetFloat(SunVisibleId, current.sunDisc);
+                    mat.SetFloat(SunVisibleId, shown.sunDisc);
                 }
                 else
                 {
                     mat.SetColor(SunColorId, moonDiscColor);
                     mat.SetFloat(SunSizeId, moonDiscSize);
-                    mat.SetFloat(SunVisibleId, showMoonDisc ? moonDiscBrightness : 0f);
+                    mat.SetFloat(SunVisibleId, showMoonDisc ? moonDiscBrightness * (1f - overcast) : 0f);
                 }
             }
 
@@ -270,8 +286,8 @@ namespace FarmingSystem.World
             {
                 if (controlLight)
                 {
-                    sunLight.color = current.lightColor;
-                    sunLight.intensity = current.lightIntensity;
+                    sunLight.color = shown.lightColor;
+                    sunLight.intensity = shown.lightIntensity;
                 }
                 if (controlLightDirection) sunLight.transform.rotation = currentLightRotation;
             }
@@ -281,18 +297,56 @@ namespace FarmingSystem.World
             {
                 if (RenderSettings.ambientMode != UnityEngine.Rendering.AmbientMode.Trilight)
                     RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-                RenderSettings.ambientSkyColor = current.ambientSky;
-                RenderSettings.ambientEquatorColor = current.ambientEquator;
-                RenderSettings.ambientGroundColor = current.ambientGround;
+                RenderSettings.ambientSkyColor = shown.ambientSky;
+                RenderSettings.ambientEquatorColor = shown.ambientEquator;
+                RenderSettings.ambientGroundColor = shown.ambientGround;
             }
 
             // 안개
-            if (controlFog) RenderSettings.fogColor = current.fog;
+            if (controlFog) RenderSettings.fogColor = shown.fog;
 
             // 몽환 행성 셰이더 등에서 쓰는 하늘 정보 (밤 정도, 하늘 색) → 행성이 하늘 색에 물들고 밤에 은은하게 빛남
-            Shader.SetGlobalFloat(SkyNightId, current.stars);
-            Shader.SetGlobalColor(SkyHorizonId, current.horizon);
-            Shader.SetGlobalColor(SkyTopId, current.top);
+            Shader.SetGlobalFloat(SkyNightId, shown.stars);
+            Shader.SetGlobalColor(SkyHorizonId, shown.horizon);
+            Shader.SetGlobalColor(SkyTopId, shown.top);
+        }
+
+        // 흐린 날: 색을 회색빛으로 바꾸고 어둡게, 별·해 원반은 구름에 가려짐 / 번개: 하늘·주변광을 순간 밝게
+        private SkyState ApplyWeather(SkyState s, float overcast, float flash)
+        {
+            if (overcast <= 0.001f && flash <= 0.001f) return s;
+
+            s.top = Overcast(s.top, overcast);
+            s.horizon = Overcast(s.horizon, overcast);
+            s.bottom = Overcast(s.bottom, overcast);
+            s.ambientSky = Overcast(s.ambientSky, overcast * 0.8f);
+            s.ambientEquator = Overcast(s.ambientEquator, overcast * 0.8f);
+            s.ambientGround = Overcast(s.ambientGround, overcast * 0.8f);
+            s.fog = Overcast(s.fog, overcast);
+            s.lightColor = Color.Lerp(s.lightColor, Overcast(s.lightColor, 1f) / Mathf.Max(overcastDarkness, 0.01f), overcast * 0.7f);
+            s.lightIntensity *= Mathf.Lerp(1f, overcastLightMultiplier, overcast);
+            s.stars *= 1f - overcast;
+            s.sunDisc *= 1f - overcast;
+
+            if (flash > 0.001f)
+            {
+                Color f = lightningSkyColor * flash;
+                s.top += f;
+                s.horizon += f * 0.8f;
+                s.bottom += f * 0.5f;
+                s.ambientSky += f * 0.6f;
+                s.ambientEquator += f * 0.4f;
+                s.fog += f * 0.4f;
+            }
+            return s;
+        }
+
+        private Color Overcast(Color c, float amount)
+        {
+            float l = c.r * 0.299f + c.g * 0.587f + c.b * 0.114f; // 밝기만 남긴 회색
+            Color grey = new Color(l * overcastTint.r, l * overcastTint.g, l * overcastTint.b, 1f) * overcastDarkness;
+            grey.a = c.a;
+            return Color.Lerp(c, grey, amount);
         }
 
         // 시각에 맞는 하늘: 앞뒤 키 두 개를 찾아 섞음 (자정을 넘어가도 이어짐)
@@ -361,7 +415,7 @@ namespace FarmingSystem.World
         private static Light FindSun()
         {
             if (RenderSettings.sun != null) return RenderSettings.sun;
-            foreach (Light l in FindObjectsByType<Light>(FindObjectsSortMode.None))
+            foreach (Light l in FindObjectsByType<Light>(FindObjectsInactive.Exclude))
             {
                 if (l.type == LightType.Directional) return l;
             }

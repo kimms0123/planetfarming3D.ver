@@ -5,6 +5,7 @@ using FarmingSystem.Core;
 using FarmingSystem.Farming;
 using FarmingSystem.Inventory;
 using FarmingSystem.Rhythm;
+using FarmingSystem.Weather;
 
 namespace FarmingSystem.Player
 {
@@ -203,7 +204,9 @@ namespace FarmingSystem.Player
                     break;
 
                 case FarmActionType.None:
-                    if (inventory.CurrentTool == ToolType.Hoe && tile.State == TileState.Natural && !IsTileClear(tile))
+                    if (WeatherManager.FarmingBlockedNow && (inventory.CurrentTool == ToolType.Hoe || inventory.CurrentSeed != null))
+                        Debug.Log("[태풍] 바람이 너무 세서 오늘은 밭을 갈거나 씨앗을 심을 수 없어요");
+                    else if (inventory.CurrentTool == ToolType.Hoe && tile.State == TileState.Natural && !IsTileClear(tile))
                         Debug.Log($"[밭갈기 불가] {tile.name} 위에 나무·바위·건물 같은 장애물이 있음");
                     else if (IsSeedOutOfSeason(tile, out string seasonInfo))
                         Debug.Log($"[씨앗심기 불가] {seasonInfo}");
@@ -420,12 +423,16 @@ namespace FarmingSystem.Player
             // 2순위: 갈아진 빈 밭 + 핫바에 씨앗(SeedData) 선택 + 지금 계절에 심을 수 있는 씨앗
             // CurrentSeed는 선택된 아이템이 SeedData일 때만 값을 반환하므로 수확물(CropData)은 여기서 걸러진다
             if (tile.State == TileState.Tilled && tile.CurrentCrop == null && inventory.CurrentSeed != null)
+            {
+                if (WeatherManager.FarmingBlockedNow) return FarmActionType.None; // 태풍: 씨앗 심기 불가
                 return IsSeedOutOfSeason(tile, out _) ? FarmActionType.None : FarmActionType.Plant;
+            }
 
             // 3순위: 현재 도구
             switch (inventory.CurrentTool)
             {
                 case ToolType.Hoe:
+                    if (WeatherManager.FarmingBlockedNow) return FarmActionType.None; // 태풍: 밭 갈기 불가
                     return tile.State == TileState.Natural && IsTileClear(tile) ? FarmActionType.Till : FarmActionType.None;
 
                 case ToolType.WateringCan:

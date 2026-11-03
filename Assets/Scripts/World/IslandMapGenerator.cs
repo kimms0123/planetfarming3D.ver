@@ -263,12 +263,22 @@ namespace FarmingSystem.World
         [SerializeField] private bool placeSeabed = false;
         [Tooltip("물 밑바닥을 블록 대신 매끈한 경사면 하나로 (해안에서 멀어질수록 깊어져 물 색이 자연스럽게 진해짐)")]
         [SerializeField] private bool smoothSeabed = true;
-        [Tooltip("물 밑바닥 색")]
+        [Tooltip("물 밑바닥 색 (얕은 곳 - 해변 앞 모래)")]
         [SerializeField] private Color seabedColor = new Color(0.93f, 0.82f, 0.6f);
-        [Tooltip("해안에서 몇 칸에 걸쳐 깊어질지")]
+        [Tooltip("깊은 곳 바닥 색 (깊어질수록 이 색으로 진해짐 - 바다처럼). 곡면 셰이더(Curved Lit)일 때만 적용")]
+        [SerializeField] private Color seabedDeepColor = new Color(0.1f, 0.3f, 0.42f);
+        [Tooltip("깊은 색이 나타나기 시작하는 정도 (0 = 조금만 깊어져도 바로 진해짐, 1 = 거의 가장 깊은 곳에서만 진함)")]
+        [SerializeField, Range(0f, 1f)] private float seabedDeepColorStart = 0.15f;
+        [Tooltip("해안에서 이 칸 수까지는 얕은 모래 바닥이 평평하게 이어짐 (클수록 물 아래 밝은 모래 띠가 넓어짐)")]
+        [SerializeField] private float seabedFlatWidth = 6f;
+        [Tooltip("얕은 모래가 끝난 뒤 몇 칸에 걸쳐 깊어질지")]
         [SerializeField] private float seabedShelfWidth = 8f;
+        [Tooltip("얕은 모래 바닥 깊이 (물 표면 아래, 블록 높이 단위. 작을수록 모래가 밝고 또렷하게 보임)")]
+        [SerializeField] private float seabedShallowDepth = 0.35f;
         [Tooltip("가장 깊은 곳 깊이 (물 표면 아래, 블록 높이 단위)")]
         [SerializeField] private float seabedMaxDepth = 4f;
+        [Tooltip("물 밑바닥 판을 맵 범위 바깥으로 몇 칸 더 넓힐지 (바다 쪽에서 바닥 판 끝이 보이지 않게). 큰 바다(Ocean) 크기보다 크지 않게")]
+        [SerializeField] private int seabedExtendCells = 40;
         [Tooltip("Ocean Plane이 있을 때, 해안에서 몇 칸까지만 물 칸·밑바닥을 깔지 (먼 바다는 큰 바다 한 장으로 대신해 오브젝트 수를 줄임)")]
         [SerializeField] private int seaTileMargin = 4;
 
@@ -1456,37 +1466,50 @@ namespace FarmingSystem.World
         private void BuildSeabedMesh(IslandLayout L, Transform parent)
         {
             int[,] landDist = MapAlgorithms.DistanceField(L.width, L.depth, (x, z) => L.land[x, z]);
-            float shallowY = WaterY - LevelH * 0.35f;
+            float shallowY = WaterY - LevelH * Mathf.Max(0.05f, seabedShallowDepth);
             float deepY = WaterY - LevelH * Mathf.Max(0.5f, seabedMaxDepth);
 
-            int vw = L.width + 1, vd = L.depth + 1;
+            // 맵 범위(0 ~ width) 바깥으로 m칸씩 더 넓힌 판. 바깥 칸은 맵 끝 칸의 거리 + 벗어난 거리로 계산 → 계속 깊은 바다
+            int m = Mathf.Max(0, seabedExtendCells);
+            int cw = L.width + m * 2, cd = L.depth + m * 2;   // 칸 수
+            int vw = cw + 1, vd = cd + 1;                     // 꼭짓점 수
             var verts = new Vector3[vw * vd];
             var uvs = new Vector2[vw * vd];
-            for (int vx = 0; vx < vw; vx++)
+            var colors = new Color[vw * vd];
+            for (int ix = 0; ix < vw; ix++)
             {
-                for (int vz = 0; vz < vd; vz++)
+                for (int iz = 0; iz < vd; iz++)
                 {
+                    int vx = ix - m, vz = iz - m; // 맵 기준 꼭짓점 좌표 (음수·범위 밖 가능)
                     // 꼭짓점을 둘러싼 4칸 중 땅과 가장 가까운 거리
                     int best = int.MaxValue;
                     for (int dx = -1; dx <= 0; dx++)
                         for (int dz = -1; dz <= 0; dz++)
                         {
-                            int cx = Mathf.Clamp(vx + dx, 0, L.width - 1), cz = Mathf.Clamp(vz + dz, 0, L.depth - 1);
-                            best = Mathf.Min(best, landDist[cx, cz]);
+                            int x = vx + dx, z = vz + dz;
+                            int cx = Mathf.Clamp(x, 0, L.width - 1), cz = Mathf.Clamp(z, 0, L.depth - 1);
+                            int outside = Mathf.Max(Mathf.Abs(x - cx), Mathf.Abs(z - cz)); // 맵 밖으로 벗어난 칸 수
+                            best = Mathf.Min(best, landDist[cx, cz] + outside);
                         }
-                    float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(best / Mathf.Max(1f, seabedShelfWidth)));
+                    // 해안에서 seabedFlatWidth칸까지는 얕은 모래 그대로, 그 뒤 seabedShelfWidth칸에 걸쳐 깊어짐
+                    float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((best - Mathf.Max(0f, seabedFlatWidth)) / Mathf.Max(1f, seabedShelfWidth)));
                     float y = Mathf.Lerp(shallowY, deepY, t);
+                    // 판의 맨 바깥 테두리는 아래로 꺾어서 끝이 보이지 않게
+                    if (m > 0 && (ix == 0 || iz == 0 || ix == vw - 1 || iz == vd - 1)) y = deepY - LevelH * 10f;
 
                     Vector3 corner = LocalCell(L, vx, vz, y) - new Vector3(Cell * 0.5f, 0f, Cell * 0.5f);
-                    verts[vx * vd + vz] = corner;
-                    uvs[vx * vd + vz] = new Vector2(vx, vz);
+                    verts[ix * vd + iz] = corner;
+                    uvs[ix * vd + iz] = new Vector2(vx, vz);
+                    // 깊을수록 모래색 → 깊은 바다색 (얕은 해변 앞은 밝은 모래 그대로)
+                    float c = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((t - seabedDeepColorStart) / Mathf.Max(0.01f, 1f - seabedDeepColorStart)));
+                    colors[ix * vd + iz] = Color.Lerp(seabedColor, seabedDeepColor, c);
                 }
             }
 
-            var tris = new int[L.width * L.depth * 6];
+            var tris = new int[cw * cd * 6];
             int k = 0;
-            for (int x = 0; x < L.width; x++)
-                for (int z = 0; z < L.depth; z++)
+            for (int x = 0; x < cw; x++)
+                for (int z = 0; z < cd; z++)
                 {
                     int a = x * vd + z, b = a + 1, c = a + vd, d = c + 1;
                     tris[k++] = a; tris[k++] = b; tris[k++] = d;
@@ -1496,11 +1519,22 @@ namespace FarmingSystem.World
             var mesh = new Mesh { name = "IslandSeabed", indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
             mesh.vertices = verts;
             mesh.uv = uvs;
+            mesh.colors = colors;
             mesh.triangles = tris;
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
 
-            GameObject go = CreateMeshObject("Seabed", parent, mesh, new[] { MakeColorMaterial("IslandSeabed", seabedColor) });
+            // 색은 메시(정점 색)가 정함 → 재질은 흰색 + 정점 색 켜기 (곡면 셰이더가 없으면 예전처럼 단색)
+            Material seabedMat = MakeColorMaterial("IslandSeabed", seabedColor);
+            if (seabedMat.HasProperty("_UseVertexColor"))
+            {
+                seabedMat.SetFloat("_UseVertexColor", 1f);
+                if (seabedMat.HasProperty("_BaseColor")) seabedMat.SetColor("_BaseColor", Color.white);
+#if UNITY_EDITOR
+                EditorUtility.SetDirty(seabedMat);
+#endif
+            }
+            GameObject go = CreateMeshObject("Seabed", parent, mesh, new[] { seabedMat });
             SetLayer(go, IgnoreRaycastLayer);
         }
 

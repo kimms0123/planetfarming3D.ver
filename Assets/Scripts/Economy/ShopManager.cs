@@ -4,6 +4,7 @@ using UnityEngine;
 using FarmingSystem.Core;
 using FarmingSystem.Inventory;
 using FarmingSystem.Farming;
+using FarmingSystem.Weather;
 
 namespace FarmingSystem.Economy
 {
@@ -120,6 +121,13 @@ namespace FarmingSystem.Economy
         {
             if (!isShopOpen && day >= nextVisitDay)
             {
+                // 태풍 날엔 상인이 오지 않고 다음 날로 미룸
+                if (WeatherManager.MerchantBlockedOn(day))
+                {
+                    nextVisitDay = day + 1;
+                    Debug.Log($"[상점] Day {day} - 태풍 때문에 상인이 오지 못했어요. 내일 다시 올 예정이에요.");
+                    return;
+                }
                 OpenShop(day);
             }
             else if (isShopOpen && day > visitEndsOnDay)

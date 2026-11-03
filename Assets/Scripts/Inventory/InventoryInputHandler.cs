@@ -5,7 +5,7 @@ using FarmingSystem.Core;
 
 namespace FarmingSystem.Inventory
 {
-    // 마우스 휠(도구 전환), 숫자키 1~9,0(핫바 10칸 선택), Tab(전체 인벤토리 토글)을
+    // 마우스 휠(도구칸 도구 전환), 숫자키 1~9,0(핫바 10칸 선택), Tab(전체 인벤토리 토글)·Esc(닫기)를
     // 매 프레임 직접 폴링한다. Input Actions 에셋을 거치지 않고 Mouse.current / Keyboard.current를
     // 바로 읽는 방식 - 단순한 입력은 이 방식이 Input Actions 연결 문제 없이 더 안정적이다.
 
@@ -14,7 +14,9 @@ namespace FarmingSystem.Inventory
         private void Update()
         {
             // 상점 등 입력을 막는 UI가 열려 있으면 핫바/도구/인벤토리 입력 무시
-            if (UIInputBlocker.IsBlocked) return;
+            // 단, 인벤토리 창 자체가 열려서 막힌 경우는 Tab·Esc(닫기)와 숫자키·휠은 계속 받음
+            bool inventoryOpen = InventoryManager.Instance != null && InventoryManager.Instance.IsInventoryOpen;
+            if (UIInputBlocker.IsBlocked && !inventoryOpen) return;
 
             HandleToolScroll();
             HandleHotbarNumberKeys();
@@ -60,6 +62,10 @@ namespace FarmingSystem.Inventory
             if (Keyboard.current.tabKey.wasPressedThisFrame)
             {
                 InventoryManager.Instance.ToggleInventory();
+            }
+            else if (Keyboard.current.escapeKey.wasPressedThisFrame && InventoryManager.Instance.IsInventoryOpen)
+            {
+                InventoryManager.Instance.SetInventoryOpen(false); // Esc로도 닫기
             }
         }
 
