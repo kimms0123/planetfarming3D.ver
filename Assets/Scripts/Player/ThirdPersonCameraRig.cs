@@ -84,6 +84,8 @@ namespace FarmingSystem.Player
         private float focusDistanceScale = 1f;
         private float focusWeight;             // 0 = 평소, 1 = 완전히 강조 (부드럽게 오감)
         private float pitchBeforeFocus;
+        private float yawBeforeFocus;
+        private bool focusTurnedYaw;
         private const float FocusSharpness = 6f;
 
         // 연출 시점 상태 (상점 상인 클로즈업처럼 카메라를 정해진 위치·방향으로 옮김)
@@ -136,9 +138,29 @@ namespace FarmingSystem.Player
         // 특정 지점 강조 시작
         // blend = 바라보는 점을 플레이어에서 그 지점 쪽으로 옮기는 정도 (0~1)
         // distanceScale = 거리 배율 (0.6 = 60%까지 다가감), pitch = 강조 중 각도 (음수면 지금 각도 유지)
-        public void BeginFocus(Vector3 point, float blend, float distanceScale, float pitch)
+        // sideAngle = 플레이어 등 뒤가 아니라 옆에서 보게 돌리는 각도 (0~90, 음수면 지금 방향 유지)
+        //   카메라가 플레이어 바로 뒤에 있으면 플레이어 몸이 작물을 가려서, 플레이어→작물 선을 옆에서 비스듬히 보게 돌림
+        //   왼쪽/오른쪽 중 지금 카메라 방향에서 덜 돌아가는 쪽을 고름
+        public void BeginFocus(Vector3 point, float blend, float distanceScale, float pitch, float sideAngle = -1f)
         {
-            if (!focusActive) pitchBeforeFocus = targetPitch;
+            if (!focusActive)
+            {
+                pitchBeforeFocus = targetPitch;
+                yawBeforeFocus = targetYaw;
+                focusTurnedYaw = false;
+            }
+            if (sideAngle >= 0f && target != null)
+            {
+                Vector3 d = point - target.position;
+                d.y = 0f;
+                if (d.sqrMagnitude > 0.04f) // 작물이 발밑 바로 아래면 방향을 못 정해서 그대로
+                {
+                    float lineYaw = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg; // 이 각도 = 플레이어 등 뒤에서 작물을 보는 방향
+                    float a = lineYaw + sideAngle, b = lineYaw - sideAngle;
+                    targetYaw = Mathf.Abs(Mathf.DeltaAngle(targetYaw, a)) <= Mathf.Abs(Mathf.DeltaAngle(targetYaw, b)) ? a : b;
+                    focusTurnedYaw = true;
+                }
+            }
             focusActive = true;
             focusPoint = point;
             focusBlend = Mathf.Clamp01(blend);
@@ -177,6 +199,8 @@ namespace FarmingSystem.Player
             if (!focusActive) return;
             focusActive = false;
             targetPitch = pitchBeforeFocus;
+            if (focusTurnedYaw) targetYaw = yawBeforeFocus; // 강조 전에 보던 방향으로 돌아감
+            focusTurnedYaw = false;
         }
 
         private void Update()

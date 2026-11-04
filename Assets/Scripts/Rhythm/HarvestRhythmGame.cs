@@ -35,11 +35,14 @@ namespace FarmingSystem.Rhythm
     // - 판정: PERFECT / GOOD / MISS. 방향이 틀리면 MISS. 너무 일찍 누른 건 무시
     // - 판정마다 실제 3D 작물이 좌우로 흔들리고(CropReactionController), 마지막에 뽑히는 연출 후 결과창
     // - 결과: ALL PERFECT = 최상급, 그 외 점수 비율(Perfect 100점, Good 60점)로 상급 / 기본 / 쓰레기
+    // - 위쪽 점수 게이지: 맞힐 때마다 점수만큼 차오르고, 등급 기준선에 별 3개 (기본 ★ / 상급 ★★ / 최상급 ★★★)
+    //   지금까지 친 결과로 받을 등급이 실시간으로 보임 (결과창 별 개수와 같음, 쓰레기 = 별 0개)
     //         등급에 따라 수확량 배율도 달라짐 (최상급 1.2배 ~ 쓰레기 0.5배)
     // - 박자는 메트로놈 소리로 알려줌 (첫 노트 전 4박 카운트). 시간 기준은 오디오 시계라 프레임이 흔들려도 정확
     // - 난이도는 환경(HarvestContext) → 난이도 모델 → 패턴 생성기 순으로 결정
     // - 화면은 농장 화면을 그대로 두고 살짝만 어둡게 (흐름이 끊기지 않게)
-    // - UI·소리·이미지는 전부 코드가 만듦. 씬에 빈 오브젝트 하나 + 이 스크립트만 있으면 동작
+    // - UI: "Tools → 행성농사일지 → 리듬게임 → 리듬게임 UI 씬에 만들기"로 씬에 놓아 두면 그 UI를 그대로 씀 (씬에서 자유롭게 수정)
+    //       씬에 UI가 없으면 예전처럼 플레이할 때 코드가 만듦. 소리는 코드가 만듦
     public class HarvestRhythmGame : MonoBehaviour
     {
         public static HarvestRhythmGame Instance { get; private set; }
@@ -80,7 +83,7 @@ namespace FarmingSystem.Rhythm
         [Tooltip("켜면 최상급은 ALL PERFECT일 때만. 끄면 아래 최상급 점수 비율 이상이어도 최상급")]
         [SerializeField] private bool topGradeRequiresAllPerfect = true;
         [SerializeField, Range(0f, 1f)] private float topGradeRatio = 0.95f;
-        [Tooltip("상급 / 기본 기준 (점수 비율). 기본 기준 아래는 쓰레기")]
+        [Tooltip("상급 / 기본 기준 (점수 비율). 기본 기준 아래는 쓰레기. 위쪽 점수 게이지의 별 위치도 이 값")]
         [SerializeField, Range(0f, 1f)] private float highGradeRatio = 0.8f;
         [SerializeField, Range(0f, 1f)] private float normalGradeRatio = 0.5f;
 
@@ -134,6 +137,8 @@ namespace FarmingSystem.Rhythm
         [SerializeField, Range(0.3f, 1f)] private float focusDistanceScale = 0.6f;
         [Tooltip("강조 중 내려다보는 각도 (도). 음수면 지금 각도 유지")]
         [SerializeField] private float focusPitch = 28f;
+        [Tooltip("카메라를 플레이어 옆쪽으로 돌리는 각도 (도). 플레이어 몸이 작물을 가리지 않게 비스듬히 봄. 0 = 플레이어 바로 뒤, 90 = 완전히 옆, 음수 = 돌리지 않음")]
+        [SerializeField, Range(-1f, 90f)] private float focusSideAngle = 60f;
 
         [Header("디자이너 UI 이미지 (비우면 코드가 그린 기본 모양을 씀)")]
         [Tooltip("방향키 아이콘 (Arrow_Up / Down / Left / Right). 4개 다 넣어야 적용")]
@@ -157,6 +162,22 @@ namespace FarmingSystem.Rhythm
         [SerializeField] private Sprite resultWindowSprite;
         [Tooltip("작물 강조 모서리 (Corner_TL_A, 왼쪽 위 모양 1개만 넣으면 돌려서 4개로 씀)")]
         [SerializeField] private Sprite focusCornerSprite;
+
+        [Header("별 색 (점수 게이지·결과창 공통, 왼쪽부터 기본 / 상급 / 최상급)")]
+        [Tooltip("기본 등급 별 (1번째)")]
+        [SerializeField] private Color starNormalColor = Color.white;
+        [Tooltip("상급 등급 별 (2번째)")]
+        [SerializeField] private Color starHighColor = new Color(1f, 0.8f, 0.25f, 1f);
+        [Tooltip("최상급 별(3번째)은 무지개색으로 계속 바뀜. 한 바퀴 도는 빠르기 (1 = 1초에 한 바퀴)")]
+        [SerializeField] private float rainbowSpeed = 0.5f;
+        [Tooltip("무지개 색 진하기 (0 = 흰색, 1 = 원색)")]
+        [SerializeField, Range(0f, 1f)] private float rainbowSaturation = 0.65f;
+        [Tooltip("별 테두리 (흰 별이 밝은 배경에서도 보이게). 씬에서 별에 Outline을 직접 붙였으면 그걸 씀")]
+        [SerializeField] private Color starOutlineColor = new Color(0.36f, 0.25f, 0.18f, 0.9f);
+
+        [Header("씬에 놓인 UI (비우면 자식에서 찾고, 그래도 없으면 코드가 만듦)")]
+        [Tooltip("리듬게임 UI 씬에 만들기 메뉴가 자동으로 넣어 줌")]
+        [SerializeField] private HarvestRhythmUI sceneUI;
 
         [Header("디버그")]
         [Tooltip("키를 누를 때마다 콘솔에 판정 이유를 출력 (어떤 키 → 몇 번 노트 → 오차 몇 초 → 판정)")]
@@ -222,7 +243,10 @@ namespace FarmingSystem.Rhythm
         private readonly List<Ring> rings = new List<Ring>();
         private TextMeshProUGUI goalText, comboText, remainText, countdownText, popupText, guideText;
         private Image goalIcon, progressFill;
-        private readonly Image[] progressStars = new Image[4];
+        private readonly Image[] progressStars = new Image[3]; // 기본 / 상급 / 최상급
+        private float gaugeShown;                               // 화면에 보이는 게이지 (실제 점수를 부드럽게 따라감)
+        private int gaugeStarsLit;
+        private readonly float[] starPop = new float[3];
         private readonly Image[] keyBacks = new Image[4];
         private readonly Image[] keyArrows = new Image[4];
         private readonly Image[] keyShadows = new Image[4];
@@ -231,7 +255,7 @@ namespace FarmingSystem.Rhythm
         private bool CustomArrows => arrowUpSprite != null && arrowDownSprite != null && arrowLeftSprite != null && arrowRightSprite != null;
         private GameObject hudRoot, resultPanel;
         private TextMeshProUGUI resultTitle, resultBody;
-        private readonly Image[] resultStars = new Image[4];
+        private readonly Image[] resultStars = new Image[3];
         private float popupLife;
         private Sprite discSprite, ringSprite, thickRingSprite, arrowSprite, starSprite, roundSprite, noteSprite;
         private readonly List<Texture2D> ownedTextures = new List<Texture2D>();
@@ -253,7 +277,10 @@ namespace FarmingSystem.Rhythm
             Instance = this;
             ResolveFont();
             BuildAudio();
-            BuildUI();
+            if (sceneUI == null) sceneUI = GetComponentInChildren<HarvestRhythmUI>(true);
+            if (sceneUI != null && sceneUI.canvas != null) LoadSceneUI(sceneUI);
+            else BuildUI();
+            EnsureStarOutlines();
             canvas.gameObject.SetActive(false);
         }
 
@@ -445,11 +472,12 @@ namespace FarmingSystem.Rhythm
 
             // 카메라가 작물 쪽으로 살짝 다가감 (게임 시간이 멈춰도 카메라는 실제 시간으로 움직임)
             focusedRig = focusCamera ? ThirdPersonCameraRig.Instance : null;
-            if (focusedRig != null) focusedRig.BeginFocus(judgeWorldPoint, focusBlend, focusDistanceScale, focusPitch);
+            if (focusedRig != null) focusedRig.BeginFocus(judgeWorldPoint, focusBlend, focusDistanceScale, focusPitch, focusSideAngle);
             goalIcon.sprite = ctx.Crop != null && ctx.Crop.icon != null ? ctx.Crop.icon : null;
             goalIcon.enabled = goalIcon.sprite != null;
             goalIcon.transform.parent.gameObject.SetActive(goalIcon.enabled); // 아이콘이 없으면 흰 동그라미도 숨김
             foreach (Ring r in rings) { r.Image.gameObject.SetActive(false); r.NoteIndex = -1; }
+            ResetGauge();
             RefreshHud();
 
             startDsp = AudioSettings.dspTime + 0.3;
@@ -522,11 +550,13 @@ namespace FarmingSystem.Rhythm
                     break;
 
                 case Phase.Pulling:
+                    UpdateGauge(dt); // 마지막 노트 점수까지 게이지가 마저 차오르게
                     phaseTimer -= dt;
                     if (phaseTimer <= 0f) ShowResult();
                     break;
 
                 case Phase.Result:
+                    if (result.Tier >= 3 && resultStars[2] != null) resultStars[2].color = StarLitColor(2); // 최상급 별 무지개
                     phaseTimer -= dt;
                     bool skip = Keyboard.current != null && (Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.enterKey.wasPressedThisFrame)
                                 || Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
@@ -681,26 +711,18 @@ namespace FarmingSystem.Rhythm
         private void ShowResult()
         {
             int n = Mathf.Max(1, result.NoteCount);
-            int maxScore = n * perfectPoints;
-            int score = result.Perfect * perfectPoints + result.Good * goodPoints;
-            result.ScoreRatio = maxScore > 0 ? score / (float)maxScore : 0f;
+            result.ScoreRatio = CurrentScoreRatio();
             result.AllPerfect = result.Perfect == result.NoteCount && result.NoteCount > 0;
 
-            // 등급: ALL PERFECT = 최상급 / 점수 비율로 상급·기본 / 그 아래 쓰레기
-            bool top = result.AllPerfect || (!topGradeRequiresAllPerfect && result.ScoreRatio >= topGradeRatio);
-            if (top) result.Tier = 3;
-            else if (result.ScoreRatio >= highGradeRatio) result.Tier = 2;
-            else if (result.ScoreRatio >= normalGradeRatio) result.Tier = 1;
-            else result.Tier = 0;
-            // 회오리 피해 작물: 한 단계 낮추고 최대 '기본' (FarmTile.StormDamagedQuality와 같은 규칙)
+            // 등급: ALL PERFECT = 최상급 / 점수 비율로 상급·기본 / 그 아래 쓰레기 (게이지 별과 같은 계산)
             bool stormDamaged = context != null && context.StormDamaged;
-            if (stormDamaged) result.Tier = Mathf.Clamp(Mathf.Min(result.Tier - 1, 1), 0, 3);
+            result.Tier = TierFor(result.ScoreRatio, result.AllPerfect);
             result.Quality = ItemQualityUtility.FromRank(result.Tier);
             result.YieldMultiplier = result.Tier == 3 ? topGradeYield : result.Tier == 2 ? highGradeYield
                                    : result.Tier == 1 ? normalGradeYield : trashGradeYield;
 
             for (int i = 0; i < resultStars.Length; i++)
-                resultStars[i].color = i <= result.Tier ? Gold : new Color(0.75f, 0.72f, 0.65f, 0.6f);
+                resultStars[i].color = i < result.Tier ? StarLitColor(i) : ResultStarOff; // 별 개수 = 등급 (쓰레기 0개)
 
             int baseYield = context != null && context.Crop != null ? context.Crop.expectedYield : 0;
             int finalYield = baseYield > 0 ? result.GetYield(baseYield) : 0;
@@ -826,12 +848,149 @@ namespace FarmingSystem.Rhythm
                                                   : expected ? Color.white : new Color(0.35f, 0.35f, 0.35f);
             }
 
-            // 진행 바: 첫 노트 ~ 마지막 노트 구간
-            double span = Math.Max(0.01, pattern.LastNoteTime - pattern.FirstNoteTime + pattern.BeatLength);
-            float prog = Mathf.Clamp01((float)((songTime - pattern.FirstNoteTime + pattern.BeatLength) / span));
-            progressFill.fillAmount = prog;
+            UpdateGauge(Time.unscaledDeltaTime);
+        }
+
+        // ---------- 점수 게이지 (받을 등급 미리보기) ----------
+
+        // 지금까지 점수 ÷ 전부 PERFECT일 때 점수 (0~1). 안 친 노트는 0점이라 끝까지 쳐야 다 참
+        private float CurrentScoreRatio()
+        {
+            int n = Mathf.Max(1, result.NoteCount);
+            int score = result.Perfect * perfectPoints + result.Good * goodPoints;
+            return Mathf.Clamp01(score / (float)(n * perfectPoints));
+        }
+
+        // 점수 비율 → 등급 (0 쓰레기, 1 기본, 2 상급, 3 최상급). 회오리 피해 작물은 한 단계 낮추고 최대 '기본'
+        private int TierFor(float ratio, bool allPerfect)
+        {
+            bool top = allPerfect || (!topGradeRequiresAllPerfect && ratio >= topGradeRatio);
+            int tier = top ? 3 : ratio >= highGradeRatio ? 2 : ratio >= normalGradeRatio ? 1 : 0;
+            if (context != null && context.StormDamaged) tier = Mathf.Clamp(Mathf.Min(tier - 1, 1), 0, 3); // FarmTile.StormDamagedQuality와 같은 규칙
+            return tier;
+        }
+
+        // 별 s(0 기본, 1 상급, 2 최상급)이 켜지는 점수 비율
+        private float StarThreshold(int s)
+        {
+            if (Storm) return highGradeRatio; // 회오리 피해: 상급 점수를 내야 '기본'(별 1개)
+            if (s == 0) return normalGradeRatio;
+            if (s == 1) return highGradeRatio;
+            return topGradeRequiresAllPerfect ? 1f : topGradeRatio;
+        }
+
+        private bool Storm => context != null && context.StormDamaged;
+
+        private void ResetGauge()
+        {
+            gaugeShown = 0f;
+            gaugeStarsLit = 0;
+            SetGaugeFill(0f);
             for (int s = 0; s < progressStars.Length; s++)
-                progressStars[s].color = prog >= (s + 1) / (float)progressStars.Length - 0.001f ? Gold : new Color(0.3f, 0.4f, 0.6f, 1f);
+            {
+                starPop[s] = 0f;
+                RectTransform rt = progressStars[s].rectTransform;
+                float x = Mathf.Clamp01(StarThreshold(s));
+                rt.anchorMin = rt.anchorMax = new Vector2(x, 0.5f);
+                rt.anchoredPosition = new Vector2(x > 0.97f ? -16f : 0f, 0f); // 맨 끝 별은 바 안쪽으로 살짝
+                rt.localScale = Vector3.one;
+                progressStars[s].color = StarOff;
+                progressStars[s].gameObject.SetActive(!Storm || s == 0); // 회오리 피해 작물은 별 1개까지만 받을 수 있어서 1개만 보임
+            }
+        }
+
+        private static readonly Color StarOff = new Color(0.55f, 0.55f, 0.55f, 1f);       // 아직 못 받음 (회색)
+        private static readonly Color StarLocked = new Color(0.4f, 0.4f, 0.42f, 0.5f);    // 이번엔 못 받게 됨 (흐린 회색)
+
+        // 게이지 채우기
+        // - 채움 이미지에 9-슬라이스 테두리가 있으면(Pill_Green 등) 이미지 폭을 줄였다 늘렸다 함 → 둥근 끝이 안 찌그러짐
+        // - 테두리가 없으면 예전처럼 Filled(가로 채우기)
+        private void SetGaugeFill(float v)
+        {
+            if (progressFill == null) return;
+            Sprite sp = progressFill.sprite;
+            if (sp != null && sp.border.sqrMagnitude > 0f)
+            {
+                if (progressFill.type != Image.Type.Sliced) progressFill.type = Image.Type.Sliced;
+                RectTransform rt = progressFill.rectTransform;
+                RectTransform back = rt.parent as RectTransform;
+                // 끝 모양(테두리)보다 짧아지면 찌그러지므로 아주 조금 찼을 땐 숨김
+                float minWidth = back != null ? (sp.border.x + sp.border.z) / Mathf.Max(0.01f, progressFill.pixelsPerUnitMultiplier) / Mathf.Max(1f, back.rect.width) : 0f;
+                progressFill.enabled = v > 0.001f;
+                rt.anchorMin = new Vector2(0f, rt.anchorMin.y);
+                rt.anchorMax = new Vector2(Mathf.Max(v, Mathf.Min(minWidth, 1f) * (v > 0.001f ? 1f : 0f)), rt.anchorMax.y);
+                rt.offsetMin = new Vector2(0f, rt.offsetMin.y);
+                rt.offsetMax = new Vector2(0f, rt.offsetMax.y);
+            }
+            else
+            {
+                progressFill.enabled = true;
+                if (progressFill.type != Image.Type.Filled)
+                {
+                    progressFill.type = Image.Type.Filled;
+                    progressFill.fillMethod = Image.FillMethod.Horizontal;
+                }
+                progressFill.fillAmount = v;
+            }
+        }
+        private static readonly Color ResultStarOff = new Color(0.55f, 0.5f, 0.45f, 0.35f); // 결과창에서 못 받은 별
+
+        // 켜진 별 색: 0 기본 = 흰색, 1 상급 = 금색, 2 최상급 = 무지개 (시간에 따라 색이 돎)
+        private Color StarLitColor(int s)
+        {
+            if (s == 0) return starNormalColor;
+            if (s == 1) return starHighColor;
+            float h = Mathf.Repeat(Time.unscaledTime * rainbowSpeed, 1f);
+            return Color.HSVToRGB(h, rainbowSaturation, 1f);
+        }
+
+        // 별마다 테두리를 붙임 (흰 별이 크림색 결과창·밝은 배경에서도 보이게). 이미 Outline이 있으면 그대로 둠
+        private void EnsureStarOutlines()
+        {
+            foreach (Image[] set in new[] { progressStars, resultStars })
+                foreach (Image img in set)
+                {
+                    if (img == null || img.GetComponent<Outline>() != null) continue;
+                    Outline o = img.gameObject.AddComponent<Outline>();
+                    o.effectColor = starOutlineColor;
+                    o.effectDistance = new Vector2(2f, -2f);
+                }
+        }
+
+        private void UpdateGauge(float dt)
+        {
+            // 게이지는 실제 점수를 부드럽게 따라 차오름
+            float target = CurrentScoreRatio();
+            gaugeShown = Mathf.MoveTowards(gaugeShown, target, dt * 1.2f);
+            SetGaugeFill(gaugeShown);
+
+            // 보이는 게이지 기준 등급 → 켜진 별 개수 (게이지가 기준선에 닿는 순간 별이 켜짐)
+            bool allPerfectShown = result.NoteCount > 0 && result.Perfect == result.NoteCount && gaugeShown >= 0.999f;
+            int lit = TierFor(gaugeShown, allPerfectShown);
+
+            // 더 못 받게 된 별: 최상급(ALL PERFECT 필요)인데 이미 PERFECT가 아닌 판정이 있음 / 회오리 피해로 기본까지만
+            bool topLost = topGradeRequiresAllPerfect && (result.Good + result.Miss) > 0;
+            bool storm = Storm;
+            // 남은 노트를 전부 PERFECT로 쳐도 못 닿는 점수인지
+            int remain = result.NoteCount - (result.Perfect + result.Good + result.Miss);
+            float bestPossible = Mathf.Clamp01((result.Perfect * perfectPoints + result.Good * goodPoints + remain * perfectPoints)
+                                               / (float)(Mathf.Max(1, result.NoteCount) * perfectPoints));
+
+            for (int s = 0; s < progressStars.Length; s++)
+            {
+                bool on = s < lit;
+                if (on && s >= gaugeStarsLit)
+                {
+                    starPop[s] = 1f; // 새로 켜진 별: 톡 커졌다가 돌아옴 + 소리
+                    sfxSource.PlayOneShot(genAccent, sfxVolume);
+                }
+                bool unreachable = (s == 2 && topLost) || (storm && s >= 1) || bestPossible < StarThreshold(s) - 0.0001f;
+                progressStars[s].color = on ? StarLitColor(s) : unreachable ? StarLocked : StarOff;
+
+                starPop[s] = Mathf.Max(0f, starPop[s] - dt * 3f);
+                progressStars[s].rectTransform.localScale = Vector3.one * (1f + 0.6f * starPop[s] * starPop[s]);
+            }
+            gaugeStarsLit = lit;
         }
 
         private void UpdateEffects(float dt)
@@ -918,13 +1077,14 @@ namespace FarmingSystem.Rhythm
 
         private void BuildUI()
         {
-            discSprite = MakeCircleSprite(256, 0f, 0f);
-            ringSprite = MakeCircleSprite(256, 0.05f, 0f);
-            thickRingSprite = MakeCircleSprite(256, 0.12f, 0.35f);
-            arrowSprite = MakeArrowSprite(128);
-            starSprite = MakeStarSprite(128);
-            roundSprite = MakeRoundedSprite(64, 24);
-            noteSprite = MakeNoteSprite(128);
+            // 그림이 이미 있으면(씬에 만들기 메뉴가 저장해 둔 그림) 그걸 씀
+            if (discSprite == null) discSprite = MakeCircleSprite(256, 0f, 0f);
+            if (ringSprite == null) ringSprite = MakeCircleSprite(256, 0.05f, 0f);
+            if (thickRingSprite == null) thickRingSprite = MakeCircleSprite(256, 0.12f, 0.35f);
+            if (arrowSprite == null) arrowSprite = MakeArrowSprite(128);
+            if (starSprite == null) starSprite = MakeStarSprite(128);
+            if (roundSprite == null) roundSprite = MakeRoundedSprite(64, 24);
+            if (noteSprite == null) noteSprite = MakeNoteSprite(128);
 
             var canvasGO = new GameObject("HarvestRhythmCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             canvasGO.transform.SetParent(transform, false);
@@ -1008,8 +1168,7 @@ namespace FarmingSystem.Rhythm
             for (int s = 0; s < progressStars.Length; s++)
             {
                 progressStars[s] = CreateImage("Star", fillBack.rectTransform, starSprite, Color.gray);
-                float x = (s + 1) / (float)progressStars.Length;
-                SetAnchored(progressStars[s].rectTransform, new Vector2(x, 0.5f), new Vector2(-24f, 0f), Vector2.one * 44f);
+                SetAnchored(progressStars[s].rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * 44f); // 위치는 ResetGauge에서 기준선에 맞춤
             }
 
             // ---- 콤보 ----
@@ -1070,7 +1229,7 @@ namespace FarmingSystem.Rhythm
             for (int i = 0; i < resultStars.Length; i++)
             {
                 resultStars[i] = CreateImage("Star", panel.rectTransform, starSprite, Gold);
-                SetAnchored(resultStars[i].rectTransform, new Vector2(0.5f, 1f), new Vector2((i - 1.5f) * 62f, -205f), Vector2.one * 54f);
+                SetAnchored(resultStars[i].rectTransform, new Vector2(0.5f, 1f), new Vector2((i - (resultStars.Length - 1) * 0.5f) * 70f, -205f), Vector2.one * 54f);
             }
             resultBody = CreateText("Body", panel.rectTransform, 30f, FontStyles.Normal);
             resultBody.color = Brown;
@@ -1105,6 +1264,172 @@ namespace FarmingSystem.Rhythm
                 resultTitle.color = Color.white;
             }
         }
+
+        // 씬에 놓인 UI 연결 (코드로 만들지 않고 그대로 사용)
+        private void LoadSceneUI(HarvestRhythmUI ui)
+        {
+            canvas = ui.canvas;
+            canvasRect = (RectTransform)canvas.transform;
+            hudRoot = ui.hudRoot;
+            resultPanel = ui.resultPanel;
+            judgeRoot = ui.judgeRoot;
+            judgeRing = ui.judgeRing;
+            judgeGlow = ui.judgeGlow;
+            arrowImage = ui.arrowImage;
+            arrowShadow = ui.arrowShadow;
+            nextArrow = ui.nextArrow;
+            rings.Clear();
+            foreach (Image r in ui.approachRings)
+                if (r != null) { r.gameObject.SetActive(false); rings.Add(new Ring { Image = r }); }
+            popupText = ui.popupText;
+            countdownText = ui.countdownText;
+            goalIcon = ui.goalIcon;
+            goalText = ui.goalText;
+            comboText = ui.comboText;
+            remainText = ui.remainText;
+            progressFill = ui.progressFill;
+            guideText = ui.guideText;
+            resultTitle = ui.resultTitle;
+            resultBody = ui.resultBody;
+            CopyInto(ui.progressStars, progressStars);
+            CopyInto(ui.keyBacks, keyBacks);
+            CopyInto(ui.keyArrows, keyArrows);
+            CopyInto(ui.keyShadows, keyShadows);
+            CopyInto(ui.focusCorners, focusCorners);
+            CopyInto(ui.resultStars, resultStars);
+            if (ui.arrowSprite != null) arrowSprite = ui.arrowSprite;
+            else if (arrowSprite == null) arrowSprite = MakeArrowSprite(128);
+            if (resultPanel != null) resultPanel.SetActive(false);
+
+            string missing = "";
+            if (judgeRoot == null) missing += " JudgeRoot";
+            if (judgeRing == null) missing += " JudgeRing";
+            if (arrowImage == null) missing += " Arrow";
+            if (progressFill == null) missing += " Fill";
+            if (rings.Count == 0) missing += " ApproachRing";
+            if (missing.Length > 0)
+                Debug.LogError($"[HarvestRhythmGame] 씬 UI 연결이 끊겼어요:{missing}\n→ 지운 오브젝트가 있으면 '리듬게임 UI 씬에 만들기'로 다시 만들어 주세요 (안 쓰는 UI는 지우지 말고 체크를 꺼서 숨기기)");
+        }
+
+        private static void CopyInto(Image[] from, Image[] to)
+        {
+            for (int i = 0; i < to.Length; i++) to[i] = from != null && i < from.Length ? from[i] : null;
+        }
+
+#if UNITY_EDITOR
+        // ---------- 에디터 미리보기: 플레이 안 해도 씬에서 별 위치·색과 게이지 모양이 실제와 같게 보이게 ----------
+
+        // 인스펙터 값(등급 기준·별 색)을 바꾸거나 씬을 열 때 자동으로 갱신
+        private void OnValidate()
+        {
+            if (Application.isPlaying) return;
+            UnityEditor.EditorApplication.delayCall -= EditorPreview;
+            UnityEditor.EditorApplication.delayCall += EditorPreview; // OnValidate 안에서 다른 오브젝트를 바로 바꾸면 경고가 나서 한 박자 뒤에
+        }
+
+        [ContextMenu("씬 UI 미리보기 갱신 (게이지 60%)")]
+        private void EditorPreview()
+        {
+            if (this == null || Application.isPlaying) return;
+            HarvestRhythmUI ui = sceneUI != null ? sceneUI : GetComponentInChildren<HarvestRhythmUI>(true);
+            if (ui == null || ui.progressFill == null) return;
+
+            const float preview = 0.6f; // 미리보기: 60% 찼을 때 (기본 별만 켜짐)
+            progressFill = ui.progressFill;
+            SetGaugeFill(preview);
+            UnityEditor.EditorUtility.SetDirty(progressFill.rectTransform);
+            UnityEditor.EditorUtility.SetDirty(progressFill);
+
+            for (int s = 0; s < ui.progressStars.Length && s < 3; s++)
+            {
+                Image star = ui.progressStars[s];
+                if (star == null) continue;
+                RectTransform rt = star.rectTransform;
+                float x = Mathf.Clamp01(s == 0 ? normalGradeRatio : s == 1 ? highGradeRatio : topGradeRequiresAllPerfect ? 1f : topGradeRatio);
+                rt.anchorMin = rt.anchorMax = new Vector2(x, 0.5f);
+                rt.anchoredPosition = new Vector2(x > 0.97f ? -16f : 0f, 0f);
+                bool on = s == 0 ? preview >= normalGradeRatio : s == 1 ? preview >= highGradeRatio : false;
+                star.color = on ? (s == 0 ? starNormalColor : starHighColor) : StarOff;
+                UnityEditor.EditorUtility.SetDirty(rt);
+                UnityEditor.EditorUtility.SetDirty(star);
+            }
+            // 결과창 별 미리보기: 상급(별 2개)
+            for (int s = 0; s < ui.resultStars.Length; s++)
+                if (ui.resultStars[s] != null)
+                {
+                    ui.resultStars[s].color = s == 0 ? starNormalColor : s == 1 ? starHighColor : ResultStarOff;
+                    UnityEditor.EditorUtility.SetDirty(ui.resultStars[s]);
+                }
+            progressFill = null; // 플레이 때 Awake에서 다시 연결
+        }
+
+        // ---------- 에디터 전용: "리듬게임 UI 씬에 만들기" 메뉴가 부름 ----------
+
+        /// <summary>코드가 그리는 기본 그림 7개 (원, 고리, 굵은 고리, 화살표, 별, 둥근 사각형, 음표) - 메뉴가 PNG로 저장</summary>
+        public Sprite[] EditorMakeDefaultSprites()
+        {
+            return new[]
+            {
+                MakeCircleSprite(256, 0f, 0f), MakeCircleSprite(256, 0.05f, 0f), MakeCircleSprite(256, 0.12f, 0.35f),
+                MakeArrowSprite(128), MakeStarSprite(128), MakeRoundedSprite(64, 24), MakeNoteSprite(128),
+            };
+        }
+
+        /// <summary>저장된 그림으로 UI를 씬에 만들고 연결표(HarvestRhythmUI)를 채움</summary>
+        public HarvestRhythmUI EditorBuildSceneUI(Sprite[] saved)
+        {
+            discSprite = saved[0]; ringSprite = saved[1]; thickRingSprite = saved[2];
+            arrowSprite = saved[3]; starSprite = saved[4]; roundSprite = saved[5]; noteSprite = saved[6];
+            rings.Clear();
+            for (int i = 0; i < focusCorners.Length; i++) focusCorners[i] = null;
+            ResolveFont();
+            BuildUI();
+
+            HarvestRhythmUI ui = canvas.gameObject.AddComponent<HarvestRhythmUI>();
+            ui.canvas = canvas;
+            ui.hudRoot = hudRoot;
+            ui.resultPanel = resultPanel;
+            ui.judgeRoot = judgeRoot;
+            ui.judgeRing = judgeRing;
+            ui.judgeGlow = judgeGlow;
+            ui.arrowImage = arrowImage;
+            ui.arrowShadow = arrowShadow;
+            ui.nextArrow = nextArrow;
+            ui.approachRings = new Image[rings.Count];
+            for (int i = 0; i < rings.Count; i++) ui.approachRings[i] = rings[i].Image;
+            ui.popupText = popupText;
+            ui.countdownText = countdownText;
+            ui.focusCorners = (Image[])focusCorners.Clone();
+            ui.goalIcon = goalIcon;
+            ui.goalText = goalText;
+            ui.comboText = comboText;
+            ui.remainText = remainText;
+            ui.progressFill = progressFill;
+            ui.progressStars = (Image[])progressStars.Clone();
+            ui.keyBacks = (Image[])keyBacks.Clone();
+            ui.keyArrows = (Image[])keyArrows.Clone();
+            ui.keyShadows = (Image[])keyShadows.Clone();
+            ui.guideText = guideText;
+            ui.resultTitle = resultTitle;
+            ui.resultBody = resultBody;
+            ui.resultStars = (Image[])resultStars.Clone();
+            ui.arrowSprite = arrowSprite;
+
+            // 미리보기용 글자 (플레이하면 코드가 실제 값으로 바꿈)
+            if (goalText != null) goalText.text = $"<size=60%><color=#{ColorUtility.ToHtmlStringRGB(LeafGreen)}>수확 목표</color></size>\n0 / 12개";
+            if (comboText != null) comboText.text = "<size=40%>COMBO</size>\n00";
+            if (remainText != null) remainText.text = "<size=60%>남은 노트</size>\n12개";
+            if (popupText != null) popupText.text = "PERFECT!";
+            if (resultTitle != null) resultTitle.text = "수확 완료!";
+            if (resultBody != null) resultBody.text = "<size=120%><b>작물 이름</b></size>\n\n\n등급  <b>상급</b>   ·   수확량  <b>3개</b>";
+            if (progressFill != null) SetGaugeFill(0.6f);
+
+            sceneUI = ui;
+            ownedTextures.Clear(); // 저장된 그림을 쓰므로 지울 텍스처 없음
+            EditorPreview();
+            return ui;
+        }
+#endif
 
         // 디자이너 이미지가 있으면 바꿔 끼움. 9-슬라이스 테두리가 설정된 이미지면 크기가 바뀌어도 모서리가 안 늘어남
         private static bool Skin(Image img, Sprite sprite)
