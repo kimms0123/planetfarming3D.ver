@@ -12,6 +12,8 @@ namespace FarmingSystem.Player
     //   · 점프 입력 버퍼: 착지 직전에 미리 누른 점프도 착지하자마자 실행됨
     // - 달리기·점프는 키보드를 직접 읽음 (PlayerInput 액션 설정을 건드리지 않아도 바로 동작)
     // - 상점 등 UI가 열려 있으면 이동·달리기·점프 모두 막음 (중력은 계속 적용)
+    // - 애니메이션: 자식 모델의 Animator에 Speed(Float)·Jump(Trigger)를 넘겨줌
+    //   · 심기/물주기/괭이질은 PlayPlant()/PlayWater()/PlayHoe()로 재생하고, 동작이 끝날 때까지 이동을 막음
     [RequireComponent(typeof(CharacterController))]
     public class PlayerController : MonoBehaviour
     {
@@ -39,6 +41,21 @@ namespace FarmingSystem.Player
 
         [Header("참조")]
         [SerializeField] private Transform cameraTransform;
+        [Tooltip("자식 모델(SpaceFarmer_AllClips)의 Animator. 비워두면 자식에서 자동으로 찾음")]
+        [SerializeField] private Animator animator;
+
+        [Header("농사 동작 길이 (초) - 이 시간 동안 이동을 막음")]
+        [SerializeField] private float plantDuration = 3.2f;   // Plant_Seed 96프레임
+        [SerializeField] private float waterDuration = 2.4f;   // Watering 72프레임
+        [SerializeField] private float hoeDuration = 1.7f;     // Hoe_Till_Once 51프레임
+
+        // Animator 파라미터 (이름을 바꾸면 Animator Controller 쪽도 같이 바꿔야 함)
+        private static readonly int SpeedHash = Animator.StringToHash("Speed");
+        private static readonly int JumpHash = Animator.StringToHash("Jump");
+        private static readonly int PlantHash = Animator.StringToHash("Plant");
+        private static readonly int WaterHash = Animator.StringToHash("Water");
+        private static readonly int HoeHash = Animator.StringToHash("Hoe");
+        private float actionEndTime = -999f;
 
         private CharacterController controller;
         private Vector3 verticalVelocity;
@@ -54,12 +71,16 @@ namespace FarmingSystem.Player
         public bool IsRunning { get; private set; }
         public bool IsGrounded => controller != null && controller.isGrounded;
         public float CurrentSpeed => horizontalVelocity.magnitude;
+        // 심기·물주기·괭이질 동작 중이면 true (이 동안 이동·점프 불가)
+        public bool IsBusy => Time.time < actionEndTime;
 
         private void Awake()
         {
             controller = GetComponent<CharacterController>();
             if (cameraTransform == null && Camera.main != null)
                 cameraTransform = Camera.main.transform;
+            if (animator == null)
+                animator = GetComponentInChildren<Animator>();
         }
 
         public void OnMove(InputValue value)
@@ -69,7 +90,7 @@ namespace FarmingSystem.Player
 
         private void Update()
         {
-            bool blocked = UIInputBlocker.IsBlocked;
+            bool blocked = UIInputBlocker.IsBlocked || IsBusy;
             Keyboard kb = Keyboard.current;
 
             Vector2 input = blocked ? Vector2.zero : moveInput;
@@ -109,6 +130,10 @@ namespace FarmingSystem.Player
 
             // 수평 + 수직 이동을 한 번에 (두 번 나눠 Move하면 isGrounded가 흔들림)
             controller.Move((horizontalVelocity + verticalVelocity) * Time.deltaTime);
+
+            // 애니메이션: 실제 수평 속도 (걷기 4, 달리기 7 → Animator에서 Speed > 5면 Run)
+            if (animator != null)
+                animator.SetFloat(SpeedHash, horizontalVelocity.magnitude, 0.1f, Time.deltaTime);
         }
 
         // 점프와 중력
@@ -121,6 +146,7 @@ namespace FarmingSystem.Player
             {
                 // 원하는 높이까지 올라가는 데 필요한 초기 속도: v = √(2·h·|g|)
                 verticalVelocity.y = Mathf.Sqrt(2f * jumpHeight * -gravity);
+                if (animator != null) animator.SetTrigger(JumpHash);
                 lastJumpPressedTime = -999f;
                 lastGroundedTime = -999f; // 같은 점프로 두 번 뛰지 않게
                 return;
@@ -145,6 +171,22 @@ namespace FarmingSystem.Player
 
             FacingDirection = dir.normalized;
             pendingFacing = Quaternion.LookRotation(FacingDirection, Vector3.up);
+        }
+
+        // 농사 동작 재생 (농사 시스템에서 호출). 바라볼 지점을 주면 그쪽으로 돌아선 뒤 동작함
+        // 이미 다른 동작 중이면 무시하고 false를 돌려줌
+        public bool PlayPlant(Vector3? lookAt = null) => PlayAction(PlantHash, plantDuration, lookAt);
+        public bool PlayWater(Vector3? lookAt = null) => PlayAction(WaterHash, waterDuration, lookAt);
+        public bool PlayHoe(Vector3? lookAt = null) => PlayAction(HoeHash, hoeDuration, lookAt);
+
+        private bool PlayAction(int trigger, float duration, Vector3? lookAt)
+        {
+            if (IsBusy || !controller.isGrounded) return false;
+            if (lookAt.HasValue) FaceTowards(lookAt.Value);
+            horizontalVelocity = Vector3.zero;     // 미끄러지며 동작하지 않게 즉시 멈춤
+            actionEndTime = Time.time + duration;
+            if (animator != null) animator.SetTrigger(trigger);
+            return true;
         }
 
         private Vector3 CalculateCameraRelativeDirection(Vector2 input)

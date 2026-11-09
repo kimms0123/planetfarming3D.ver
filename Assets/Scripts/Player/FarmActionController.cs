@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections;
+using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using FarmingSystem.Core;
@@ -58,6 +59,16 @@ namespace FarmingSystem.Player
         [SerializeField] private int tillMinutes = 30;
         [SerializeField] private int plantMinutes = 30;
         [SerializeField] private int waterMinutes = 20;
+
+        [Header("캐릭터 동작 (밭 갈기·물주기·씨앗 심기)")]
+        [Tooltip("켜면 동작 중 도구가 땅에 닿는 순간에 밭 상태가 바뀜. 끄면 클릭하자마자 바뀜")]
+        [SerializeField] private bool applyAtImpact = true;
+        [Tooltip("괭이가 땅을 찍는 시점 (초). Hoe_Till_Once는 1.0초")]
+        [SerializeField] private float tillImpactDelay = 1.0f;
+        [Tooltip("물이 땅에 닿기 시작하는 시점 (초)")]
+        [SerializeField] private float waterImpactDelay = 0.8f;
+        [Tooltip("씨앗이 땅에 놓이는 시점 (초)")]
+        [SerializeField] private float plantImpactDelay = 1.6f;
 
         private bool pointerOverUI;
         private PlayerController playerController;
@@ -132,6 +143,8 @@ namespace FarmingSystem.Player
         {
             // 상점 등 UI가 열려 있거나, 마우스가 UI(핫바 등) 위에 있으면 농사 행동 안 함
             if (UIInputBlocker.IsBlocked || pointerOverUI) return;
+            // 밭 갈기·물주기·심기 동작이 끝나기 전에는 다음 행동을 받지 않음
+            if (playerController != null && playerController.IsBusy) return;
 
             if (FarmGrid.Instance == null || targetCamera == null || InventoryManager.Instance == null)
             {
@@ -192,24 +205,37 @@ namespace FarmingSystem.Player
                 case FarmActionType.Plant:
                     {
                         SeedData seed = inventory.CurrentSeed;
-                        if (tile.Plant(seed, cropParentContainer))
+                        int slot = inventory.SelectedHotbarIndex; // 동작 중 핫바를 바꿔도 처음 고른 칸에서 소모
+                        playerController?.PlayPlant(tile.Center);
+                        RunAfter(plantImpactDelay, () =>
                         {
-                            // 심은 씨앗 1개 소모
-                            inventory.RemoveFromSlot(inventory.SelectedHotbarIndex, 1);
-                            Debug.Log($"[씨앗심기] {seed.itemName} 심기 성공");
-                            GameClock.Instance?.AdvanceMinutes(plantMinutes);
-                        }
+                            if (tile.Plant(seed, cropParentContainer))
+                            {
+                                // 심은 씨앗 1개 소모
+                                inventory.RemoveFromSlot(slot, 1);
+                                Debug.Log($"[씨앗심기] {seed.itemName} 심기 성공");
+                                GameClock.Instance?.AdvanceMinutes(plantMinutes);
+                            }
+                        });
                         break;
                     }
 
                 case FarmActionType.Till:
-                    if (tile.TryTill())
-                        GameClock.Instance?.AdvanceMinutes(tillMinutes);
+                    playerController?.PlayHoe(tile.Center);
+                    RunAfter(tillImpactDelay, () =>
+                    {
+                        if (tile.TryTill())
+                            GameClock.Instance?.AdvanceMinutes(tillMinutes);
+                    });
                     break;
 
                 case FarmActionType.Water:
-                    if (tile.Water())
-                        GameClock.Instance?.AdvanceMinutes(waterMinutes);
+                    playerController?.PlayWater(tile.Center);
+                    RunAfter(waterImpactDelay, () =>
+                    {
+                        if (tile.Water())
+                            GameClock.Instance?.AdvanceMinutes(waterMinutes);
+                    });
                     break;
 
                 case FarmActionType.None:
@@ -223,6 +249,19 @@ namespace FarmingSystem.Player
                         Debug.Log($"[수확 보류] 가방 공간 부족 ({tile.CurrentCrop.Data.cropName} {tile.CurrentCrop.Data.expectedYield}개를 넣을 자리가 없음)");
                     break;
             }
+        }
+
+        // 동작에 맞춰 밭 상태를 바꿈 (applyAtImpact가 꺼져 있으면 바로 실행)
+        private void RunAfter(float delay, System.Action apply)
+        {
+            if (!applyAtImpact || delay <= 0f) { apply(); return; }
+            StartCoroutine(RunAfterRoutine(delay, apply));
+        }
+
+        private IEnumerator RunAfterRoutine(float delay, System.Action apply)
+        {
+            yield return new WaitForSeconds(delay);
+            apply();
         }
 
         // 수확 리듬게임 시작 → 끝나면 그 결과 등급·수확량으로 실제 수확
