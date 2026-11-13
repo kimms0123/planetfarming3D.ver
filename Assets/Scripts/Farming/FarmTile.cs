@@ -162,6 +162,29 @@ namespace FarmingSystem.Farming
             }
         }
 
+        /// <summary>
+        /// 저장 불러오기: 밭 상태·물·작물을 저장된 그대로 되돌림 (계절 검사 없이 바로 심음)
+        /// crop이 null이면 작물 없음
+        /// </summary>
+        public void RestoreSave(TileState savedState, bool watered, CropData crop, int growthDay, bool withered, bool stormDamaged, int daysSinceReady)
+        {
+            if (CurrentCrop != null) { Destroy(CurrentCrop.gameObject); CurrentCrop = null; }
+            state = savedState;
+            isWatered = watered && savedState == TileState.Tilled;
+
+            if (crop != null && savedState == TileState.Tilled)
+            {
+                GameObject cropObj = new GameObject($"Crop_{crop.cropName}");
+                Transform anchor = cropAnchor != null ? cropAnchor : transform;
+                cropObj.transform.SetParent(anchor);
+                cropObj.transform.position = GetSurfacePosition();
+                cropObj.transform.localScale = transform.lossyScale * cropScaleMultiplier;
+                CurrentCrop = cropObj.AddComponent<CropInstance>();
+                CurrentCrop.RestoreSave(crop, growthDay, withered, stormDamaged, daysSinceReady);
+            }
+            RefreshVisual();
+        }
+
         public bool TryTill()
         {
             if (state != TileState.Natural)

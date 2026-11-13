@@ -38,6 +38,12 @@ namespace FarmingSystem.Building
             }
         }
 
+        /// <summary>저장 불러오기: 공사 중인 건물의 완성 날짜를 저장된 값으로 되돌림</summary>
+        public void RestoreCompleteDay(int day)
+        {
+            if (State == BuildState.UnderConstruction) CompleteDay = day;
+        }
+
         public void OnNewDay(int day)
         {
             if (State == BuildState.UnderConstruction && day >= CompleteDay) Complete();

@@ -1,4 +1,5 @@
 using UnityEngine;
+using FarmingSystem.Effects;
 
 namespace FarmingSystem.Farming
 {
@@ -34,6 +35,19 @@ namespace FarmingSystem.Farming
             IsWithered = false;
             Debug.Log($"[작물 초기화] {Data.cropName} - 성장 스테이지 프리팹 {(Data.growthStagePrefabs != null ? Data.growthStagePrefabs.Length : 0)}개 등록됨");
             RefreshVisual();
+        }
+
+        /// <summary>저장 불러오기: 성장일·시듦·회오리 피해·방치 일수를 그대로 되돌림 (반짝이 없이 바로 그 모습으로)</summary>
+        public void RestoreSave(CropData data, int growthDay, bool withered, bool stormDamaged, int daysSinceReady)
+        {
+            Data = data;
+            CurrentGrowthDay = Mathf.Clamp(growthDay, 0, data.totalGrowthDays);
+            IsWithered = false;
+            IsStormDamaged = stormDamaged;
+            DaysSinceReady = Mathf.Max(0, daysSinceReady);
+            currentStageIndex = -1;
+            RefreshVisual();           // 처음 만드는 모습이라 반짝이 없음 (회오리 피해 색도 여기서 칠해짐)
+            if (withered) Wither();    // 시든 모습으로
         }
 
         /// <summary>하루치 성장 진행. 물을 준 날에만 FarmTile이 호출한다.</summary>
@@ -130,6 +144,7 @@ namespace FarmingSystem.Farming
 
             int stage = Data.GetStageIndex(CurrentGrowthDay);
             if (stage == currentStageIndex) return;
+            bool grewUp = currentStageIndex >= 0; // 처음 심을 때가 아니라 자라서 모습이 바뀐 경우
 
             if (currentStageObject != null)
                 Destroy(currentStageObject);
@@ -146,6 +161,7 @@ namespace FarmingSystem.Farming
             }
             currentStageIndex = stage;
             if (IsStormDamaged) TintCurrent(StormDamagedTint); // 자라서 모델이 바뀌어도 피해 색 유지
+            if (grewUp && currentStageObject != null) FarmFX.CropGrew(currentStageObject, IsReadyToHarvest); // 톡 튀어나옴 + 반짝이
         }
     }
 }

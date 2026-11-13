@@ -1,635 +1,590 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
+#if UNITY_EDITOR
+using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using FarmingSystem.Inventory;
-using FarmingSystem.Economy;
-using FarmingSystem.Farming;
+using FarmingSystem.UI.Shop;
 
-namespace FarmingSystem.UI.Shop
+namespace FarmingSystem.EditorTools
 {
-    /// <summary>
-    /// "팔 때" 창. 인벤토리 30칸을 보여주고, 클릭한 작물을 "선택한 물품" 목록에 담아
-    /// [바로 판매]로 한 번에 판다. 오늘의 특별 상품도 함께 표시한다.
-    ///
-    /// 흥정 (창 아래 "예상 판매 금액" 칸에서 바로 진행 - 화면 전환 없음)
-    /// 1. [흥정하기] → 예상 판매 금액 자리가 금액 입력 칸으로 바뀜 (버튼: [제안하기] / [흥정 취소])
-    /// 2. 원하는 금액 입력 → [제안하기] 또는 Enter
-    /// 3. 상인이 고민 (제안 금액이 바들바들 떨림)
-    /// 4. 수락: 금액이 제안한 값까지 쭉 바뀜 → [바로 판매] 때 그 금액을 받음
-    ///    거절: 원래 금액 그대로 (담은 물품을 바꾸기 전까지 다시 흥정 불가)
-    /// 수락 확률은 흥정 모델(BargainModel)이 정함 - 연출은 그대로 두고 판단만 바꿔 끼우는 구조
-    ///  - Bargain Model 칸이 비어 있으면: 기본 규칙 (Safe Ratio 110%까지 항상 수락 → Max Ratio 150%로 갈수록 줄어듦 → 그 이상 거절)
-    ///  - 나중에 FCM/RBFN 모델(BargainModel 상속 에셋)을 만들어 그 칸에 넣으면 끝 (이 파일은 안 고쳐도 됨)
-    ///  - 모델 입력 = BargainContext (제안 배율, 거래 규모, 품질, 특별 상품, 제철, 시도 횟수, 누적 성공률, 날씨)
-    ///  - Log Bargains를 켜면 흥정마다 특징값 + 결과가 CSV로 쌓임 → 학습 데이터
-    /// </summary>
-    public class ShopSellPanelUI : MonoBehaviour
+    // 상점 "팔 때" 창 자동 생성 도구
+    // 메뉴: Tools → 행성농사일지 → 상점 판매 창 자동 생성
+    // 하는 일:
+    //  1) 판매 슬롯 프리팹(ShopSellSlot)과 선택 목록 한 줄 프리팹(SellCartRow)을 Assets/Prefabs/UI/Shop에 만듦
+    //  2) 구매 창과 같은 Canvas 아래에 SellPanel(1300x700)을 만들고 ShopSellPanelUI의 모든 칸을 자동 연결
+    //  3) 씬의 ShopDialogueUI에 Sell Panel을 자동 연결
+    // 레이아웃 (구매 창과 같은 구성): 화면 전체를 덮지 않고 실제 3D 상인이 보이게
+    //   왼쪽 아래 = 구매 창 말풍선·이름표 복사본 (상인 대사) / 오른쪽 = 품목 창(ContentFrame, 오른쪽에서 미끄러져 들어옴)
+    //   품목 창: 오늘의 특별 상품 / 내 인벤토리(8칸씩, 스크롤) / 선택한 물품 목록 + 예상 금액 + 버튼
+    // 색은 핫바 UI 시안(크림·갈색) 톤. 이미지는 유니티 기본 둥근 사각형이라, 디자이너 이미지가 나오면 Source Image만 바꾸면 됨
+    // 이미 판매 창이 있으면 지우고 다시 만들지 물어봄
+    public static class ShopSellPanelBuilder
     {
-        [SerializeField] private GameObject panelRoot;
-        [SerializeField] private TextMeshProUGUI merchantLineText;
+        private const string PrefabFolder = "Assets/Prefabs/UI/Shop";
 
-        [Header("내 인벤토리")]
-        [SerializeField] private Transform slotContainer;
-        [SerializeField] private ShopSellSlotUI slotPrefab;
+        private static readonly Color Cream = Hex("F6EDD5");
+        private static readonly Color CreamDark = Hex("E3D3AE");
+        private static readonly Color Tan = Hex("D7C69F");
+        private static readonly Color Brown = Hex("C7A588");
+        private static readonly Color Border = Hex("B98C74");
+        private static readonly Color TextBrown = Hex("5C4030");
+        private static readonly Color Green = Hex("6BBF59");
+        private static readonly Color Red = Hex("D9776B");
+        private static readonly Color White = Hex("FFFDF6");
 
-        [Header("선택한 물품")]
-        [SerializeField] private Transform cartContainer;
-        [SerializeField] private SellCartRowUI cartRowPrefab;
-        [SerializeField] private TextMeshProUGUI expectedTotalText;
-        [SerializeField] private Button clearAllButton;
-        [SerializeField] private Button sellNowButton;
-        [SerializeField] private Button bargainButton;
-        [SerializeField] private Button cancelButton;
+        private static Sprite rounded;
+        private static TMP_FontAsset font;
 
-        [Header("오늘의 특별 상품 표시 (선택 사항)")]
-        [SerializeField] private Image specialItemIcon;
-        [SerializeField] private TextMeshProUGUI specialItemText;
-
-        [Header("대사")]
-        [SerializeField] private string greetLine = "어떤 작물을 팔고 싶어?";
-        [Tooltip("{0} 자리에 받은 금액이 들어간다")]
-        [SerializeField] private string soldLine = "고마워! {0}에 사 갈게.";
-        [SerializeField] private string failedLine = "음... 지금은 거래하기 어렵겠는걸.";
-
-        [Header("흥정")]
-        [Tooltip("끄면 흥정하기 버튼이 비활성")]
-        [SerializeField] private bool bargainEnabled = true;
-        [Tooltip("흥정 판단 모델 (BargainModel 에셋). 비우면 아래 Safe/Max Ratio 기본 규칙\n나중에 FCM/RBFN 모델 에셋을 여기에 넣으면 됨")]
-        [SerializeField] private BargainModel bargainModel;
-        [Tooltip("흥정할 때마다 특징값과 결과를 CSV로 저장 (FCM/RBFN 학습 데이터용)")]
-        [SerializeField] private bool logBargains = false;
-        [Tooltip("원래 금액의 이 배율까지는 항상 수락 (1.1 = 10% 더까지) - Bargain Model이 비어 있을 때만 씀")]
-        [SerializeField, Range(1f, 2f)] private float safeRatio = 1.1f;
-        [Tooltip("원래 금액의 이 배율 이상은 항상 거절 (1.5 = 50% 더) - Bargain Model이 비어 있을 때만 씀")]
-        [SerializeField, Range(1.01f, 3f)] private float maxRatio = 1.5f;
-        [Tooltip("PV 촬영용: 켜면 얼마를 불러도 항상 수락")]
-        [SerializeField] private bool alwaysAccept = false;
-        [Tooltip("상인이 고민하는 시간 (초)")]
-        [SerializeField] private float bargainThinkTime = 1.4f;
-        [Tooltip("금액이 바뀌는 시간 (초)")]
-        [SerializeField] private float bargainCountTime = 0.9f;
-        [SerializeField] private string bargainAskLine = "얼마를 원하는데?";
-        [SerializeField] private string bargainThinkLine = "흐음";
-        [Tooltip("{0} 자리에 수락한 금액이 들어간다")]
-        [SerializeField] private string bargainAcceptLine = "좋아, {0}에 해 줄게!";
-        [SerializeField] private string bargainCheapLine = "오히려 고맙지! 그 가격에 사 갈게.";
-        [SerializeField] private string bargainRejectLine = "에이, 그 가격은 안 되지~ 원래 가격으로 하자.";
-        [SerializeField] private string bargainInvalidLine = "금액을 숫자로 말해 줘.";
-        [SerializeField] private Color bargainColor = new Color(1f, 0.72f, 0.15f, 1f);
-        [Header("버튼 글자")]
-        [SerializeField] private string bargainLabel = "흥정하기";
-        [SerializeField] private string offerLabel = "제안하기";
-        [SerializeField] private string cancelBargainLabel = "흥정 취소";
-
-        /// <summary>플레이어가 [취소]로 창을 닫았을 때 발행</summary>
-        public event Action Closed;
-
-        public bool IsOpen => panelRoot != null && panelRoot.activeSelf;
-
-        /// <summary>선택 목록 (슬롯 인덱스 -> 수량)</summary>
-        public IReadOnlyDictionary<int, int> Cart => cart;
-
-        private readonly Dictionary<int, int> cart = new Dictionary<int, int>();
-        private readonly List<int> cartOrder = new List<int>(); // 담은 순서대로 표시
-        private readonly List<SellCartRowUI> spawnedRows = new List<SellCartRowUI>();
-        private ShopSellSlotUI[] slotUIs;
-        private bool initialized = false;
-        private bool isSubscribed = false;
-
-        // 흥정 상태 (담은 물품이 바뀌면 처음부터)
-        private enum BargainState { None, Typing, Thinking, Done }
-        private BargainState bargainState = BargainState.None;
-        private long dealTotal = -1;     // 수락된 금액 (-1 = 흥정 안 함/거절)
-        private long lastBaseTotal;
-        private int bargainAttempts;     // 이번에 창을 열고 몇 번 흥정했는지 (모델 입력)
-        private Coroutine bargainRoutine;
-        private TMP_InputField bargainInput;
-        private TextMeshProUGUI bargainButtonText, clearAllButtonText;
-        private string clearAllOriginalLabel;
-        private Color totalBaseColor = Color.white;
-        private bool totalColorSaved;
-
-        private bool Busy => bargainState == BargainState.Typing || bargainState == BargainState.Thinking;
-
-        private void Init()
+        [MenuItem("Tools/행성농사일지/상점 판매 창 자동 생성")]
+        private static void Build()
         {
-            if (initialized) return;
-            if (InventoryManager.Instance == null) return;
-            initialized = true;
+            rounded = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
 
-            slotUIs = new ShopSellSlotUI[InventoryManager.Instance.TotalSlotCount];
-            for (int i = 0; i < slotUIs.Length; i++)
-                slotUIs[i] = Instantiate(slotPrefab, slotContainer);
-
-            clearAllButton.onClick.AddListener(OnClickClearAll);
-            sellNowButton.onClick.AddListener(OnClickSellNow);
-            cancelButton.onClick.AddListener(Cancel);
-            bargainButton.onClick.AddListener(OnClickBargain);
-
-            bargainButtonText = bargainButton.GetComponentInChildren<TextMeshProUGUI>(true);
-            clearAllButtonText = clearAllButton.GetComponentInChildren<TextMeshProUGUI>(true);
-            if (clearAllButtonText != null) clearAllOriginalLabel = clearAllButtonText.text;
-            SetBargainLabels();
-        }
-
-        public void Open()
-        {
-            Init();
-            bargainAttempts = 0;
-            if (panelRoot != null) panelRoot.SetActive(true);
-            Subscribe();
-
-            SetLine(greetLine);
-            RefreshSpecialItem();
-            ClearCart();
-            Debug.Log("[ShopSellPanelUI] 판매 창 열림");
-        }
-
-        /// <summary>창만 닫는다 (대화창이 거래를 끝낼 때 호출). Closed 이벤트는 보내지 않음.</summary>
-        public void Close()
-        {
-            ExitBargain();
-            Unsubscribe();
-            if (panelRoot != null) panelRoot.SetActive(false);
-        }
-
-        /// <summary>플레이어의 취소 ([취소] 버튼, Esc). 흥정 입력 중이면 흥정만 취소, 아니면 창을 닫고 대화 선택지로</summary>
-        public void Cancel()
-        {
-            if (bargainState == BargainState.Typing)
+            Canvas canvas = FindCanvas();
+            if (canvas == null)
             {
-                ExitBargain();
-                SetLine(greetLine);
-                Refresh();
+                EditorUtility.DisplayDialog("판매 창 생성", "씬에서 Canvas를 찾지 못했어요. Canvas를 하나 선택하고 다시 실행해 주세요.", "확인");
                 return;
             }
-            if (bargainState == BargainState.Thinking) return; // 상인이 고민하는 중엔 기다림
-            Close();
-            Closed?.Invoke();
-        }
+            font = FindFont(canvas);
 
-        private void OnDestroy()
-        {
-            Unsubscribe();
-        }
-
-        private void Subscribe()
-        {
-            if (isSubscribed || InventoryManager.Instance == null) return;
-            InventoryManager.Instance.OnInventoryChanged += HandleInventoryChanged;
-            isSubscribed = true;
-        }
-
-        private void Unsubscribe()
-        {
-            if (!isSubscribed) return;
-            if (InventoryManager.Instance != null)
-                InventoryManager.Instance.OnInventoryChanged -= HandleInventoryChanged;
-            isSubscribed = false;
-        }
-
-        // ---------- 선택 목록 ----------
-
-        private void AddToCart(int slotIndex, int amount)
-        {
-            if (Busy) return; // 흥정 중엔 목록 고정
-            InventorySlotData slot = InventoryManager.Instance.GetSlot(slotIndex);
-            if (slot == null || slot.IsEmpty) return;
-
-            cart.TryGetValue(slotIndex, out int current);
-            int max = slot.quantity;
-            int next = amount >= max - current ? max : current + amount; // int.MaxValue가 와도 오버플로 없음
-            SetCartQuantity(slotIndex, next);
-        }
-
-        private void SetCartQuantity(int slotIndex, int quantity)
-        {
-            if (Busy) return;
-            ResetBargain(); // 물품이 바뀌면 흥정 다시
-
-            InventorySlotData slot = InventoryManager.Instance.GetSlot(slotIndex);
-            int max = slot != null ? slot.quantity : 0;
-            quantity = Mathf.Clamp(quantity, 0, max);
-
-            if (quantity == 0)
+            ShopSellPanelUI existing = Object.FindAnyObjectByType<ShopSellPanelUI>(FindObjectsInactive.Include);
+            if (existing != null)
             {
-                cart.Remove(slotIndex);
-                cartOrder.Remove(slotIndex);
-            }
-            else
-            {
-                if (!cart.ContainsKey(slotIndex)) cartOrder.Add(slotIndex);
-                cart[slotIndex] = quantity;
-            }
-            Refresh();
-        }
-
-        // [전부 빼기] 버튼: 흥정 입력 중엔 [흥정 취소]로 동작
-        private void OnClickClearAll()
-        {
-            if (bargainState == BargainState.Typing) { Cancel(); return; }
-            ClearCart();
-        }
-
-        private void ClearCart()
-        {
-            ExitBargain();
-            ResetBargain();
-            cart.Clear();
-            cartOrder.Clear();
-            Refresh();
-        }
-
-        // ---------- 화면 갱신 ----------
-
-        private void Refresh()
-        {
-            if (!initialized || ShopManager.Instance == null) return;
-
-            InventoryManager inventory = InventoryManager.Instance;
-            ShopManager shop = ShopManager.Instance;
-
-            for (int i = 0; i < slotUIs.Length; i++)
-            {
-                InventorySlotData slot = inventory.GetSlot(i);
-                cart.TryGetValue(i, out int inCart);
-                bool sellable = ShopManager.IsSellable(slot);
-                slotUIs[i].SetSlot(i, slot, sellable, shop.GetSellUnitPrice(slot),
-                                   sellable && shop.IsTodaysSpecial(slot.item), inCart, AddToCart);
+                bool replace = EditorUtility.DisplayDialog("판매 창 생성",
+                    $"이미 판매 창({existing.name})이 있어요. 지우고 새로 만들까요?\n(Ctrl+Z로 되돌릴 수 있어요)", "새로 만들기", "취소");
+                if (!replace) return;
+                Undo.DestroyObjectImmediate(existing.gameObject);
             }
 
-            foreach (SellCartRowUI row in spawnedRows)
-                Destroy(row.gameObject);
-            spawnedRows.Clear();
+            EnsureFolder(PrefabFolder);
+            ShopSellSlotUI slotPrefab = BuildSlotPrefab();
+            SellCartRowUI rowPrefab = BuildRowPrefab();
+            ShopSellPanelUI panel = BuildPanel(canvas.transform, slotPrefab, rowPrefab);
 
-            long total = 0;
-            foreach (int index in cartOrder)
+            ConnectDialogue(panel);
+
+            EditorSceneManager.MarkSceneDirty(canvas.gameObject.scene);
+            Selection.activeGameObject = panel.gameObject;
+            Debug.Log($"[판매 창 생성] 완료 - Canvas '{canvas.name}' 아래 SellPanel, 프리팹은 {PrefabFolder}");
+        }
+
+        // ---------- 찾기 ----------
+
+        // 구매 창이 있는 Canvas를 우선 사용 (같은 화면 구성)
+        private static Canvas FindCanvas()
+        {
+            ShopBuyPanelUI buy = Object.FindAnyObjectByType<ShopBuyPanelUI>(FindObjectsInactive.Include);
+            if (buy != null)
             {
-                int slotIndex = index;
-                InventorySlotData slot = inventory.GetSlot(slotIndex);
-                int quantity = cart[slotIndex];
-                int lineTotal = shop.GetSellLineTotal(slotIndex, quantity);
-
-                SellCartRowUI row = Instantiate(cartRowPrefab, cartContainer);
-                row.Setup(slot, quantity, shop.GetSellUnitPrice(slot), lineTotal,
-                          q => SetCartQuantity(slotIndex, q),
-                          () => SetCartQuantity(slotIndex, 0));
-                spawnedRows.Add(row);
-                total += lineTotal;
+                Canvas c = buy.GetComponentInParent<Canvas>(true);
+                if (c != null) return c.rootCanvas;
             }
-            lastBaseTotal = total;
-
-            if (bargainState != BargainState.Thinking) ShowTotal();
-            sellNowButton.interactable = cart.Count > 0 && !Busy;
-            clearAllButton.interactable = (cart.Count > 0 && bargainState != BargainState.Thinking) || bargainState == BargainState.Typing;
-            bargainButton.interactable = bargainEnabled && cart.Count > 0 &&
-                                         (bargainState == BargainState.None || bargainState == BargainState.Typing);
-            SetBargainLabels();
-        }
-
-        private void OnClickSellNow()
-        {
-            if (cart.Count == 0 || ShopManager.Instance == null || Busy) return;
-
-            // 복사본을 넘김 - 판매 도중 OnInventoryChanged가 cart를 정리해도 안전
-            int earned = ShopManager.Instance.TrySellBatch(new Dictionary<int, int>(cart));
-            // 흥정이 수락됐으면 받은 금액을 흥정 금액에 맞춤 (차액만큼 더 주거나 덜 줌)
-            if (earned > 0 && dealTotal >= 0 && CurrencyManager.Instance != null)
+            if (Selection.activeGameObject != null)
             {
-                long diff = dealTotal - earned;
-                if (diff > 0) CurrencyManager.Instance.AddBells((int)diff);
-                else if (diff < 0) CurrencyManager.Instance.TrySpendBells((int)(-diff));
-                earned = (int)dealTotal;
+                Canvas c = Selection.activeGameObject.GetComponentInParent<Canvas>(true);
+                if (c != null) return c.rootCanvas;
             }
-            SetLine(earned >= 0 ? string.Format(soldLine, ShopUIUtil.Money(earned)) : failedLine);
-            ClearCart();
+            return Object.FindAnyObjectByType<Canvas>(FindObjectsInactive.Include);
         }
 
-        /// <summary>인벤토리가 바뀌면 선택 목록을 실제 보유량에 맞춰 정리</summary>
-        private void HandleInventoryChanged()
+        // 이미 쓰고 있는 한글 폰트를 그대로 사용 (없으면 TMP 기본 폰트)
+        private static TMP_FontAsset FindFont(Canvas canvas)
         {
-            foreach (int slotIndex in cartOrder.ToArray())
+            foreach (TextMeshProUGUI t in canvas.GetComponentsInChildren<TextMeshProUGUI>(true))
+                if (t.font != null) return t.font;
+            return TMP_Settings.defaultFontAsset;
+        }
+
+        private static void ConnectDialogue(ShopSellPanelUI panel)
+        {
+            ShopDialogueUI dialogue = Object.FindAnyObjectByType<ShopDialogueUI>(FindObjectsInactive.Include);
+            if (dialogue == null)
             {
-                InventorySlotData slot = InventoryManager.Instance.GetSlot(slotIndex);
-                if (!ShopManager.IsSellable(slot))
-                {
-                    cart.Remove(slotIndex);
-                    cartOrder.Remove(slotIndex);
-                }
-                else if (cart[slotIndex] > slot.quantity)
-                {
-                    cart[slotIndex] = slot.quantity;
-                }
-            }
-            Refresh();
-        }
-
-        private void RefreshSpecialItem()
-        {
-            CropData special = ShopManager.Instance != null ? ShopManager.Instance.TodaysSpecialCrop : null;
-
-            if (specialItemIcon != null)
-            {
-                specialItemIcon.enabled = special != null && special.icon != null;
-                if (special != null) specialItemIcon.sprite = special.icon;
-            }
-            if (specialItemText != null)
-            {
-                specialItemText.text = special != null
-                    ? $"오늘의 특별 상품: {special.cropName} (판매가 x{ShopManager.Instance.SpecialSellBonusMultiplier})"
-                    : "오늘은 특별 상품이 없습니다";
-            }
-        }
-
-        private void SetLine(string line)
-        {
-            if (merchantLineText != null) merchantLineText.text = line;
-        }
-
-        // ---------- 흥정 ----------
-
-        private void ShowTotal()
-        {
-            SaveTotalColor();
-            if (bargainState == BargainState.Typing) return; // 입력 칸이 보이는 중
-            if (dealTotal >= 0)
-            {
-                expectedTotalText.text = $"{ShopUIUtil.Money(dealTotal)} <size=60%>(흥정 성공)</size>";
-                expectedTotalText.color = bargainColor;
-            }
-            else
-            {
-                expectedTotalText.text = ShopUIUtil.Money(lastBaseTotal);
-                expectedTotalText.color = totalBaseColor;
-            }
-        }
-
-        private void SaveTotalColor()
-        {
-            if (totalColorSaved || expectedTotalText == null) return;
-            totalBaseColor = expectedTotalText.color;
-            totalColorSaved = true;
-        }
-
-        private void SetBargainLabels()
-        {
-            if (bargainButtonText != null) bargainButtonText.text = bargainState == BargainState.Typing ? offerLabel : bargainLabel;
-            if (clearAllButtonText != null && clearAllOriginalLabel != null)
-                clearAllButtonText.text = bargainState == BargainState.Typing ? cancelBargainLabel : clearAllOriginalLabel;
-        }
-
-        private void ResetBargain()
-        {
-            dealTotal = -1;
-            if (bargainState == BargainState.Done) bargainState = BargainState.None;
-        }
-
-        // 입력 칸 닫고 흥정 중이던 것 정리
-        private void ExitBargain()
-        {
-            if (bargainRoutine != null) StopCoroutine(bargainRoutine);
-            bargainRoutine = null;
-            if (bargainInput != null) bargainInput.gameObject.SetActive(false);
-            if (expectedTotalText != null)
-            {
-                expectedTotalText.gameObject.SetActive(true);
-                expectedTotalText.rectTransform.localScale = Vector3.one;
-            }
-            if (Busy) bargainState = BargainState.None;
-        }
-
-        private void OnClickBargain()
-        {
-            if (!bargainEnabled || cart.Count == 0) return;
-            if (bargainState == BargainState.None) OpenBargainInput();
-            else if (bargainState == BargainState.Typing) SubmitOffer();
-        }
-
-        // 1. 예상 판매 금액 자리를 금액 입력 칸으로
-        private void OpenBargainInput()
-        {
-            EnsureBargainInput();
-            if (bargainInput == null) return;
-            bargainState = BargainState.Typing;
-            expectedTotalText.gameObject.SetActive(false);
-            bargainInput.gameObject.SetActive(true);
-            bargainInput.text = "";
-            ((TextMeshProUGUI)bargainInput.placeholder).text = $"{lastBaseTotal:N0}"; // 원래 금액이 흐리게 보이고, 그 위에 새 금액을 입력
-            bargainInput.ActivateInputField();
-            bargainInput.Select();
-            SetLine(bargainAskLine);
-            Refresh();
-        }
-
-        // 2. 제안 → 상인 고민 → 수락/거절
-        private void SubmitOffer()
-        {
-            if (bargainState != BargainState.Typing || bargainInput == null) return;
-            string digits = bargainInput.text.Replace(",", "").Trim();
-            if (!long.TryParse(digits, out long offer) || offer <= 0)
-            {
-                SetLine(bargainInvalidLine);
-                bargainInput.ActivateInputField();
+                Debug.LogWarning("[판매 창 생성] ShopDialogueUI를 못 찾아서 연결은 직접 해주세요 (Sell Panel 칸에 SellPanel 끌어넣기)");
                 return;
             }
-            bargainInput.gameObject.SetActive(false);
-            expectedTotalText.gameObject.SetActive(true);
-            if (!isActiveAndEnabled) { Decide(offer); Refresh(); return; }
-            bargainRoutine = StartCoroutine(BargainSequence(offer));
+            var so = new SerializedObject(dialogue);
+            so.FindProperty("sellPanel").objectReferenceValue = panel;
+            // 판매 창도 구매 창과 같은 크기·자리라서 카메라 구도도 같게
+            SerializedProperty buyFraming = so.FindProperty("panelFraming");
+            SerializedProperty sellFraming = so.FindProperty("sellPanelFraming");
+            if (buyFraming != null && sellFraming != null) sellFraming.vector2Value = buyFraming.vector2Value;
+            so.ApplyModifiedProperties();
+            Debug.Log($"[판매 창 생성] {dialogue.name}의 Sell Panel에 자동 연결");
         }
 
-        // 흥정 판단: 상황 정보 만들기 → 모델이 수락 확률 계산 → 주사위 → 결과를 모델·기록에 알림
-        // (연출은 BargainSequence가 담당. 판단 방식을 바꿀 땐 여기가 아니라 Bargain Model 에셋을 바꿈)
-        private bool Decide(long offer)
+        // ---------- 판매 슬롯 프리팹 (84 x 96, 10칸 x 3줄) ----------
+        // 아이콘 / 이름(등급 표시 포함) / 오른쪽 위 수량 / 아래 단가 / 선택 테두리 / 특가 배지
+        private static ShopSellSlotUI BuildSlotPrefab()
         {
-            bargainAttempts++;
-            BargainContext ctx = BuildBargainContext(offer);
-            float chance = alwaysAccept ? 1f
-                : bargainModel != null ? Mathf.Clamp01(bargainModel.AcceptChance(ctx))
-                : RuleBasedBargainModel.Compute(ctx, safeRatio, maxRatio);
-            bool accepted = UnityEngine.Random.value <= chance;
+            GameObject root = NewUI("ShopSellSlot", null);
+            Size(root, 84f, 96f);
+            Image bg = AddImage(root, CreamDark);
+            bg.raycastTarget = true; // 클릭 받기
+            CanvasGroup group = root.AddComponent<CanvasGroup>();
 
-            BargainHistory.Record(accepted);
-            if (bargainModel != null) bargainModel.OnResult(ctx, accepted);
-            if (logBargains) BargainLogger.Write(ctx, chance, accepted);
+            // 선택 테두리 (선택 목록에 담기면 켜짐): 초록 판 위에 안쪽 판을 덮어 테두리만 보이게
+            GameObject frame = NewUI("SelectedFrame", root.transform);
+            Stretch(frame, 4f);
+            AddImage(frame, Green);
+            GameObject frameInner = NewUI("Inner", frame.transform);
+            Stretch(frameInner, -7f);
+            AddImage(frameInner, Hex("EAF5E2"));
 
-            dealTotal = accepted ? offer : -1;
-            bargainState = BargainState.Done;
-            return accepted;
+            GameObject content = NewUI("Content", root.transform);
+            Stretch(content, 0f);
+
+            GameObject iconGO = NewUI("Icon", content.transform);
+            Place(iconGO, new Vector2(0.5f, 1f), new Vector2(0f, -30f), new Vector2(44f, 44f));
+            Image icon = AddImage(iconGO, Color.white, false);
+            icon.preserveAspect = true;
+
+            TextMeshProUGUI qty = AddText(content.transform, "Quantity", "x0", 14f, TextBrown, TextAlignmentOptions.TopRight);
+            Place(qty.gameObject, new Vector2(1f, 1f), new Vector2(-24f, -11f), new Vector2(44f, 18f));
+            qty.fontStyle = FontStyles.Bold;
+
+            TextMeshProUGUI nameText = AddText(content.transform, "Name", "작물", 12f, TextBrown, TextAlignmentOptions.Center);
+            Place(nameText.gameObject, new Vector2(0.5f, 0f), new Vector2(0f, 30f), new Vector2(80f, 18f));
+            nameText.overflowMode = TextOverflowModes.Ellipsis;
+
+            TextMeshProUGUI price = AddText(content.transform, "Price", "0벨", 13f, Hex("3E7A34"), TextAlignmentOptions.Center);
+            Place(price.gameObject, new Vector2(0.5f, 0f), new Vector2(0f, 12f), new Vector2(80f, 18f));
+            price.fontStyle = FontStyles.Bold;
+
+            GameObject badge = NewUI("SpecialBadge", root.transform);
+            Place(badge, new Vector2(0f, 1f), new Vector2(19f, -9f), new Vector2(34f, 16f));
+            AddImage(badge, Red);
+            TextMeshProUGUI badgeText = AddText(badge.transform, "Text", "특가", 11f, White, TextAlignmentOptions.Center);
+            Stretch(badgeText.gameObject, 0f);
+            badgeText.fontStyle = FontStyles.Bold;
+            badge.SetActive(false);
+
+            ShopSellSlotUI ui = root.AddComponent<ShopSellSlotUI>();
+            var so = new SerializedObject(ui);
+            so.FindProperty("contentRoot").objectReferenceValue = content;
+            so.FindProperty("itemIcon").objectReferenceValue = icon;
+            so.FindProperty("itemNameText").objectReferenceValue = nameText;
+            so.FindProperty("quantityText").objectReferenceValue = qty;
+            so.FindProperty("priceText").objectReferenceValue = price;
+            so.FindProperty("canvasGroup").objectReferenceValue = group;
+            so.FindProperty("selectedFrame").objectReferenceValue = frame;
+            so.FindProperty("specialBadge").objectReferenceValue = badge;
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            return SavePrefab(root, "ShopSellSlot").GetComponent<ShopSellSlotUI>();
         }
 
-        // 지금 담은 물품으로 흥정 상황 정보 만들기
-        private BargainContext BuildBargainContext(long offer)
+        // ---------- 선택 목록 한 줄 프리팹 (높이 72) ----------
+        // 아이콘 / 이름(등급) + @단가 / [-] 수량 [+] / 합계 / [X]
+        private static SellCartRowUI BuildRowPrefab()
         {
-            var lines = new List<BargainContext.Line>();
-            InventoryManager inventory = InventoryManager.Instance;
-            ShopManager shop = ShopManager.Instance;
-            if (inventory != null && shop != null)
-            {
-                foreach (int index in cartOrder)
-                {
-                    InventorySlotData slot = inventory.GetSlot(index);
-                    if (slot == null || slot.IsEmpty || !cart.TryGetValue(index, out int qty)) continue;
-                    lines.Add(new BargainContext.Line
-                    {
-                        Item = slot.item,
-                        Quantity = qty,
-                        Quality = slot.quality,
-                        Total = shop.GetSellLineTotal(index, qty),
-                        TodaysSpecial = shop.IsTodaysSpecial(slot.item),
-                    });
-                }
-            }
-            return BargainContext.Create(offer, lastBaseTotal, lines, bargainAttempts);
+            GameObject root = NewUI("SellCartRow", null);
+            Size(root, 430f, 72f);
+            AddImage(root, White);
+            LayoutElement le = root.AddComponent<LayoutElement>();
+            le.preferredHeight = 72f;
+            le.minHeight = 72f;
+
+            GameObject iconGO = NewUI("Icon", root.transform);
+            Place(iconGO, new Vector2(0f, 0.5f), new Vector2(36f, 0f), new Vector2(52f, 52f));
+            Image icon = AddImage(iconGO, Color.white, false);
+            icon.preserveAspect = true;
+
+            TextMeshProUGUI nameText = AddText(root.transform, "Name", "작물", 17f, TextBrown, TextAlignmentOptions.MidlineLeft);
+            Place(nameText.gameObject, new Vector2(0f, 0.5f), new Vector2(140f, 12f), new Vector2(136f, 26f));
+            nameText.fontStyle = FontStyles.Bold;
+            nameText.overflowMode = TextOverflowModes.Ellipsis;
+
+            TextMeshProUGUI unit = AddText(root.transform, "UnitPrice", "@ 0벨", 14f, Hex("8A6E58"), TextAlignmentOptions.MidlineLeft);
+            Place(unit.gameObject, new Vector2(0f, 0.5f), new Vector2(140f, -14f), new Vector2(136f, 22f));
+
+            Button minus = MakeButton(root.transform, "Minus", "-", Tan, new Vector2(34f, 34f), 22f);
+            Place(minus.gameObject, new Vector2(0f, 0.5f), new Vector2(232f, 0f), new Vector2(34f, 34f));
+
+            TMP_InputField input = MakeInputField(root.transform);
+            Place(input.gameObject, new Vector2(0f, 0.5f), new Vector2(278f, 0f), new Vector2(52f, 34f));
+
+            Button plus = MakeButton(root.transform, "Plus", "+", Tan, new Vector2(34f, 34f), 22f);
+            Place(plus.gameObject, new Vector2(0f, 0.5f), new Vector2(324f, 0f), new Vector2(34f, 34f));
+
+            TextMeshProUGUI total = AddText(root.transform, "LineTotal", "0벨", 17f, Hex("3E7A34"), TextAlignmentOptions.MidlineRight);
+            Place(total.gameObject, new Vector2(1f, 0.5f), new Vector2(-78f, 0f), new Vector2(80f, 30f));
+            total.fontStyle = FontStyles.Bold;
+
+            Button remove = MakeButton(root.transform, "Remove", "X", Red, new Vector2(30f, 30f), 16f);
+            Place(remove.gameObject, new Vector2(1f, 0.5f), new Vector2(-22f, 0f), new Vector2(30f, 30f));
+
+            SellCartRowUI ui = root.AddComponent<SellCartRowUI>();
+            var so = new SerializedObject(ui);
+            so.FindProperty("itemIcon").objectReferenceValue = icon;
+            so.FindProperty("itemNameText").objectReferenceValue = nameText;
+            so.FindProperty("unitPriceText").objectReferenceValue = unit;
+            so.FindProperty("lineTotalText").objectReferenceValue = total;
+            so.FindProperty("quantityInput").objectReferenceValue = input;
+            so.FindProperty("minusButton").objectReferenceValue = minus;
+            so.FindProperty("plusButton").objectReferenceValue = plus;
+            so.FindProperty("removeButton").objectReferenceValue = remove;
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            return SavePrefab(root, "SellCartRow").GetComponent<SellCartRowUI>();
         }
 
-        private IEnumerator BargainSequence(long offer)
+        // ---------- 판매 창 본체 ----------
+        // 구매 창과 같은 구성 (실제 3D 상인이 보이도록 전체 화면을 덮지 않음):
+        //   SellPanel (화면 전체 크기, 배경 없음)
+        //   ├─ CharacterArea : 구매 창의 말풍선·이름표를 그대로 복사 (화면 왼쪽 아래, 상인 대사)
+        //   └─ ContentFrame  : 화면 오른쪽 품목 창 (오늘의 특별 상품 / 내 인벤토리 / 선택한 물품 / 금액·버튼)
+        //                      UISlideIn이 붙어 있어서 열릴 때 오른쪽에서 미끄러져 들어옴
+        private const float FrameW = 800f, FrameH = 714f;
+
+        private static ShopSellPanelUI BuildPanel(Transform canvas, ShopSellSlotUI slotPrefab, SellCartRowUI rowPrefab)
         {
-            bargainState = BargainState.Thinking;
-            Refresh(); // 버튼 잠금
-            SaveTotalColor();
+            GameObject panel = NewUI("SellPanel", canvas);
+            Undo.RegisterCreatedObjectUndo(panel, "판매 창 생성");
+            Stretch(panel, 0f);
 
-            RectTransform totalRt = expectedTotalText.rectTransform;
-            Vector2 basePos = totalRt.anchoredPosition;
-            expectedTotalText.text = ShopUIUtil.Money(offer);
-            expectedTotalText.color = totalBaseColor;
+            // 왼쪽 아래: 상인 대사 (구매 창의 CharacterArea를 복사해서 모양을 똑같이)
+            TextMeshProUGUI line = CopyBuyCharacterArea(panel.transform);
+            if (line == null) line = MakeSimpleBubble(panel.transform);
+            line.text = "어떤 작물을 팔고 싶어?";
 
-            // 3. 상인 고민: "흐음..." 점이 늘어나고 제안 금액이 바들바들 떨림
-            float t = 0f;
-            while (t < bargainThinkTime)
-            {
-                t += Time.unscaledDeltaTime;
-                int dots = 1 + (int)(t / 0.35f) % 3;
-                SetLine(bargainThinkLine + new string('.', dots));
-                float shake = Mathf.Lerp(1f, 4f, t / bargainThinkTime);
-                totalRt.anchoredPosition = basePos + new Vector2(Mathf.Sin(t * 60f) * shake, 0f);
-                yield return null;
-            }
-            totalRt.anchoredPosition = basePos;
+            // 오른쪽: 품목 창
+            GameObject frame = NewUI("ContentFrame", panel.transform);
+            Place(frame, new Vector2(1f, 0.5f), new Vector2(-40f - FrameW * 0.5f, 20f), new Vector2(FrameW, FrameH));
+            AddImage(frame, Border).raycastTarget = true; // 창 뒤쪽 클릭 막기
+            frame.AddComponent<FarmingSystem.UI.UISlideIn>();
 
-            bool accepted = Decide(offer);
-            if (accepted)
-            {
-                // 4-1. 수락: 원래 금액 → 제안 금액으로 쭉 바뀌며 커졌다 돌아옴
-                SetLine(offer <= lastBaseTotal ? bargainCheapLine : string.Format(bargainAcceptLine, ShopUIUtil.Money(offer)));
-                t = 0f;
-                while (t < bargainCountTime)
-                {
-                    t += Time.unscaledDeltaTime;
-                    float k = Mathf.Clamp01(t / bargainCountTime);
-                    float e = 1f - (1f - k) * (1f - k);
-                    long shown = (long)Mathf.Round(Mathf.Lerp(lastBaseTotal, offer, e));
-                    expectedTotalText.text = ShopUIUtil.Money(shown);
-                    expectedTotalText.color = Color.Lerp(totalBaseColor, bargainColor, e);
-                    totalRt.localScale = Vector3.one * (1f + 0.3f * Mathf.Sin(k * Mathf.PI));
-                    yield return null;
-                }
-                totalRt.localScale = Vector3.one;
-            }
-            else
-            {
-                // 4-2. 거절: 빨갛게 번쩍이며 고개 젓듯 흔들림 → 원래 금액
-                SetLine(bargainRejectLine);
-                t = 0f;
-                while (t < 0.6f)
-                {
-                    t += Time.unscaledDeltaTime;
-                    expectedTotalText.color = Color.Lerp(new Color(0.9f, 0.3f, 0.3f), totalBaseColor, t / 0.6f);
-                    totalRt.anchoredPosition = basePos + new Vector2(Mathf.Sin(t * 50f) * 6f * (1f - t / 0.6f), 0f);
-                    yield return null;
-                }
-                totalRt.anchoredPosition = basePos;
-            }
+            GameObject inner = NewUI("Inner", frame.transform);
+            Stretch(inner, -6f);
+            AddImage(inner, Cream);
 
-            bargainRoutine = null;
-            Refresh();
+            // 맨 위: 오늘의 특별 상품
+            GameObject special = NewUI("TodaysSpecial", inner.transform);
+            PlaceTL(special, 18f, 18f, FrameW - 48f, 56f);
+            AddImage(special, Hex("FBE3C8"));
+            GameObject sIconGO = NewUI("Icon", special.transform);
+            Place(sIconGO, new Vector2(0f, 0.5f), new Vector2(34f, 0f), new Vector2(46f, 46f));
+            Image sIcon = AddImage(sIconGO, Color.white, false);
+            sIcon.preserveAspect = true;
+            TextMeshProUGUI sText = AddText(special.transform, "Text", "오늘의 특별 상품", 20f, TextBrown, TextAlignmentOptions.MidlineLeft);
+            Stretch(sText.gameObject, 0f);
+            ((RectTransform)sText.transform).offsetMin = new Vector2(70f, 0f);
+            ((RectTransform)sText.transform).offsetMax = new Vector2(-16f, 0f);
+
+            // 가운데: 내 인벤토리 (8칸씩, 넘치면 스크롤)
+            TextMeshProUGUI invTitle = AddText(inner.transform, "InventoryTitle",
+                "내 인벤토리   <size=70%><color=#8A6E58>좌클릭 1개 · Shift+클릭 10개 · 우클릭 전부</color></size>",
+                22f, TextBrown, TextAlignmentOptions.MidlineLeft);
+            PlaceTL(invTitle.gameObject, 22f, 84f, FrameW - 56f, 30f);
+            invTitle.fontStyle = FontStyles.Bold;
+
+            Transform slotContent = MakeScroll(inner.transform, "InventoryScroll", 18f, 118f, FrameW - 48f, 332f, out _);
+            GridLayoutGroup grid = slotContent.gameObject.AddComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(84f, 96f);
+            grid.spacing = new Vector2(7f, 8f);
+            grid.padding = new RectOffset(10, 10, 10, 10);
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 8;
+            AddFitter(slotContent.gameObject);
+
+            // 아래 왼쪽: 선택한 물품
+            TextMeshProUGUI cartTitle = AddText(inner.transform, "CartTitle", "선택한 물품", 22f, TextBrown, TextAlignmentOptions.MidlineLeft);
+            PlaceTL(cartTitle.gameObject, 22f, 460f, 420f, 30f);
+            cartTitle.fontStyle = FontStyles.Bold;
+
+            Transform cartContent = MakeScroll(inner.transform, "CartScroll", 18f, 494f, 430f, 196f, out _);
+            VerticalLayoutGroup vlg = cartContent.gameObject.AddComponent<VerticalLayoutGroup>();
+            vlg.spacing = 6f;
+            vlg.padding = new RectOffset(8, 8, 8, 8);
+            vlg.childControlWidth = true;
+            vlg.childControlHeight = true;
+            vlg.childForceExpandWidth = true;
+            vlg.childForceExpandHeight = false;
+            AddFitter(cartContent.gameObject);
+
+            // 아래 오른쪽: 예상 판매 금액 + 버튼
+            GameObject totalBox = NewUI("ExpectedTotal", inner.transform);
+            PlaceTL(totalBox, 460f, 460f, 310f, 60f);
+            AddImage(totalBox, CreamDark);
+            TextMeshProUGUI totalLabel = AddText(totalBox.transform, "Label", "예상 판매 금액", 18f, TextBrown, TextAlignmentOptions.MidlineLeft);
+            Stretch(totalLabel.gameObject, -14f, 0f);
+            TextMeshProUGUI totalText = AddText(totalBox.transform, "Value", "0벨", 26f, Hex("3E7A34"), TextAlignmentOptions.MidlineRight);
+            Stretch(totalText.gameObject, -14f, 0f);
+            totalText.fontStyle = FontStyles.Bold;
+
+            Button clearAll = MakeButton(inner.transform, "ClearAllButton", "전부 빼기", Brown, new Vector2(151f, 46f), 18f);
+            PlaceTL(clearAll.gameObject, 460f, 530f, 151f, 46f);
+            Button bargain = MakeButton(inner.transform, "BargainButton", "흥정 (준비 중)", Tan, new Vector2(151f, 46f), 16f);
+            PlaceTL(bargain.gameObject, 619f, 530f, 151f, 46f);
+            Button cancel = MakeButton(inner.transform, "CancelButton", "취소", Red, new Vector2(151f, 104f), 22f);
+            PlaceTL(cancel.gameObject, 460f, 586f, 151f, 104f);
+            Button sell = MakeButton(inner.transform, "SellNowButton", "바로 판매", Green, new Vector2(151f, 104f), 22f);
+            PlaceTL(sell.gameObject, 619f, 586f, 151f, 104f);
+
+            // 스크립트 연결
+            ShopSellPanelUI ui = panel.AddComponent<ShopSellPanelUI>();
+            var so = new SerializedObject(ui);
+            so.FindProperty("panelRoot").objectReferenceValue = panel;
+            so.FindProperty("merchantLineText").objectReferenceValue = line;
+            so.FindProperty("slotContainer").objectReferenceValue = slotContent;
+            so.FindProperty("slotPrefab").objectReferenceValue = slotPrefab;
+            so.FindProperty("cartContainer").objectReferenceValue = cartContent;
+            so.FindProperty("cartRowPrefab").objectReferenceValue = rowPrefab;
+            so.FindProperty("expectedTotalText").objectReferenceValue = totalText;
+            so.FindProperty("clearAllButton").objectReferenceValue = clearAll;
+            so.FindProperty("sellNowButton").objectReferenceValue = sell;
+            so.FindProperty("bargainButton").objectReferenceValue = bargain;
+            so.FindProperty("cancelButton").objectReferenceValue = cancel;
+            so.FindProperty("specialItemIcon").objectReferenceValue = sIcon;
+            so.FindProperty("specialItemText").objectReferenceValue = sText;
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            panel.transform.SetAsLastSibling();
+            panel.SetActive(false); // 평소엔 꺼져 있다가 대화창에서 [판매] 누르면 열림
+            return ui;
         }
 
-        // 금액 입력 칸 (처음 흥정할 때 예상 판매 금액 글자 자리에 코드로 만듦 → 씬·프리팹은 건드리지 않음)
-        private void EnsureBargainInput()
+        // 구매 창의 CharacterArea(말풍선·이름표, 초상화는 꺼진 채)를 복사해서 판매 창에도 같은 모양으로
+        // 복사본의 말풍선 글자를 판매 창 대사 칸으로 씀. 구매 창을 못 찾으면 null
+        private static TextMeshProUGUI CopyBuyCharacterArea(Transform parent)
         {
-            if (bargainInput != null || expectedTotalText == null) return;
-            SaveTotalColor();
-            RectTransform src = expectedTotalText.rectTransform;
+            ShopBuyPanelUI buy = Object.FindAnyObjectByType<ShopBuyPanelUI>(FindObjectsInactive.Include);
+            if (buy == null) return null;
+            Transform area = FindDeep(buy.transform, "CharacterArea");
+            if (area == null) return null;
 
-            var go = new GameObject("BargainInput", typeof(RectTransform), typeof(Image), typeof(TMP_InputField));
-            var rt = (RectTransform)go.transform;
-            rt.SetParent(src.parent, false);
-            rt.anchorMin = src.anchorMin;
-            rt.anchorMax = src.anchorMax;
-            rt.pivot = src.pivot;
-            rt.anchoredPosition = src.anchoredPosition;
-            rt.sizeDelta = src.sizeDelta;
-            rt.SetSiblingIndex(src.GetSiblingIndex() + 1);
-            go.GetComponent<Image>().color = Color.clear; // 배경 없음 (클릭만 받음) → 원래 금액 글자와 똑같이 보이게
+            GameObject copy = Object.Instantiate(area.gameObject, parent, false);
+            copy.name = "CharacterArea";
+            // 초상화(RawImage)는 끔 - 실제 3D 상인이 보이므로
+            foreach (RawImage raw in copy.GetComponentsInChildren<RawImage>(true)) raw.gameObject.SetActive(false);
 
-            // "벨" 글자 (원래 금액 표시처럼 숫자 뒤에 붙음)
-            float unitWidth = expectedTotalText.fontSize * 1.1f;
-            TextMeshProUGUI unit = MakeInputText("Unit", rt, totalBaseColor);
-            unit.text = ShopUIUtil.Currency;
-            unit.rectTransform.anchorMin = new Vector2(1f, 0f);
-            unit.rectTransform.anchorMax = new Vector2(1f, 1f);
-            unit.rectTransform.pivot = new Vector2(1f, 0.5f);
-            unit.rectTransform.sizeDelta = new Vector2(unitWidth, 0f);
-            unit.rectTransform.anchoredPosition = Vector2.zero;
+            // 대사 글자: 구매 창 대사 칸과 같은 이름의 글자를 우선, 없으면 말풍선 안의 첫 글자
+            var buySo = new SerializedObject(buy);
+            Object buyLine = buySo.FindProperty("merchantLineText")?.objectReferenceValue;
+            TextMeshProUGUI found = null;
+            foreach (TextMeshProUGUI t in copy.GetComponentsInChildren<TextMeshProUGUI>(true))
+            {
+                if (buyLine != null && t.name == buyLine.name) { found = t; break; }
+                if (found == null && t.transform.parent != null && t.transform.parent.name.Contains("Bubble")) found = t;
+            }
+            if (found == null)
+            {
+                Debug.LogWarning("[판매 창 생성] 구매 창 말풍선의 글자를 못 찾아서 간단한 말풍선을 새로 만들었어요");
+                Object.DestroyImmediate(copy);
+                return null;
+            }
+            Debug.Log("[판매 창 생성] 구매 창의 말풍선·이름표를 복사해서 판매 창 왼쪽 아래에 넣었어요 (초상화는 끔)");
+            return found;
+        }
 
-            // 숫자 칸: 오른쪽 끝(벨 앞)에 붙음. 원래 금액 글자 크기 그대로
-            var area = new GameObject("Text Area", typeof(RectTransform), typeof(RectMask2D));
-            var areaRt = (RectTransform)area.transform;
-            areaRt.SetParent(rt, false);
-            areaRt.anchorMin = new Vector2(0.45f, 0f);
-            areaRt.anchorMax = Vector2.one;
-            areaRt.offsetMin = Vector2.zero;
-            areaRt.offsetMax = new Vector2(-unitWidth, 0f);
+        // 구매 창 말풍선을 못 찾았을 때: 왼쪽 아래 흰 말풍선
+        private static TextMeshProUGUI MakeSimpleBubble(Transform parent)
+        {
+            GameObject bubble = NewUI("DialogueBubble", parent);
+            Place(bubble, new Vector2(0f, 0f), new Vector2(330f, 150f), new Vector2(520f, 150f));
+            AddImage(bubble, White);
+            TextMeshProUGUI line = AddText(bubble.transform, "DialogueBubbleText", "어떤 작물을 팔고 싶어?", 24f, TextBrown, TextAlignmentOptions.MidlineLeft);
+            Stretch(line.gameObject, -24f, -16f);
+            line.textWrappingMode = TextWrappingModes.Normal;
+            return line;
+        }
 
-            // 숫자 아래 얇은 밑줄 (입력 중이라는 표시만 살짝)
-            var line = new GameObject("Underline", typeof(RectTransform), typeof(Image));
-            var lineRt = (RectTransform)line.transform;
-            lineRt.SetParent(rt, false);
-            lineRt.anchorMin = new Vector2(0.55f, 0.18f);
-            lineRt.anchorMax = new Vector2(1f, 0.18f);
-            lineRt.sizeDelta = new Vector2(0f, 2f);
-            lineRt.anchoredPosition = Vector2.zero;
-            Image lineImg = line.GetComponent<Image>();
-            lineImg.color = new Color(totalBaseColor.r, totalBaseColor.g, totalBaseColor.b, 0.35f);
-            lineImg.raycastTarget = false;
+        private static Transform FindDeep(Transform root, string name)
+        {
+            foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+                if (t.name == name) return t;
+            return null;
+        }
 
-            TextMeshProUGUI placeholder = MakeInputText("Placeholder", areaRt, new Color(totalBaseColor.r, totalBaseColor.g, totalBaseColor.b, 0.3f));
-            TextMeshProUGUI text = MakeInputText("Text", areaRt, totalBaseColor);
+        // 구매 창에서 만든 상인 초상화 Render Texture(Portrait_RT)를 찾아 판매 창에도 같이 씀
+        // 같은 Render Texture는 여러 RawImage에 동시에 띄울 수 있어서 카메라를 하나 더 만들 필요 없음
+        private static Texture FindPortraitTexture()
+        {
+            ShopBuyPanelUI buy = Object.FindAnyObjectByType<ShopBuyPanelUI>(FindObjectsInactive.Include);
+            if (buy != null)
+                foreach (RawImage raw in buy.GetComponentsInChildren<RawImage>(true))
+                    if (raw.texture != null) return raw.texture;
 
+            foreach (string guid in AssetDatabase.FindAssets("Portrait_RT t:RenderTexture"))
+            {
+                var rt = AssetDatabase.LoadAssetAtPath<RenderTexture>(AssetDatabase.GUIDToAssetPath(guid));
+                if (rt != null) return rt;
+            }
+            Debug.LogWarning("[판매 창 생성] Portrait_RT를 못 찾았어요. SellPanel → CharacterArea → CharacterPortrait의 Texture에 직접 넣어주세요");
+            return null;
+        }
+
+        // ---------- UI 부품 ----------
+
+        private static GameObject NewUI(string name, Transform parent)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.layer = LayerMask.NameToLayer("UI");
+            if (parent != null) go.transform.SetParent(parent, false);
+            return go;
+        }
+
+        private static Image AddImage(GameObject go, Color color, bool roundedSprite = true)
+        {
+            Image img = go.AddComponent<Image>();
+            img.color = color;
+            img.raycastTarget = false;
+            if (roundedSprite && rounded != null)
+            {
+                img.sprite = rounded;
+                img.type = Image.Type.Sliced;
+            }
+            return img;
+        }
+
+        private static TextMeshProUGUI AddText(Transform parent, string name, string text, float size, Color color, TextAlignmentOptions align)
+        {
+            GameObject go = NewUI(name, parent);
+            TextMeshProUGUI t = go.AddComponent<TextMeshProUGUI>();
+            if (font != null) t.font = font;
+            t.text = text;
+            t.fontSize = size;
+            t.color = color;
+            t.alignment = align;
+            t.raycastTarget = false;
+            t.textWrappingMode = TextWrappingModes.NoWrap;
+            return t;
+        }
+
+        private static Button MakeButton(Transform parent, string name, string label, Color color, Vector2 size, float fontSize)
+        {
+            GameObject go = NewUI(name, parent);
+            Size(go, size.x, size.y);
+            Image img = AddImage(go, color);
+            img.raycastTarget = true;
+            Button b = go.AddComponent<Button>();
+            b.targetGraphic = img;
+            ColorBlock cb = b.colors;
+            cb.highlightedColor = new Color(1.08f, 1.08f, 1.08f, 1f);
+            cb.pressedColor = new Color(0.85f, 0.85f, 0.85f, 1f);
+            cb.disabledColor = new Color(0.75f, 0.75f, 0.75f, 0.55f);
+            b.colors = cb;
+            TextMeshProUGUI t = AddText(go.transform, "Text", label, fontSize, White, TextAlignmentOptions.Center);
+            Stretch(t.gameObject, 0f);
+            t.fontStyle = FontStyles.Bold;
+            return b;
+        }
+
+        private static TMP_InputField MakeInputField(Transform parent)
+        {
+            GameObject go = TMP_DefaultControls.CreateInputField(new TMP_DefaultControls.Resources { inputField = rounded, background = rounded });
+            go.name = "QuantityInput";
+            go.transform.SetParent(parent, false);
+            go.layer = LayerMask.NameToLayer("UI");
             TMP_InputField input = go.GetComponent<TMP_InputField>();
-            input.textViewport = areaRt;
-            input.textComponent = text;
-            input.placeholder = placeholder;
             input.contentType = TMP_InputField.ContentType.IntegerNumber;
-            input.characterLimit = 9;
-            input.customCaretColor = true;
-            input.caretColor = totalBaseColor;
-            input.onSubmit.AddListener(_ => SubmitOffer()); // Enter
-            go.SetActive(false);
-            bargainInput = input;
+            input.characterLimit = 4;
+            foreach (TextMeshProUGUI t in go.GetComponentsInChildren<TextMeshProUGUI>(true))
+            {
+                if (font != null) t.font = font;
+                t.fontSize = 18f;
+                t.alignment = TextAlignmentOptions.Center;
+                t.color = TextBrown;
+            }
+            if (input.placeholder is TextMeshProUGUI ph) ph.text = "";
+            return input;
         }
 
-        private TextMeshProUGUI MakeInputText(string name, RectTransform parent, Color color)
+        // 세로 스크롤 영역. 반환값 = 내용물이 들어갈 Content
+        private static Transform MakeScroll(Transform parent, string name, float left, float top, float width, float height, out ScrollRect scroll)
         {
-            var go = new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI));
+            GameObject go = NewUI(name, parent);
+            PlaceTL(go, left, top, width, height);
+            Image bg = AddImage(go, Brown);
+            bg.raycastTarget = true; // 휠 스크롤 받기
+            go.AddComponent<RectMask2D>();
+
+            GameObject content = NewUI("Content", go.transform);
+            RectTransform crt = (RectTransform)content.transform;
+            crt.anchorMin = new Vector2(0f, 1f);
+            crt.anchorMax = new Vector2(1f, 1f);
+            crt.pivot = new Vector2(0.5f, 1f);
+            crt.anchoredPosition = Vector2.zero;
+            crt.sizeDelta = new Vector2(0f, height);
+
+            scroll = go.AddComponent<ScrollRect>();
+            scroll.content = crt;
+            scroll.viewport = (RectTransform)go.transform;
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 30f;
+            return content.transform;
+        }
+
+        private static void AddFitter(GameObject go)
+        {
+            ContentSizeFitter f = go.AddComponent<ContentSizeFitter>();
+            f.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            f.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        }
+
+        private static void Size(GameObject go, float w, float h) => ((RectTransform)go.transform).sizeDelta = new Vector2(w, h);
+
+        private static void Place(GameObject go, Vector2 anchor, Vector2 pos, Vector2 size)
+        {
             var rt = (RectTransform)go.transform;
-            rt.SetParent(parent, false);
+            rt.anchorMin = rt.anchorMax = anchor;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = pos;
+            rt.sizeDelta = size;
+        }
+
+        // 부모 왼쪽 위 기준 위치 (left, top은 아래·오른쪽으로 양수)
+        private static void PlaceTL(GameObject go, float left, float top, float width, float height)
+        {
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = new Vector2(left, -top);
+            rt.sizeDelta = new Vector2(width, height);
+        }
+
+        private static void Stretch(GameObject go, float inset) => Stretch(go, inset, inset);
+
+        // inset이 음수면 부모보다 안쪽으로 들어감 (-6 = 6픽셀 안쪽)
+        private static void Stretch(GameObject go, float insetX, float insetY)
+        {
+            var rt = (RectTransform)go.transform;
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.one;
-            rt.offsetMin = rt.offsetMax = Vector2.zero;
-            var t = go.GetComponent<TextMeshProUGUI>();
-            t.font = expectedTotalText.font;
-            t.fontSize = expectedTotalText.fontSize;
-            t.fontStyle = expectedTotalText.fontStyle;
-            t.color = color;
-            t.alignment = TextAlignmentOptions.MidlineRight;
-            t.textWrappingMode = TextWrappingModes.NoWrap;
-            t.raycastTarget = false;
-            return t;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.offsetMin = new Vector2(-insetX, -insetY);
+            rt.offsetMax = new Vector2(insetX, insetY);
+        }
+
+        private static GameObject SavePrefab(GameObject root, string name)
+        {
+            string path = $"{PrefabFolder}/{name}.prefab";
+            GameObject asset = PrefabUtility.SaveAsPrefabAsset(root, path);
+            Object.DestroyImmediate(root);
+            return asset;
+        }
+
+        private static void EnsureFolder(string path)
+        {
+            string[] parts = path.Split('/');
+            string current = parts[0];
+            for (int i = 1; i < parts.Length; i++)
+            {
+                string next = current + "/" + parts[i];
+                if (!AssetDatabase.IsValidFolder(next)) AssetDatabase.CreateFolder(current, parts[i]);
+                current = next;
+            }
+        }
+
+        private static Color Hex(string hex)
+        {
+            ColorUtility.TryParseHtmlString("#" + hex, out Color c);
+            return c;
         }
     }
 }
+#endif

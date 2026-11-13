@@ -57,9 +57,12 @@ namespace FarmingSystem.Core
             Instance = this;
         }
 
+        /// <summary>시작 화면 등에서 시간을 멈출 때 (true = 멈춤)</summary>
+        public bool Paused { get; set; }
+
         private void Update()
         {
-            if (isSleeping) return;
+            if (isSleeping || Paused) return;
 
             minuteAccumulator += gameMinutesPerRealSecond * Time.deltaTime;
             if (minuteAccumulator >= 1f)
@@ -92,6 +95,20 @@ namespace FarmingSystem.Core
             Season newSeason = CurrentSeason;
             if (newSeason != prevSeason)
                 OnSeasonChanged?.Invoke(newSeason);
+        }
+
+        /// <summary>
+        /// 저장 불러오기: 날짜·시각을 그대로 맞춤 (하루가 지난 게 아니라서 OnDayChanged는 안 보냄 → 작물이 자라지 않음)
+        /// 시계 UI·하늘·계절 블록이 새 시각을 반영하도록 OnMinuteChanged / OnSeasonChanged는 보냄
+        /// </summary>
+        public void LoadTime(int day, int hour, int minute)
+        {
+            currentDay = Mathf.Max(1, day);
+            currentHour = Mathf.Clamp(hour, 0, 23);
+            currentMinute = Mathf.Clamp(minute, 0, 59);
+            minuteAccumulator = 0f;
+            OnMinuteChanged?.Invoke(currentHour, currentMinute);
+            OnSeasonChanged?.Invoke(CurrentSeason);
         }
 
         /// 취침: 다음날 06:00으로 즉시 점프. 기획서의 "취침(수면)" 행동 대응.

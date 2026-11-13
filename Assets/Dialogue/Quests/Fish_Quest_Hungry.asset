@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5762058f690113d4ea631fbadba9bb2c, type: 3}
+  m_Name: Fish_Quest_Hungry
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Dialogue.QuestData
+  title: "\uBC30\uACE0\uD508 \uB09A\uC2DC\uAFBC"
+  description: "\uC694\uC998 \uBC14\uB2E4\uC5D0 \uBA39\uC744 \uAC8C \uC5C6\uB2E4\uB294
+    \uB09A\uC2DC\uAFBC\uC5D0\uAC8C \uC791\uBB3C\uC744 \uAC00\uC838\uB2E4\uC8FC\uC790."
+  goal: 0
+  item: {fileID: 11400000, guid: 79fcb873777f38e4db7b290d2f88f8ea, type: 2}
+  amount: 3
+  rewardBells: 500
+  rewardItem: {fileID: 0}
+  rewardItemAmount: 1
+  requires: {fileID: 0}

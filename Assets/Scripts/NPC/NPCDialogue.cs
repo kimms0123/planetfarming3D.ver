@@ -5,6 +5,7 @@ using FarmingSystem.Core;
 using FarmingSystem.Farming;
 using FarmingSystem.Player;
 using FarmingSystem.UI.Shop;
+using FarmingSystem.Dialogue;
 
 namespace FarmingSystem.NPC
 {
@@ -19,6 +20,10 @@ namespace FarmingSystem.NPC
     // 붙이는 곳: NPC 오브젝트 (물가에 빈 오브젝트를 놓고 이 스크립트만 붙여도 됨)
     public class NPCDialogue : MonoBehaviour
     {
+        [Header("대사 모음 (넣으면 아래 Lines 대신 상황별 대사·퀘스트)")]
+        [Tooltip("Dialogue Set 에셋. 처음 만남·시간·날씨·퀘스트 상태에 따라 다른 말을 함. 비우면 아래 Lines를 차례로")]
+        [SerializeField] private DialogueSet dialogue;
+
         [Header("NPC")]
         [SerializeField] private string npcName = "낚시꾼";
         [Tooltip("차례로 나오는 대사")]
@@ -115,10 +120,46 @@ namespace FarmingSystem.NPC
             npcAnimator = GetComponentInChildren<Animator>();
             home = transform.position;
             homeReady = false; // 처음 자리 높이를 재는 동안은 높이 검사 안 함
-            homeY = TryGroundY(home, out float gy) ? gy : home.y;
+            homeY = SpawnGroundY(home, out float gy) ? gy : home.y;
             homeReady = true;
             transform.position = new Vector3(home.x, homeY, home.z);
+            home = transform.position;
             idleTimer = Random.Range(idleTime.x, idleTime.y);
+        }
+
+        /// <summary>다른 곳으로 옮기기 (주민이 새 집 앞으로 이사 올 때). 그 자리가 새 '처음 자리'가 됨</summary>
+        public void Relocate(Vector3 pos, Quaternion rot)
+        {
+            transform.SetPositionAndRotation(pos, rot);
+            baseRotation = rot;
+            homeReady = false;
+            homeY = SpawnGroundY(pos, out float gy) ? gy : pos.y;
+            homeReady = true;
+            transform.position = new Vector3(pos.x, homeY, pos.z);
+            home = transform.position;
+            hasTarget = false;
+            idleTimer = Random.Range(idleTime.x, idleTime.y);
+        }
+
+        // 처음 자리의 땅 높이: 땅 속에 놓였어도 찾을 수 있게 훨씬 위(30m)에서 아래로
+        //  섬 땅(밭 칸)을 먼저 찾고, 없으면 처음 맞는 것 (나무 위 등에 서지 않게)
+        private bool SpawnGroundY(Vector3 p, out float y)
+        {
+            y = p.y;
+            RaycastHit[] hits = Physics.RaycastAll(new Vector3(p.x, p.y + 30f, p.z), Vector3.down, 60f, ~0, QueryTriggerInteraction.Ignore);
+            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+            bool any = false;
+            float first = p.y;
+            foreach (RaycastHit h in hits)
+            {
+                if (h.transform.IsChildOf(transform)) continue;
+                if (player != null && h.transform.IsChildOf(player)) continue;
+                if (h.collider.GetComponentInParent<NPCDialogue>() != null || h.collider.GetComponentInParent<PlayerController>() != null) continue;
+                if (h.collider.GetComponentInParent<FarmTile>() != null) { y = h.point.y; return true; }
+                if (!any) { any = true; first = h.point.y; }
+            }
+            if (any) { y = first; return true; }
+            return false;
         }
 
         private void Update()
@@ -150,7 +191,8 @@ namespace FarmingSystem.NPC
 
         private bool CheckCanTalk()
         {
-            if (UIInputBlocker.IsBlocked || lines == null || lines.Length == 0) return false;
+            if (UIInputBlocker.IsBlocked) return false;
+            if (dialogue == null && (lines == null || lines.Length == 0)) return false;
             Vector3 to = transform.position - player.position;
             to.y = 0f;
             if (to.magnitude > interactRange) return false;
@@ -174,6 +216,24 @@ namespace FarmingSystem.NPC
                 // 상점 대화창이 없으면 새로 만듦 (상점과 같은 모양을 코드가 그림)
                 view = new GameObject("NPCConversationUI").AddComponent<ShopConversationUI>();
             }
+            // 이번에 할 말 고르기: 대사 모음이 있으면 상황에 맞는 묶음, 없으면 Lines
+            entry = dialogue != null ? dialogue.Pick(name, lastEntryKey) : null;
+            if (entry != null)
+            {
+                curLines = entry.lines;
+                curChoices = new List<string>();
+                foreach (DialogueChoice c in entry.choices) if (c != null && !string.IsNullOrEmpty(c.text)) curChoices.Add(c.text);
+                lastEntryKey = entry.Key;
+                if (QuestManager.Instance != null) QuestManager.Instance.MarkTalk(name, entry.Key, entry.onceOnly);
+            }
+            else
+            {
+                if (lines == null || lines.Length == 0) return; // 할 말이 없음
+                curLines = lines;
+                curChoices = finalChoices != null ? new List<string>(finalChoices) : new List<string>();
+                if (QuestManager.Instance != null) QuestManager.Instance.MarkTalk(name, null, false);
+            }
+
             talking = true;
             lineIndex = 0;
             startFrame = Time.frameCount;
@@ -186,32 +246,74 @@ namespace FarmingSystem.NPC
             ShowLine();
         }
 
+        // 이번 대화 내용
+        private DialogueEntry entry;
+        private string[] curLines;
+        private List<string> curChoices;
+        private string lastEntryKey;
+
+        private string Speaker => dialogue != null && !string.IsNullOrEmpty(dialogue.npcName) ? dialogue.npcName : npcName;
+
+        private string Say(string text) =>
+            entry != null && QuestManager.Instance != null ? QuestManager.Instance.Format(text, entry.quest) : text;
+
         private void ShowLine()
         {
-            bool last = lineIndex >= lines.Length - 1;
-            List<string> choices = last && finalChoices != null && finalChoices.Length > 0 ? new List<string>(finalChoices) : null;
+            bool last = lineIndex >= curLines.Length - 1;
+            List<string> choices = last && curChoices != null && curChoices.Count > 0 ? curChoices : null;
             waitingNext = true;
-            view.Show(npcName, lines[lineIndex], choices ?? new List<string>(), OnLineDone, choices != null ? choices.Count - 1 : -1);
+            view.Show(Speaker, Say(curLines[lineIndex]), choices ?? new List<string>(), OnLineDone, choices != null ? choices.Count - 1 : -1);
         }
 
         private void OnLineDone(int choice)
         {
-            bool last = lineIndex >= lines.Length - 1;
+            bool last = lineIndex >= curLines.Length - 1;
             if (!last)
             {
                 lineIndex++;
                 ShowLine();
                 return;
             }
-            // 마지막 대사: 선택에 따른 대답 한 줄 → 끝
-            if (choice >= 0 && choiceReplies != null && choice < choiceReplies.Length && !string.IsNullOrEmpty(choiceReplies[choice]))
+            // 마지막 대사: 선택에 따른 행동(퀘스트) + 대답 한 줄 → 끝
+            string reply = null;
+            if (entry != null)
+            {
+                DialogueChoice c = ChoiceAt(choice);
+                if (c != null)
+                {
+                    reply = c.reply;
+                    QuestManager qm = QuestManager.Instance;
+                    if (qm != null && entry.quest != null)
+                    {
+                        if (c.action == ChoiceAction.StartQuest) qm.StartQuest(entry.quest);
+                        else if (c.action == ChoiceAction.TurnInQuest && !qm.TryTurnIn(entry.quest))
+                            reply = "어라, 아직 다 모으지 못한 것 같아. ({have}/{amount})";
+                    }
+                }
+            }
+            else if (choice >= 0 && choiceReplies != null && choice < choiceReplies.Length) reply = choiceReplies[choice];
+
+            if (!string.IsNullOrEmpty(reply))
             {
                 lineIndex = int.MaxValue; // 대답 다음엔 끝
                 waitingNext = true;
-                view.Show(npcName, choiceReplies[choice], new List<string>(), _ => EndTalk());
+                view.Show(Speaker, Say(reply), new List<string>(), _ => EndTalk());
                 return;
             }
             EndTalk();
+        }
+
+        // 화면 선택지 번호 → 대사 모음의 선택지 (글자가 빈 선택지는 화면에 안 나와서 건너뜀)
+        private DialogueChoice ChoiceAt(int index)
+        {
+            if (index < 0 || entry == null) return null;
+            int shown = -1;
+            foreach (DialogueChoice c in entry.choices)
+            {
+                if (c == null || string.IsNullOrEmpty(c.text)) continue;
+                if (++shown == index) return c;
+            }
+            return null;
         }
 
         private void EndTalk()

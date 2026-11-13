@@ -306,5 +306,5 @@ MonoBehaviour:
   itemIcon: {fileID: 1536251564948523378}
   quantityText: {fileID: 68937406869055253}
   selectedHighlight: {fileID: 0}
-  normalSlotSprite: {fileID: 820663290, guid: 83741490e3cbba241aaa0a7e06d14778, type: 3}
-  selectedSlotSprite: {fileID: -672367519, guid: 83741490e3cbba241aaa0a7e06d14778, type: 3}
+  normalSlotSprite: {fileID: -1538735643, guid: 5d4607f5039acf74abfe8eb883b6c42c, type: 3}
+  selectedSlotSprite: {fileID: 815781648, guid: 5d4607f5039acf74abfe8eb883b6c42c, type: 3}

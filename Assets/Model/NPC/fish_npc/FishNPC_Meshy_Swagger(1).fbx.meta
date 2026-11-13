@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 4c3923f88cd0c114cb5aa9e79072fb54
+guid: c7954c868f8ac014d94bce714d44e499
 ModelImporter:
   serializedVersion: 24501
   internalIDToNameTable: []
@@ -8,12 +8,12 @@ ModelImporter:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: Helmet_Glass
-    second: {fileID: 2100000, guid: 1897f1ed29d026641af5cc53bd94adab, type: 2}
+    second: {fileID: 2100000, guid: 282c2ad026bf491468adc312007f2dac, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: Material_0
-    second: {fileID: 2100000, guid: 6165d1353d031a84ba78c0bd02433a7e, type: 2}
+    second: {fileID: 2100000, guid: 21a9f521870912a438a9cb4711ef38d2, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
