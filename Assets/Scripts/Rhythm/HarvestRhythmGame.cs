@@ -8,6 +8,7 @@ using FarmingSystem.Core;
 using FarmingSystem.Inventory;
 using FarmingSystem.Player;
 using FarmingSystem.UI;
+using FarmingSystem.Effects;
 
 namespace FarmingSystem.Rhythm
 {
@@ -131,6 +132,32 @@ namespace FarmingSystem.Rhythm
         [Header("카메라 강조 (기획서 4장: 화면 전환 없이 작물만 조금 강조)")]
         [Tooltip("리듬게임 동안 카메라가 작물 쪽으로 살짝 다가감")]
         [SerializeField] private bool focusCamera = true;
+        [Tooltip("켜면 어깨 너머 시점: 플레이어 뒤쪽 비스듬한 각도에서 작물을 바라봄 (캐릭터는 숨기고 그림자만)\n끄면 아래 Focus 값들로 평소 카메라를 살짝 당기는 예전 방식")]
+        [SerializeField] private bool overShoulderCamera = true;
+
+        [Header("어깨 너머 시점 - 기본 각도 (Over Shoulder Camera가 켜져 있을 때)")]
+        [Tooltip("각도를 정하는 기준 위치: 플레이어 뒤로 (m)")]
+        [SerializeField] private float angleBack = 1.0f;
+        [Tooltip("각도를 정하는 기준 위치: 플레이어 옆으로 (m)")]
+        [SerializeField] private float angleSide = 0.85f;
+        [Tooltip("각도를 정하는 기준 위치: 머리 꼭대기 위로 (m). 올리면 더 내려다봄")]
+        [SerializeField] private float angleHeight = 0.15f;
+        [Tooltip("바라보는 점 = 작물 가운데 + 이 높이 (m). 올리면 작물이 화면 아래로 내려감")]
+        [SerializeField] private float angleLookUp = 0.35f;
+        [Tooltip("시야각 (작을수록 확대). 0이면 지금 시야각 그대로")]
+        [SerializeField] private float angleFov = 45f;
+
+        [Header("어깨 너머 시점 - 거리·캐릭터")]
+        [Tooltip("위 각도 그대로 카메라를 뒤로 더 빼는 거리 (m). 클수록 멀리서 넓게 보임")]
+        [SerializeField] private float pullBack = 1.2f;
+        [Tooltip("리듬게임 동안 캐릭터를 숨김 (그림자는 남김) → 카메라와 작물 사이에 선 캐릭터가 작물을 가리지 않음")]
+        [SerializeField] private bool hidePlayerDuringShot = true;
+
+        [Header("노트(판정 원) 위치")]
+        [Tooltip("판정 원을 작물 꼭대기에서 이만큼 위에 띄움 (m). 0이면 작물 가운데에 겹침")]
+        [SerializeField] private float noteAboveCrop = 0.45f;
+        [Tooltip("화면에서 판정 원을 추가로 옮기기 (픽셀, 1920x1080 기준). 예: (0, 40) = 조금 더 위")]
+        [SerializeField] private Vector2 noteScreenOffset = Vector2.zero;
         [Tooltip("카메라가 바라보는 점을 플레이어에서 작물 쪽으로 얼마나 옮길지 (0 = 플레이어, 1 = 작물)")]
         [SerializeField, Range(0f, 1f)] private float focusBlend = 0.65f;
         [Tooltip("카메라 거리 배율 (0.6 = 평소 거리의 60%까지 다가감)")]
@@ -187,6 +214,10 @@ namespace FarmingSystem.Rhythm
         [SerializeField, Range(0f, 1f)] private float debugDifficulty = 0.4f;
 
         public bool IsPlaying { get; private set; }
+        /// <summary>PV 자동 촬영용: 켜면 노트를 전부 정확한 타이밍에 자동으로 침 (ALL PERFECT)</summary>
+        public static bool AutoPlay;
+        // 녹화(Recorder Constant)일 때는 녹화 간격으로 진행 → 영상에서 속도가 일정
+        private static float FrameDt => Time.captureFramerate > 0 ? Time.captureDeltaTime : Time.unscaledDeltaTime;
         private readonly List<CanvasGroup> hiddenGroups = new List<CanvasGroup>();
         private readonly List<float> hiddenAlphas = new List<float>();
         private GameObject debugCrop;          // 테스트 플레이용 임시 작물
@@ -230,7 +261,9 @@ namespace FarmingSystem.Rhythm
         private int lastCountdown = int.MinValue;
         private CropReactionController reaction;
         private Transform cropTransform;
-        private Vector3 judgeWorldPoint;        // 판정 원이 따라갈 작물 가운데 (월드 좌표)
+        private Vector3 judgeWorldPoint;        // 판정 원이 따라갈 점 (작물 꼭대기 위, 월드 좌표)
+        private Vector3 cropCenterPoint;        // 작물 가운데 (카메라가 바라보는 점)
+        private bool shotActive;                // 어깨 너머 시점 사용 중
         private ThirdPersonCameraRig focusedRig;
         private float judgePulse;              // 판정 원이 잠깐 커지는 연출
         private float keyFlash;                // 누른 키 반짝임
@@ -466,13 +499,23 @@ namespace FarmingSystem.Rhythm
             popupText.text = "";
             Canvas.ForceUpdateCanvases();
 
-            judgeWorldPoint = GetCropCenter(crop, worldAnchor);
+            cropCenterPoint = GetCropCenter(crop, worldAnchor);
+            judgeWorldPoint = GetNoteAnchor(crop, cropCenterPoint);
             cornerAnim = 0f;
             judgeRoot.anchoredPosition = ProjectToCanvas(judgeWorldPoint);
 
             // 카메라가 작물 쪽으로 살짝 다가감 (게임 시간이 멈춰도 카메라는 실제 시간으로 움직임)
             focusedRig = focusCamera ? ThirdPersonCameraRig.Instance : null;
-            if (focusedRig != null) focusedRig.BeginFocus(judgeWorldPoint, focusBlend, focusDistanceScale, focusPitch, focusSideAngle);
+            shotActive = false;
+            if (focusedRig != null)
+            {
+                if (overShoulderCamera && TryGetShoulderShot(cropCenterPoint, out Vector3 camPos, out Quaternion camRot))
+                {
+                    focusedRig.BeginShot(camPos, camRot, angleFov > 0f ? angleFov : -1f);
+                    shotActive = true;
+                }
+                else focusedRig.BeginFocus(cropCenterPoint, focusBlend, focusDistanceScale, focusPitch, focusSideAngle);
+            }
             goalIcon.sprite = ctx.Crop != null && ctx.Crop.icon != null ? ctx.Crop.icon : null;
             goalIcon.enabled = goalIcon.sprite != null;
             goalIcon.transform.parent.gameObject.SetActive(goalIcon.enabled); // 아이콘이 없으면 흰 동그라미도 숨김
@@ -518,7 +561,7 @@ namespace FarmingSystem.Rhythm
                     DebugPlay();
                 return;
             }
-            float dt = Time.unscaledDeltaTime;
+            float dt = FrameDt;
 
             UpdateSongTime();
             UpdateEffects(dt);
@@ -570,7 +613,8 @@ namespace FarmingSystem.Rhythm
         private void UpdateSongTime()
         {
             double dspSong = AudioSettings.dspTime - startDsp - audioOffset;
-            songTime += Time.unscaledDeltaTime;
+            songTime += FrameDt;
+            if (Time.captureFramerate > 0) return; // 녹화 중엔 오디오 시계 대신 녹화 간격만 따름
             double diff = dspSong - songTime;
             if (Math.Abs(diff) > 0.05) songTime = dspSong;
             else songTime += diff * 0.1;
@@ -610,7 +654,14 @@ namespace FarmingSystem.Rhythm
 
         private void HandleInput()
         {
-            if (!TryReadDirection(out ArrowDirection pressed)) return;
+            ArrowDirection pressed;
+            if (AutoPlay)
+            {
+                // 다음 노트 시간이 되면 그 방향을 정확히 누름
+                if (currentIndex >= pattern.Notes.Count || songTime < pattern.Notes[currentIndex].Time) return;
+                pressed = pattern.Notes[currentIndex].Direction;
+            }
+            else if (!TryReadDirection(out pressed)) return;
 
             keyFlash = 0.15f;
             keyFlashDir = pressed;
@@ -686,12 +737,16 @@ namespace FarmingSystem.Rhythm
             popupLife = 0.6f;
             sfxSource.PlayOneShot(j == 0 ? Pick(perfectClip, genPerfect) : j == 1 ? Pick(goodClip, genGood) : Pick(missClip, genMiss), sfxVolume);
             if (reaction != null) reaction.React(j, pattern.Notes[index].Direction); // 노트 방향을 따라 작물이 움직임
+            if (j == 0) FarmFX.Perfect(cropCenterPoint + Vector3.up * 0.2f); // PERFECT 반짝이
 
             RefreshHud();
         }
 
         private void StartPull()
         {
+            // 작물이 튀어 오르는 순간(흔들기 0.35초 뒤) 등급 반짝이: 기본 흰색 / 상급 금색 / 최상급 무지개
+            bool allPerfectNow = result.NoteCount > 0 && result.Perfect == result.NoteCount;
+            FarmFX.HarvestBurst(cropCenterPoint + Vector3.up * 0.3f, TierFor(CurrentScoreRatio(), allPerfectNow), reaction != null ? 0.35f : 0f);
             phase = Phase.Pulling;
             foreach (AudioSource s in tickSources) s.Stop();
             foreach (Ring r in rings) r.Image.gameObject.SetActive(false);
@@ -758,7 +813,13 @@ namespace FarmingSystem.Rhythm
             UIInputBlocker.Unblock(this);
             ShowGameplayUI();
             if (debugCrop != null) { Destroy(debugCrop); debugCrop = null; }
-            if (focusedRig != null) focusedRig.EndFocus();
+            if (focusedRig != null)
+            {
+                if (shotActive) focusedRig.EndShot();
+                else focusedRig.EndFocus();
+            }
+            ShowPlayer(); // 숨겼던 캐릭터 다시 보이게
+            shotActive = false;
             focusedRig = null;
             if (pausedWorldThisSession) Time.timeScale = previousTimeScale <= 0f ? 1f : previousTimeScale;
             pausedWorldThisSession = false;
@@ -1025,6 +1086,85 @@ namespace FarmingSystem.Rhythm
             if (remainText != null) remainText.text = $"<size=60%>남은 노트</size>\n{pattern.Notes.Count - done}개";
         }
 
+        // 판정 원 자리: 작물 꼭대기 + noteAboveCrop (작물을 가리지 않게 살짝 위)
+        private Vector3 GetNoteAnchor(Transform crop, Vector3 center)
+        {
+            float top = center.y;
+            if (crop != null)
+                foreach (Renderer r in crop.GetComponentsInChildren<Renderer>())
+                    top = Mathf.Max(top, r.bounds.max.y);
+            return new Vector3(center.x, top + noteAboveCrop, center.z);
+        }
+
+        // 어깨 너머 시점 계산: 플레이어 등 뒤 + 옆으로 비켜서 작물을 바라봄 → 플레이어는 화면 옆 끝에 뒤통수만 살짝
+        // 왼쪽/오른쪽 중 지금 카메라와 가까운 쪽 어깨를 고름 (화면이 덜 휙 돌게)
+        private bool TryGetShoulderShot(Vector3 cropCenter, out Vector3 pos, out Quaternion rot)
+        {
+            pos = default;
+            rot = Quaternion.identity;
+            PlayerController player = FindAnyObjectByType<PlayerController>();
+            Camera cam = Camera.main;
+            if (player == null || cam == null) return false;
+
+            Transform pt = player.transform;
+            float headTop = pt.position.y + 1.8f;
+            bool found = false;
+            foreach (Renderer r in pt.GetComponentsInChildren<Renderer>())
+            {
+                if (r is ParticleSystemRenderer) continue;
+                headTop = found ? Mathf.Max(headTop, r.bounds.max.y) : r.bounds.max.y;
+                found = true;
+            }
+
+            Vector3 d = cropCenter - pt.position;
+            d.y = 0f;
+            if (d.sqrMagnitude < 0.01f) d = pt.forward;
+            d.y = 0f;
+            d.Normalize();
+            Vector3 right = Vector3.Cross(Vector3.up, d);
+            float sign = Vector3.Dot(right, cam.transform.position - pt.position) >= 0f ? 1f : -1f;
+
+            // 1) 기본 각도: 예전 어깨 너머 위치에서 작물을 바라보는 방향 (이 방향은 그대로 유지)
+            Vector3 look = cropCenter + Vector3.up * angleLookUp;
+            Vector3 basePos = pt.position - d * angleBack + right * (angleSide * sign);
+            basePos.y = headTop + angleHeight;
+            Vector3 viewDir = (look - basePos).normalized;
+
+            // 2) 같은 각도로 뒤로 더 뺌
+            float dist = Vector3.Distance(look, basePos) + Mathf.Max(0f, pullBack);
+            Vector3 backPos = look - viewDir * dist;
+
+            pos = backPos;
+            rot = Quaternion.LookRotation(viewDir, Vector3.up);
+            if (hidePlayerDuringShot) HidePlayer(pt);
+            return true;
+        }
+
+        // ---------- 리듬게임 동안 캐릭터 숨기기 (그림자만 남김) ----------
+
+        private readonly List<Renderer> hiddenRenderers = new List<Renderer>();
+        private readonly List<UnityEngine.Rendering.ShadowCastingMode> hiddenModes = new List<UnityEngine.Rendering.ShadowCastingMode>();
+
+        private void HidePlayer(Transform player)
+        {
+            ShowPlayer();
+            foreach (Renderer r in player.GetComponentsInChildren<Renderer>())
+            {
+                if (r is ParticleSystemRenderer || !r.enabled) continue;
+                hiddenRenderers.Add(r);
+                hiddenModes.Add(r.shadowCastingMode);
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly; // 몸은 안 보이고 그림자만
+            }
+        }
+
+        private void ShowPlayer()
+        {
+            for (int i = 0; i < hiddenRenderers.Count; i++)
+                if (hiddenRenderers[i] != null) hiddenRenderers[i].shadowCastingMode = hiddenModes[i];
+            hiddenRenderers.Clear();
+            hiddenModes.Clear();
+        }
+
         // 작물 모델의 가운데 (월드 좌표). 모델이 없으면 fallback 위치
         private static Vector3 GetCropCenter(Transform crop, Vector3 fallback)
         {
@@ -1049,6 +1189,7 @@ namespace FarmingSystem.Rhythm
                 Vector3 screen = cam.WorldToScreenPoint(world);
                 if (screen.z > 0f) RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, null, out local);
             }
+            local += noteScreenOffset;
 
             Vector2 half = canvasRect.rect.size * 0.5f;
             float r0 = judgeRadius * approachStartScale + 20f;

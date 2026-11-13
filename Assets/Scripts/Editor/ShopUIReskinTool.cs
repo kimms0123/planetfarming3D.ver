@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -38,7 +39,7 @@ namespace FarmingSystem.EditorTools
             "Slot_Light", "Slot_Dark", "Slot_Big_Plain", "Frame_Select",
             "Pill_Yellow", "Pill_Grey", "Pill_Green", "Button_Rect_Grey",
             "Button_Round_White", "Button_Cancel", "Arrow_Down",
-            "Icon_Star", "Bubble_White",
+            "Icon_Star",
         };
 
         private static Dictionary<string, Sprite> sprites;
@@ -59,6 +60,271 @@ namespace FarmingSystem.EditorTools
 
         [MenuItem("Tools/행성농사일지/UI/새 UI 입히기 - 상점 전부 (대화창 + 판매 + 구매)")]
         private static void MenuAll() => Run(conversation: true, sell: true, buy: true);
+
+        // 구매·판매 창의 상인 말풍선 → 대화창과 같은 모양의 대사 상자 + 노란 이름표로 새로 만들기
+        // (말풍선 그림은 글자 칸과 맞지 않아 글자가 밖으로 삐져나왔음) + 상점 글자 깨짐(□) 고치기
+        [MenuItem("Tools/행성농사일지/UI/상점 상인 대사 상자 다시 만들기 (말풍선 → 대화창 모양)")]
+        private static void MenuMerchantBox()
+        {
+            if (!LoadSprites()) return;
+            if (!EditorUtility.DisplayDialog("상인 대사 상자",
+                    "구매 창·판매 창의 상인 말풍선을 대화창 모양 상자로 바꿔요.\n예전 말풍선은 지우지 않고 꺼 둬요. (씬은 Ctrl+Z로 되돌릴 수 있어요)\n\n" +
+                    "글자가 □로 깨지는 상점 칸 프리팹의 글꼴도 같이 고쳐요 (프리팹은 Ctrl+Z가 안 돼요).\n\n계속할까요?", "계속", "취소"))
+                return;
+
+            log = new StringBuilder();
+            changed = 0;
+            Undo.SetCurrentGroupName("상인 대사 상자");
+            int group = Undo.GetCurrentGroup();
+
+            ShopBuyPanelUI buy = Object.FindAnyObjectByType<ShopBuyPanelUI>(FindObjectsInactive.Include);
+            ShopSellPanelUI sell = Object.FindAnyObjectByType<ShopSellPanelUI>(FindObjectsInactive.Include);
+            ShopDialogueUI dialogue = Object.FindAnyObjectByType<ShopDialogueUI>(FindObjectsInactive.Include);
+
+            // 상인 이름: 예전 말풍선 이름표에 적힌 이름(예: 여우상인)을 우선, 없으면 대화창에 쓰던 이름
+            string name = OldNameTagText(buy) ?? OldNameTagText(sell);
+            if (string.IsNullOrEmpty(name) && dialogue != null) name = new SerializedObject(dialogue).FindProperty("merchantName").stringValue;
+            if (string.IsNullOrEmpty(name)) name = "상인";
+
+            if (buy != null) { Section("구매 창"); RebuildMerchantBox(buy, name); } else Warn("ShopBuyPanelUI 없음 → 건너뜀");
+            if (sell != null) { Section("판매 창"); RebuildMerchantBox(sell, name); } else Warn("ShopSellPanelUI 없음 → 건너뜀");
+
+            // 대화창 이름도 같은 이름으로 (대화창은 '상인', 창은 '여우상인'처럼 달랐음)
+            if (dialogue != null)
+            {
+                var dso = new SerializedObject(dialogue);
+                Record(dialogue, "상인 대사 상자");
+                dso.FindProperty("merchantName").stringValue = name;
+                dso.ApplyModifiedProperties();
+                Section("대화창");
+                Note($"상인 이름 = '{name}' (구매·판매 창 이름표와 같게)");
+            }
+
+            // 글자 깨짐(□): 한글/벨 글자가 없는 글꼴을 쓰는 글자를 대사 글꼴로
+            Section("글자 깨짐(□) 고치기");
+            TMP_FontAsset good = GoodFont(buy, sell);
+            if (good == null) Warn("한글이 나오는 글꼴을 못 찾음 → 건너뜀");
+            else
+            {
+                foreach (MonoBehaviour panel in new MonoBehaviour[] { buy, sell })
+                    if (panel != null) foreach (TMP_Text t in panel.GetComponentsInChildren<TMP_Text>(true)) FixFont(t, good);
+                if (buy != null && new SerializedObject(buy).FindProperty("slotPrefab").objectReferenceValue is Component bSlot)
+                    EditPrefab(bSlot.gameObject, r => { foreach (TMP_Text t in r.GetComponentsInChildren<TMP_Text>(true)) FixFont(t, good); });
+                if (sell != null)
+                {
+                    var sso = new SerializedObject(sell);
+                    if (sso.FindProperty("slotPrefab").objectReferenceValue is Component sSlot)
+                        EditPrefab(sSlot.gameObject, r => { foreach (TMP_Text t in r.GetComponentsInChildren<TMP_Text>(true)) FixFont(t, good); });
+                    if (sso.FindProperty("cartRowPrefab").objectReferenceValue is Component row)
+                        EditPrefab(row.gameObject, r => { foreach (TMP_Text t in r.GetComponentsInChildren<TMP_Text>(true)) FixFont(t, good); });
+                }
+            }
+
+            Undo.CollapseUndoOperations(group);
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[상인 대사 상자] 끝\n{log}");
+            EditorUtility.DisplayDialog("상인 대사 상자", $"끝났어요! (자세한 내용은 Console)\n\n상인 이름: {name}\n\nCtrl+S로 씬 저장 후 플레이해서 확인해 주세요.", "확인");
+        }
+
+        private const string BoxName = "MerchantLineBox";
+
+        private static void RebuildMerchantBox(MonoBehaviour ui, string merchantName)
+        {
+            var so = new SerializedObject(ui);
+            TMP_Text line = so.FindProperty("merchantLineText").objectReferenceValue as TMP_Text;
+            if (line == null) { Warn("Merchant Line Text가 비어 있음 → 건너뜀"); return; }
+            GameObject root = so.FindProperty("panelRoot").objectReferenceValue as GameObject ?? ui.gameObject;
+            Transform rt = root.transform;
+
+            // 예전 말풍선 묶음 = 대사 글자의 조상 중 panelRoot 바로 아래 것 (CharacterArea 등)
+            Transform oldTop = line.transform;
+            while (oldTop.parent != null && oldTop.parent != rt) oldTop = oldTop.parent;
+
+            // 대사 상자 (이미 만든 게 있으면 다시 씀)
+            Transform boxT = rt.Find(BoxName);
+            GameObject box;
+            if (boxT == null)
+            {
+                box = new GameObject(BoxName, typeof(RectTransform), typeof(Image));
+                Undo.RegisterCreatedObjectUndo(box, "상인 대사 상자");
+                box.transform.SetParent(rt, false);
+                if (oldTop != line.transform) box.transform.SetSiblingIndex(oldTop.GetSiblingIndex());
+            }
+            else box = boxT.gameObject;
+
+            // 크기: 왼쪽 아래, 오른쪽 품목 창(ContentFrame)과 겹치지 않는 폭
+            RectTransform rootRect = (RectTransform)rt;
+            float screenW = rootRect.rect.width > 10f ? rootRect.rect.width : 1920f;
+            float frameW = 0f;
+            Transform frame = FindDeep(rt, "ContentFrame");
+            if (frame is RectTransform fr) frameW = fr.rect.width + 40f;
+            float boxW = Mathf.Clamp(screenW - frameW - 100f, 360f, 640f);
+            const float boxH = 160f;
+
+            RectTransform br = (RectTransform)box.transform;
+            Record(br, "상인 대사 상자");
+            br.anchorMin = br.anchorMax = Vector2.zero;
+            br.pivot = Vector2.zero;
+            br.anchoredPosition = new Vector2(50f, 40f);
+            br.sizeDelta = new Vector2(boxW, boxH);
+            box.SetActive(true);
+            Image boxImg = box.GetComponent<Image>();
+            boxImg.raycastTarget = false;
+            Apply(boxImg, "Panel_Dialogue");
+
+            // 노란 이름표 (상자 왼쪽 위에 걸침)
+            Transform tagT = box.transform.Find("NameTag");
+            GameObject tag;
+            if (tagT == null)
+            {
+                tag = new GameObject("NameTag", typeof(RectTransform), typeof(Image));
+                Undo.RegisterCreatedObjectUndo(tag, "상인 대사 상자");
+                tag.transform.SetParent(box.transform, false);
+            }
+            else tag = tagT.gameObject;
+            RectTransform tr = (RectTransform)tag.transform;
+            Record(tr, "상인 대사 상자");
+            tr.anchorMin = tr.anchorMax = new Vector2(0f, 1f);
+            tr.pivot = new Vector2(0f, 0.5f);
+            tr.anchoredPosition = new Vector2(30f, 2f);
+            tr.sizeDelta = new Vector2(Mathf.Max(150f, 34f + merchantName.Length * 26f), 44f);
+            Image tagImg = tag.GetComponent<Image>();
+            tagImg.raycastTarget = false;
+            Apply(tagImg, "Pill_Yellow");
+
+            Transform nameT = tag.transform.Find("Name");
+            TextMeshProUGUI nameText;
+            if (nameT == null)
+            {
+                var ng = new GameObject("Name", typeof(RectTransform), typeof(TextMeshProUGUI));
+                Undo.RegisterCreatedObjectUndo(ng, "상인 대사 상자");
+                ng.transform.SetParent(tag.transform, false);
+                nameText = ng.GetComponent<TextMeshProUGUI>();
+            }
+            else nameText = nameT.GetComponent<TextMeshProUGUI>();
+            Record(nameText, "상인 대사 상자");
+            RectTransform nr = nameText.rectTransform;
+            nr.anchorMin = Vector2.zero; nr.anchorMax = Vector2.one; nr.offsetMin = Vector2.zero; nr.offsetMax = Vector2.zero;
+            nameText.font = line.font;
+            nameText.text = merchantName;
+            nameText.fontSize = 22f;
+            nameText.fontStyle = FontStyles.Bold;
+            nameText.alignment = TextAlignmentOptions.Center;
+            nameText.raycastTarget = false;
+            nameText.color = TextBrown;
+
+            // 대사 글자를 상자 안으로 옮기고 칸에 맞게 (긴 대사는 줄바꿈 + 자동 크기)
+            if (line.transform.parent != box.transform) Undo.SetTransformParent(line.transform, box.transform, "상인 대사 상자");
+            line.gameObject.SetActive(true);
+            RectTransform lr = line.rectTransform;
+            Record(lr, "상인 대사 상자");
+            lr.anchorMin = Vector2.zero; lr.anchorMax = Vector2.one;
+            lr.pivot = new Vector2(0.5f, 0.5f);
+            lr.localScale = Vector3.one;
+            lr.localRotation = Quaternion.identity;
+            lr.offsetMin = new Vector2(34f, 20f);
+            lr.offsetMax = new Vector2(-34f, -30f);
+            Record(line, "상인 대사 상자");
+            line.alignment = TextAlignmentOptions.MidlineLeft;
+            line.textWrappingMode = TextWrappingModes.Normal;
+            line.enableAutoSizing = true;
+            line.fontSizeMin = 18f;
+            line.fontSizeMax = 28f;
+            line.overflowMode = TextOverflowModes.Ellipsis;
+            line.raycastTarget = false;
+            line.color = TextBrown;
+            Note($"{Path(box.transform)} 만듦 (폭 {boxW:0}, 대사 글자 옮김, 이름표 '{merchantName}')");
+
+            // 예전 말풍선 끄기 (다른 연결이 그 안에 있으면 끄지 않고 그림만 끔)
+            if (oldTop == line.transform || oldTop == box.transform) return;
+            if (HasOtherReference(so, oldTop))
+            {
+                foreach (Graphic g in oldTop.GetComponentsInChildren<Graphic>(true))
+                {
+                    string n = g.name.ToLowerInvariant();
+                    if (n.Contains("bubble") || n.Contains("name") || n.Contains("tail"))
+                    {
+                        Record(g, "상인 대사 상자");
+                        g.enabled = false;
+                    }
+                }
+                Warn($"{Path(oldTop)} 안에 다른 연결이 있어서 통째로 끄지 않고 말풍선·이름표 그림만 껐어요");
+            }
+            else if (oldTop.gameObject.activeSelf)
+            {
+                Record(oldTop.gameObject, "상인 대사 상자");
+                oldTop.gameObject.SetActive(false);
+                Note($"예전 말풍선 {Path(oldTop)} 꺼 둠 (지우진 않음)");
+            }
+        }
+
+        // panel 스크립트의 다른 칸이 t 안의 오브젝트를 가리키는지
+        private static bool HasOtherReference(SerializedObject so, Transform t)
+        {
+            SerializedProperty it = so.GetIterator();
+            while (it.NextVisible(true))
+            {
+                if (it.propertyType != SerializedPropertyType.ObjectReference || it.objectReferenceValue == null) continue;
+                Transform target = it.objectReferenceValue is Component c ? c.transform : (it.objectReferenceValue as GameObject)?.transform;
+                if (target != null && target.IsChildOf(t)) return true;
+            }
+            return false;
+        }
+
+        // 예전 말풍선 이름표에 적힌 짧은 글자 (대사 글자 말고)
+        private static string OldNameTagText(MonoBehaviour ui)
+        {
+            if (ui == null) return null;
+            var so = new SerializedObject(ui);
+            TMP_Text line = so.FindProperty("merchantLineText").objectReferenceValue as TMP_Text;
+            GameObject root = so.FindProperty("panelRoot").objectReferenceValue as GameObject ?? ui.gameObject;
+            if (line == null) return null;
+            Transform top = line.transform;
+            while (top.parent != null && top.parent != root.transform) top = top.parent;
+            Transform newBox = root.transform.Find(BoxName);
+            if (newBox != null && newBox.Find("NameTag/Name") is Transform nt && nt.TryGetComponent(out TMP_Text made) && !string.IsNullOrEmpty(made.text))
+                return made.text; // 다시 실행할 때는 전에 만든 이름표 이름
+            foreach (TMP_Text t in top.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (t == line) continue;
+                string s = t.text != null ? t.text.Trim() : "";
+                if (s.Length >= 2 && s.Length <= 8 && t.name.ToLowerInvariant().Contains("name")) return s;
+            }
+            return null;
+        }
+
+        private static TMP_FontAsset GoodFont(params MonoBehaviour[] panels)
+        {
+            foreach (MonoBehaviour p in panels)
+            {
+                if (p == null) continue;
+                TMP_Text line = new SerializedObject(p).FindProperty("merchantLineText").objectReferenceValue as TMP_Text;
+                if (line != null && line.font != null && line.font.HasCharacters("벨상인씨앗", out _, true, true)) return line.font;
+            }
+            ShopConversationUI conv = Object.FindAnyObjectByType<ShopConversationUI>(FindObjectsInactive.Include);
+            if (conv != null && new SerializedObject(conv).FindProperty("lineLabel").objectReferenceValue is TMP_Text cl && cl.font != null) return cl.font;
+            return null;
+        }
+
+        // 글자에 그 글꼴로 못 그리는 글자가 있으면 좋은 글꼴로 바꿈
+        private static void FixFont(TMP_Text t, TMP_FontAsset good)
+        {
+            if (t == null || t.font == good) return;
+            // 가격·금액 글자는 나중에 '벨'이 붙으므로 '벨'도 같이 확인
+            string lower = t.name.ToLowerInvariant();
+            bool money = lower.Contains("price") || lower.Contains("money") || lower.Contains("total") || lower.Contains("cost") || lower.Contains("value")
+                         || (t.text != null && t.text.Any(char.IsDigit));
+            string text = (t.text ?? "") + (money ? "벨" : "");
+            var sb2 = new StringBuilder();
+            foreach (char ch in text) if (ch > 127 && !char.IsWhiteSpace(ch)) sb2.Append(ch);
+            if (sb2.Length == 0) return;
+            if (t.font != null && t.font.HasCharacters(sb2.ToString(), out _, true, true)) return;
+            Record(t, "상인 대사 상자");
+            t.font = good;
+            changed++;
+            Note($"{Path(t.transform)} 글꼴 → {good.name} (□ 깨짐)");
+        }
 
         private static void Run(bool conversation, bool sell, bool buy)
         {
@@ -307,17 +573,17 @@ namespace FarmingSystem.EditorTools
             }
         }
 
-        // 상인 말풍선 = 대사 글자의 부모 Image (말풍선 꼬리가 찌그러지지 않게 비율 유지)
+        // 상인 대사 상자 = 대사 글자의 부모 Image → 대화창과 같은 Panel_Dialogue (말풍선 그림은 글자 칸과 안 맞아서 안 씀)
         private static void ReskinBubble(TMP_Text line)
         {
-            if (line == null) { Warn("상인 대사(Merchant Line Text)가 비어 있음 → 말풍선 건너뜀"); return; }
+            if (line == null) { Warn("상인 대사(Merchant Line Text)가 비어 있음 → 대사 상자 건너뜀"); return; }
             TextColor(line);
-            Image bubble = line.transform.parent != null ? line.transform.parent.GetComponent<Image>() : null;
-            if (bubble == null) { Warn($"'{Path(line.transform)}'의 부모에 Image가 없음 → 말풍선 건너뜀"); return; }
-            Apply(bubble, "Bubble_White", allowSliced: false);
-            bubble.preserveAspect = true;
-            HideChild(bubble.transform, "Fill");
-            HideChild(bubble.transform, "Inner");
+            Image box = line.transform.parent != null ? line.transform.parent.GetComponent<Image>() : null;
+            if (box == null) { Warn($"'{Path(line.transform)}'의 부모에 Image가 없음 → 대사 상자 건너뜀"); return; }
+            Apply(box, "Panel_Dialogue");
+            box.preserveAspect = false;
+            HideChild(box.transform, "Fill");
+            HideChild(box.transform, "Inner");
         }
 
         private static void ButtonSkin(SerializedObject so, string field, string sprite, bool round = false)

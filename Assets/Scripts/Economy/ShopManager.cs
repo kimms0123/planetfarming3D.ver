@@ -42,10 +42,24 @@ namespace FarmingSystem.Economy
         [Header("구매 목록 (탭은 아이템의 Category로 자동 분류)")]
         [SerializeField] private List<ShopItemEntry> buyCatalog = new List<ShopItemEntry>();
 
+        [Header("계절")]
+        [Tooltip("켜면 지금 계절에 심을 수 있는 씨앗만 상점에 보임 (스타듀밸리처럼). 씨앗이 아닌 물건(비료·도구 등)은 항상 보임\n구매 목록엔 씨앗을 전부 넣어 두면 계절마다 알아서 바뀜")]
+        [SerializeField] private bool onlyInSeasonSeeds = true;
+
         [Header("오늘의 특별 상품 (판매 보너스)")]
         [Tooltip("방문할 때마다 이 목록 중 하나를 무작위로 골라 판매 보너스를 준다. 비워두면 특별 상품 없음")]
         [SerializeField] private CropData[] possibleSpecialCrops;
         [SerializeField] private float specialSellBonusMultiplier = 1.5f;
+
+        [Header("판매 가능한 물건")]
+        [Tooltip("수확한 작물 판매")]
+        [SerializeField] private bool sellCrops = true;
+        [Tooltip("씨앗 판매")]
+        [SerializeField] private bool sellSeeds = true;
+        [Tooltip("씨앗 판매가 = 상점 구매 가격 x 이 비율 (0.5 = 산 값의 절반, 스타듀밸리 방식)")]
+        [SerializeField, Range(0.05f, 1f)] private float seedSellRatio = 0.5f;
+        [Tooltip("구매 목록에 없는 씨앗의 판매가 = 자라날 작물 기본가 x 이 비율 (최소 1)")]
+        [SerializeField, Range(0.05f, 1f)] private float seedFallbackRatio = 0.25f;
 
         [Header("테스트용")]
         [Tooltip("켜면 게임 시작하자마자 상인이 와 있음 (테스트 끝나면 꺼두기)")]
@@ -195,10 +209,18 @@ namespace FarmingSystem.Economy
             for (int i = 0; i < buyCatalog.Count; i++)
             {
                 ShopItemEntry entry = buyCatalog[i];
-                if (entry != null && entry.item != null && GetTab(entry.item) == tab)
+                if (entry != null && entry.item != null && GetTab(entry.item) == tab && IsAvailableNow(entry.item))
                     result.Add(i);
             }
             return result;
+        }
+
+        /// <summary>지금 상점에 내놓는 물건인지: 씨앗은 지금 계절에 심을 수 있을 때만 (onlyInSeasonSeeds가 켜져 있으면)</summary>
+        public bool IsAvailableNow(ItemData item)
+        {
+            if (!onlyInSeasonSeeds || item == null || GameClock.Instance == null) return true;
+            if (!(item is SeedData seed) || seed.resultCrop == null) return true;
+            return seed.resultCrop.CanGrowIn(GameClock.Instance.CurrentSeason);
         }
 
         public ShopItemEntry GetEntry(int catalogIndex)
@@ -233,6 +255,11 @@ namespace FarmingSystem.Economy
 
             ShopItemEntry entry = GetEntry(catalogIndex);
             if (entry == null || entry.item == null || quantity <= 0) return BuyResult.InvalidItem;
+            if (!IsAvailableNow(entry.item))
+            {
+                Debug.Log($"[구매 실패] {entry.item.itemName} - 지금 계절에 파는 씨앗이 아님");
+                return BuyResult.InvalidItem;
+            }
             if (CurrencyManager.Instance == null || InventoryManager.Instance == null) return BuyResult.InvalidItem;
 
             if (entry.stock >= 0 && entry.stock < quantity)
@@ -266,10 +293,25 @@ namespace FarmingSystem.Economy
 
         // ---------- 판매 ----------
 
-        /// <summary>지금은 작물(CropData)만 판매 가능</summary>
+        /// <summary>판매 가능한지: 작물(CropData), 씨앗(SeedData) - 인스펙터의 "판매 가능한 물건"으로 켜고 끔</summary>
         public static bool IsSellable(InventorySlotData slot)
         {
-            return slot != null && !slot.IsEmpty && slot.item is CropData;
+            if (slot == null || slot.IsEmpty) return false;
+            bool crops = Instance == null || Instance.sellCrops;
+            bool seeds = Instance == null || Instance.sellSeeds;
+            if (slot.item is CropData) return crops;
+            if (slot.item is SeedData) return seeds;
+            return false;
+        }
+
+        /// <summary>씨앗 개당 판매가: 구매 목록 가격 x 비율 (목록에 없으면 작물 기본가 x 비율), 최소 1</summary>
+        private float GetSeedUnitPrice(SeedData seed)
+        {
+            foreach (ShopItemEntry e in buyCatalog)
+                if (e != null && e.item == seed && e.price > 0)
+                    return Mathf.Max(1f, e.price * seedSellRatio);
+            float basePrice = seed.resultCrop != null ? seed.resultCrop.basePrice : 1f;
+            return Mathf.Max(1f, basePrice * seedFallbackRatio);
         }
 
         public bool IsTodaysSpecial(ItemData item)
@@ -281,6 +323,7 @@ namespace FarmingSystem.Economy
         public float GetSellUnitPrice(InventorySlotData slot)
         {
             if (!IsSellable(slot)) return 0f;
+            if (slot.item is SeedData seed) return GetSeedUnitPrice(seed); // 씨앗은 등급·특별 상품 보너스 없음
 
             CropData crop = (CropData)slot.item;
             // 쓰레기 등급은 작물·특별 상품 보너스와 상관없이 1벨 고정

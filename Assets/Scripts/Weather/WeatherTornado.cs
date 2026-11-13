@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using FarmingSystem.Farming;
@@ -41,6 +42,8 @@ namespace FarmingSystem.Weather
         [SerializeField] private float damageRadius = 4.5f;
         [Tooltip("휩쓸린 작물이 살아남을 확률 (살아남아도 품질이 나빠짐). 나머지는 날아가 사라짐")]
         [SerializeField, Range(0f, 1f)] private float surviveChance = 0.7f;
+        [Tooltip("떠돌 때 심어 둔 작물 쪽으로 가는 비율 (1 = 항상 작물 위로, 0 = 아무 데나)")]
+        [SerializeField, Range(0f, 1f)] private float seekCropsChance = 0.8f;
         [Tooltip("시든 작물도 날려 버릴지")]
         [SerializeField] private bool blowAwayWithered = true;
 
@@ -79,7 +82,7 @@ namespace FarmingSystem.Weather
 
             // 태풍이 시작되면 카메라 근처 바람 위쪽에 자리를 잡음
             if (active && !placed) { PlaceNearCamera(); hitTiles.Clear(); tiles = null; }
-            if (!active && presence <= 0.01f) placed = false;
+            if (!active && presence <= 0.01f && !pvHold) placed = false;
 
             presence = Mathf.MoveTowards(presence, active ? 1f : 0f, fadeSpeed * Time.deltaTime);
             SetEmission(presence);
@@ -88,7 +91,7 @@ namespace FarmingSystem.Weather
             // 천천히 목표 지점으로 이동, 도착하면 새 목표
             Vector3 flatPos = new Vector3(groundPos.x, 0f, groundPos.z);
             Vector3 flatTarget = new Vector3(target.x, 0f, target.z);
-            if (Vector3.Distance(flatPos, flatTarget) < 2f) target = RandomPointInRange();
+            if (Vector3.Distance(flatPos, flatTarget) < 2f && !pvHold) target = RandomPointInRange();
             flatPos = Vector3.MoveTowards(flatPos, flatTarget, moveSpeed * Time.deltaTime);
             groundPos = new Vector3(flatPos.x, GroundHeight(flatPos), flatPos.z);
 
@@ -118,7 +121,7 @@ namespace FarmingSystem.Weather
 
         private void DamageCrops(Vector3 flatPos)
         {
-            if (damageRadius <= 0f) return;
+            if (damageRadius <= 0f || (pvHold && !pvDamage)) return;
             if (tiles == null) tiles = FindObjectsByType<FarmTile>(FindObjectsInactive.Exclude);
             float r2 = damageRadius * damageRadius;
             foreach (FarmTile t in tiles)
@@ -132,13 +135,81 @@ namespace FarmingSystem.Weather
                 CropInstance crop = t.CurrentCrop;
                 if (crop.IsWithered)
                 {
-                    if (blowAwayWithered) t.DestroyCrop("회오리");
+                    if (blowAwayWithered) SuckUp(t);
                     continue;
                 }
                 if (Random.value < surviveChance) crop.MarkStormDamaged();
-                else t.DestroyCrop("회오리");
+                else SuckUp(t);
             }
         }
+
+        /// <summary>작물이 회오리에 휩쓸려 빙글빙글 날아감 → 밭에서 사라짐 (태풍 PV 연출도 이걸 씀)</summary>
+        public void SuckUp(FarmTile tile)
+        {
+            if (tile == null || tile.CurrentCrop == null) return;
+            hitTiles.Add(tile);
+            StartCoroutine(SuckRoutine(tile));
+        }
+
+        // 예전 태풍 연출(Movie_012)처럼 작물이 잠깐 흔들리다 뽑혀서 크게 포물선을 그리며 빙글빙글 날아감
+        // 방향 = 회오리 바깥쪽 + 회오리 도는 방향 + 바람 방향 (회오리 속으로 빨려 들어가면 먼지에 가려 안 보여서 바깥으로 날림)
+        private IEnumerator SuckRoutine(FarmTile tile)
+        {
+            Transform t = tile.CurrentCrop.transform;
+            Vector3 start = t.position;
+            Vector3 startScale = t.localScale;
+            Quaternion startRot = t.rotation;
+
+            Vector2 w2 = WeatherVisuals.WindDirection.sqrMagnitude > 0.01f ? WeatherVisuals.WindDirection.normalized : Vector2.right;
+            Vector3 wind = new Vector3(w2.x, 0f, w2.y);
+            Vector3 core = new Vector3(groundPos.x, start.y, groundPos.z);
+            Vector3 outDir = start - core;
+            outDir.y = 0f;
+            outDir = outDir.sqrMagnitude > 0.01f ? outDir.normalized : wind;
+            Vector3 swirl = Vector3.Cross(Vector3.up, outDir);
+            Vector3 dir = (outDir * 0.5f + swirl * 0.8f + wind * 0.7f).normalized;
+            Vector3 spinAxis = Vector3.Cross(Vector3.up, dir).normalized;
+            if (spinAxis.sqrMagnitude < 0.01f) spinAxis = Vector3.right;
+
+            float dur = Random.Range(0.8f, 1.2f);
+            float side = Random.Range(-1.5f, 1.5f);
+            float far = Random.Range(8f, 11f);
+            float high = Random.Range(3f, 4.5f);
+            float time = 0f;
+            while (time < dur && t != null)
+            {
+                time += Time.deltaTime;
+                float k = Mathf.Clamp01(time / dur);
+                float lift = k < 0.2f ? 0f : (k - 0.2f) / 0.8f; // 처음엔 살짝 흔들리다가 확 뽑혀 날아감
+                Vector3 off = dir * (lift * lift * far) + Vector3.up * (Mathf.Sin(lift * Mathf.PI * 0.8f) * high) + Vector3.Cross(Vector3.up, dir) * side * lift;
+                t.position = start + off;
+                float wobble = k < 0.2f ? Mathf.Sin(time * 60f) * 12f : 0f;
+                t.rotation = Quaternion.AngleAxis(wobble + lift * 720f, spinAxis) * startRot;
+                t.localScale = startScale * Mathf.Lerp(1f, 0.2f, lift);
+                yield return null;
+            }
+            if (tile != null) tile.DestroyCrop("회오리");
+        }
+
+        /// <summary>PV 자동 촬영용: 회오리를 그 자리에 두고 moveTo 쪽으로 천천히 지나가게 (도착하면 그 자리에 머묾). 태풍이 오면 나타남</summary>
+        public void PVPlace(Vector3 at, Vector3 moveTo, float speed = -1f, bool damage = true)
+        {
+            pvDamage = damage;
+            groundPos = new Vector3(at.x, GroundHeight(at), at.z);
+            transform.position = groundPos;
+            target = moveTo;
+            pvHold = true;
+            if (speed > 0f) moveSpeed = speed;
+            placed = true;
+            hitTiles.Clear();
+            tiles = null;
+        }
+
+        /// <summary>PV 자동 촬영이 끝나면 원래처럼 떠돌게</summary>
+        public void PVRelease() { pvHold = false; pvDamage = true; }
+
+        private bool pvHold;
+        private bool pvDamage = true;
 
         private void PlaceNearCamera()
         {
@@ -157,6 +228,22 @@ namespace FarmingSystem.Weather
 
         private Vector3 RandomPointInRange()
         {
+            // 심어 둔 작물 중 하나를 골라 그 위를 지나가게 (작물 너머까지 가서 밭을 가로지름)
+            if (Random.value < seekCropsChance)
+            {
+                var crops = new List<Vector3>();
+                foreach (FarmTile t in FindObjectsByType<FarmTile>(FindObjectsInactive.Exclude))
+                    if (t != null && t.CurrentCrop != null && !hitTiles.Contains(t)) crops.Add(t.Center);
+                if (crops.Count > 0)
+                {
+                    Vector3 c = crops[Random.Range(0, crops.Count)];
+                    Vector3 from = new Vector3(groundPos.x, 0f, groundPos.z);
+                    Vector3 dir = new Vector3(c.x - from.x, 0f, c.z - from.z);
+                    Vector3 past = dir.sqrMagnitude > 0.01f ? dir.normalized * 6f : Vector3.zero;
+                    return ClampToRange(new Vector3(c.x, 0f, c.z) + past);
+                }
+            }
+
             Vector2 r = Random.insideUnitCircle * roamRadius;
             return new Vector3(home.x + r.x, 0f, home.z + r.y);
         }

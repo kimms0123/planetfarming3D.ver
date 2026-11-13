@@ -109,6 +109,12 @@ namespace FarmingSystem.UI.Shop
             onChoose = null;
         }
 
+        /// <summary>PV 자동 촬영용: 0보다 크면 대사가 다 나온 뒤 이 시간(초)이 지나면 자동으로 넘김 (선택지는 지금 고른 것)</summary>
+        public static float AutoAdvance;
+        private float autoTimer;
+        // 녹화(Recorder Constant)일 때는 녹화 간격으로 진행 → 영상에서 글자 속도가 일정
+        private static float FrameDt => Time.captureFramerate > 0 ? Time.captureDeltaTime : Time.unscaledDeltaTime;
+
         // Esc 등으로 취소 (취소용 선택지가 있으면 그걸 고른 것으로)
         public void Cancel()
         {
@@ -125,7 +131,7 @@ namespace FarmingSystem.UI.Shop
             bool typing = typed < lineLength;
             if (typing)
             {
-                typed = Mathf.Min(lineLength, typed + charsPerSecond * Time.unscaledDeltaTime);
+                typed = Mathf.Min(lineLength, typed + charsPerSecond * FrameDt);
                 lineLabel.maxVisibleCharacters = Mathf.FloorToInt(typed);
                 if (typed >= lineLength) OnLineFinished();
             }
@@ -133,6 +139,13 @@ namespace FarmingSystem.UI.Shop
             if (kb == null || Time.frameCount == shownFrame) return;
             bool confirm = kb.eKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame ||
                            kb.spaceKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame;
+            // PV 자동 넘김: 대사가 다 나온 뒤 일정 시간이 지나면 누른 것으로
+            if (typing) autoTimer = 0f;
+            else if (AutoAdvance > 0f)
+            {
+                autoTimer += FrameDt;
+                if (autoTimer >= AutoAdvance) { autoTimer = 0f; confirm = true; }
+            }
 
             if (typing)
             {
@@ -146,7 +159,12 @@ namespace FarmingSystem.UI.Shop
                 return;
             }
 
-            if (activeCount == 0) return;
+            // 선택지가 없는 대사(NPC 대화 등): 다 나온 뒤 누르면 "다음"(-1)으로 넘김
+            if (activeCount == 0)
+            {
+                if (confirm && onChoose != null) { Action<int> next = onChoose; Hide(); next(-1); }
+                return;
+            }
             if (kb.upArrowKey.wasPressedThisFrame || kb.wKey.wasPressedThisFrame) Move(-1);
             if (kb.downArrowKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame) Move(1);
             if (confirm) Choose(selected);

@@ -113,6 +113,7 @@ namespace FarmingSystem.World
         // 범위 안 모든 블록을 그 계절 재질로
         public void ApplyAll(Season season)
         {
+            currentSeason = season; // 지금 보이는 계절 기억 (PV에서 모습만 바꿀 때도 날씨 눈/비가 따라오게)
             if (lookup.Count == 0) BuildLookup();
             int changed = 0;
             if (roots != null && roots.Length > 0)

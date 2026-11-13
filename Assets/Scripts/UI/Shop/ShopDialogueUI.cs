@@ -48,6 +48,14 @@ namespace FarmingSystem.UI.Shop
         [SerializeField] private Vector2 framing = new Vector2(0.2f, 0.3f);
         [Tooltip("클로즈업 중 화각 (작을수록 망원 - 얼굴이 크게). 0이면 그대로")]
         [SerializeField, Range(0f, 90f)] private float closeupFov = 38f;
+        [Tooltip("카메라 높이 각도 (도). 0 = 상인과 눈높이 (얼굴 정면), 10~15 = 살짝 위에서 내려다봄")]
+        [SerializeField, Range(0f, 45f)] private float closeupPitch = 0f;
+        [Tooltip("눈 높이 = 머리 뼈(Head)에서 머리 꼭대기(head_end)까지의 몇 % 위치. 모델에 머리 뼈가 있을 때만 씀 (없으면 Face From Top 사용)")]
+        [SerializeField, Range(0f, 1f)] private float eyeInHead = 0.35f;
+        [Tooltip("대화할 때 아래 대화창이 가리는 높이 (화면 세로 비율). 대화창 높이 250 + 아래 여백 → 1080 기준 약 0.29. 상인 턱이 항상 이 위에 오도록 자동으로 올림")]
+        [SerializeField, Range(0f, 0.6f)] private float closeupBoxCover = 0.29f;
+        [Tooltip("구매·판매 창에서 왼쪽 아래 상인 대사 상자가 가리는 높이 (화면 세로 비율). 상자 160 + 여백 40 → 1080 기준 약 0.2")]
+        [SerializeField, Range(0f, 0.6f)] private float panelBoxCover = 0.2f;
         [Tooltip("대화 중 플레이어 모델 숨기기 (1인칭 느낌)")]
         [SerializeField] private bool hidePlayer = true;
         [Tooltip("대화 중 핫바·십자선 숨기기")]
@@ -194,7 +202,7 @@ namespace FarmingSystem.UI.Shop
                 if (closeupPoint != null) rig.BeginShot(closeupPoint.position, closeupPoint.rotation, closeupFov);
                 else
                 {
-                    CalculateShot(framing, visibleHeightRatio, out Vector3 pos, out Quaternion rot);
+                    CalculateShot(framing, visibleHeightRatio, closeupBoxCover, out Vector3 pos, out Quaternion rot);
                     rig.BeginShot(pos, rot, closeupFov);
                 }
             }
@@ -225,7 +233,7 @@ namespace FarmingSystem.UI.Shop
         private void MoveCameraForPanel(bool sell)
         {
             if (!useCloseup || !worldViewPanels || merchant == null || ThirdPersonCameraRig.Instance == null) return;
-            CalculateShot(sell ? sellPanelFraming : panelFraming, panelVisibleHeightRatio, out Vector3 pos, out Quaternion rot);
+            CalculateShot(sell ? sellPanelFraming : panelFraming, panelVisibleHeightRatio, panelBoxCover, out Vector3 pos, out Quaternion rot);
             ThirdPersonCameraRig.Instance.BeginShot(pos, rot, closeupFov);
         }
 
@@ -234,7 +242,7 @@ namespace FarmingSystem.UI.Shop
         {
             if (!useCloseup || merchant == null || ThirdPersonCameraRig.Instance == null) return;
             if (closeupPoint != null) { ThirdPersonCameraRig.Instance.BeginShot(closeupPoint.position, closeupPoint.rotation, closeupFov); return; }
-            CalculateShot(framing, visibleHeightRatio, out Vector3 pos, out Quaternion rot);
+            CalculateShot(framing, visibleHeightRatio, closeupBoxCover, out Vector3 pos, out Quaternion rot);
             ThirdPersonCameraRig.Instance.BeginShot(pos, rot, closeupFov);
         }
 
@@ -245,17 +253,36 @@ namespace FarmingSystem.UI.Shop
                 if (g != null) g.SetActive(!hidden);
         }
 
-        private void CalculateShot(Vector2 framing, float visibleHeightRatio, out Vector3 position, out Quaternion rotation)
+        private void CalculateShot(Vector2 framing, float visibleHeightRatio, float boxCover, out Vector3 position, out Quaternion rotation)
         {
+            // 상인 몸 크기: 캐릭터 모델(뼈대 있는 SkinnedMeshRenderer)만 잼
+            // → 상인 밑에 가판대·소품 같은 큰 물체가 있어도 얼굴 위치가 엉뚱하게 잡히지 않게
+            Renderer[] all = merchant.GetComponentsInChildren<Renderer>();
+            bool hasSkinned = false;
+            foreach (Renderer r in all) if (r is SkinnedMeshRenderer) { hasSkinned = true; break; }
             Bounds b = new Bounds(merchant.position, Vector3.one * 1.5f);
             bool found = false;
-            foreach (Renderer r in merchant.GetComponentsInChildren<Renderer>())
+            foreach (Renderer r in all)
             {
                 if (r is ParticleSystemRenderer) continue;
+                if (hasSkinned && !(r is SkinnedMeshRenderer)) continue;
+                // 상인에게서 3m 넘게 떨어진 물체도 뺌
+                Vector3 off = r.bounds.center - merchant.position;
+                off.y = 0f;
+                if (off.magnitude > 3f) continue;
                 if (!found) { b = r.bounds; found = true; }
                 else b.Encapsulate(r.bounds);
             }
             Vector3 face = new Vector3(b.center.x, b.max.y - b.size.y * faceFromTop, b.center.z);
+            float chinY = face.y - b.size.y * 0.15f;
+            // 머리 뼈(Head)가 있으면 그걸로 눈·턱 높이를 잼 (귀·후드가 큰 모델도 정확하게)
+            FindHeadBones(merchant, out Transform head, out Transform headEnd);
+            if (head != null)
+            {
+                float topY = headEnd != null && headEnd.position.y > head.position.y ? headEnd.position.y : b.max.y;
+                face = new Vector3(head.position.x, Mathf.Lerp(head.position.y, topY, eyeInHead), head.position.z);
+                chinY = head.position.y;
+            }
 
             // 플레이어 쪽에서 바라봄 (플레이어가 없으면 상인 정면)
             Vector3 dir = playerTransform != null ? playerTransform.position - merchant.position : merchant.forward;
@@ -267,14 +294,39 @@ namespace FarmingSystem.UI.Shop
             float fov = closeupFov > 0f ? closeupFov : (Camera.main != null ? Camera.main.fieldOfView : 60f);
             float fitDistance = (b.size.y * visibleHeightRatio * 0.5f) / Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad);
             float distance = Mathf.Max(closeupDistance, fitDistance);
-            position = face + dir * distance;
+            // 턱(대사 상자 위) ~ 머리 꼭대기·귀(화면 위 끝)가 한 화면에 들어오도록 필요하면 조금 더 뒤로
+            float boxTopY = boxCover * 2f - 1f + 0.06f;
+            float headSpan = Mathf.Max(0.01f, b.max.y - chinY);
+            float headFit = headSpan / Mathf.Max(0.2f, 0.95f - boxTopY) / Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad);
+            distance = Mathf.Max(distance, headFit);
+            float pitch = closeupPitch * Mathf.Deg2Rad;
+            position = face + (dir * Mathf.Cos(pitch) + Vector3.up * Mathf.Sin(pitch)) * distance;
             Vector3 forward = (face - position).normalized;
             Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
             // 바라보는 점을 오른쪽·아래로 옮기면 화면에서 상인이 왼쪽·위로 감 (아래 대화 상자, 오른쪽 선택지 자리 비우기)
             float halfH = distance * Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad);
             float aspect = Camera.main != null ? Camera.main.aspect : 16f / 9f;
-            Vector3 look = face + right * (framing.x * halfH * aspect) - Vector3.up * (framing.y * halfH);
+            // 턱이 대사 상자 위에 오도록 필요한 만큼 상인을 더 위로 (화면 세로 -1 ~ 1 기준)
+            float lift = framing.y;
+            float chinOnScreen = (chinY - face.y) / halfH;
+            lift = Mathf.Max(lift, boxTopY - chinOnScreen);
+            lift = Mathf.Min(lift, 0.9f);
+            Vector3 look = face + right * (framing.x * halfH * aspect) - Vector3.up * (lift * halfH);
             rotation = Quaternion.LookRotation(look - position, Vector3.up);
+        }
+
+        // 머리 뼈 찾기: Head (Meshy·Mixamo 이름), 머리 꼭대기 head_end / HeadTop_End
+        private static void FindHeadBones(Transform root, out Transform head, out Transform headEnd)
+        {
+            head = headEnd = null;
+            foreach (Transform t in root.GetComponentsInChildren<Transform>())
+            {
+                string n = t.name.ToLowerInvariant();
+                int colon = n.LastIndexOf(':');
+                if (colon >= 0) n = n.Substring(colon + 1);
+                if (head == null && (n == "head" || n.EndsWith("_head") || n == "bip001 head")) head = t;
+                else if (headEnd == null && n.Contains("head") && (n.Contains("end") || n.Contains("top"))) headEnd = t;
+            }
         }
 
         // 핫바·십자선 숨기기 (투명도만 0 - 스크립트 동작에는 영향 없음)
