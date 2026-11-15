@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 using FarmingSystem.Core;
 using FarmingSystem.Economy;
 using FarmingSystem.Player;
+using FarmingSystem.Dialogue;
 
 namespace FarmingSystem.UI.Shop
 {
@@ -31,6 +32,17 @@ namespace FarmingSystem.UI.Shop
         [Tooltip("구매·판매 창을 닫고 돌아왔을 때 대사")]
         [SerializeField, TextArea] private string againLine = "또 필요한 게 있어?";
         [SerializeField] private string[] choiceLabels = { "구매하기", "판매하기", "괜찮아요" };
+
+        [Header("상인 대사 모음 (넣으면 그날 인사·계절·날씨 대사·퀘스트가 선택지 앞에 나옴)")]
+        [Tooltip("NPC와 같은 Dialogue Set 에셋. 비우면 위 Greeting Lines 중 무작위")]
+        [SerializeField] private DialogueSet merchantDialogue;
+        [Tooltip("대화 기억(처음 만남·오늘 말 걸었는지)과 퀘스트에 쓰는 상인 이름 (다른 NPC와 겹치지 않게)")]
+        [SerializeField] private string merchantId = "여우상인";
+        [Tooltip("퀘스트 이야기를 한 뒤 구매·판매 선택지로 넘어갈 때 대사")]
+        [SerializeField, TextArea] private string afterTalkLine = "그럼, 오늘은 뭘 도와줄까?";
+
+        public DialogueSet MerchantDialogue => merchantDialogue;
+        public string MerchantId => merchantId;
 
         [Header("상인 클로즈업 카메라 (1인칭 느낌)")]
         [SerializeField] private bool useCloseup = true;
@@ -147,7 +159,7 @@ namespace FarmingSystem.UI.Shop
             greeted = false;
             UIInputBlocker.Block(this);
             BeginCloseup();
-            ShowChoices();
+            if (!StartMerchantTalk()) ShowChoices();
             Debug.Log("[상점] 대화 시작");
         }
 
@@ -165,14 +177,78 @@ namespace FarmingSystem.UI.Shop
             if (UsingConversation)
             {
                 if (dialogueRoot != null) dialogueRoot.SetActive(false);
-                string line = !greeted && greetingLines != null && greetingLines.Length > 0
+                string line = greetingOverride != null ? greetingOverride
+                    : !greeted && greetingLines != null && greetingLines.Length > 0
                     ? greetingLines[Random.Range(0, greetingLines.Length)]
                     : againLine;
+                greetingOverride = null;
                 greeted = true;
-                conversation.Show(merchantName, line, choiceLabels, HandleChoice, choiceLabels.Length - 1);
+                conversation.Show(Speaker, line, choiceLabels, HandleChoice, choiceLabels.Length - 1);
                 return;
             }
             if (dialogueRoot != null) dialogueRoot.SetActive(true);
+        }
+
+        // ---------- 상인 대사 모음 ----------
+        // 대사 모음에서 지금 상황에 맞는 묶음을 골라
+        //  - 선택지가 없는 묶음(인사·잡담): 앞 줄들을 차례로 보여 주고, 마지막 줄을 구매·판매 선택지와 함께 (인사 대신)
+        //  - 선택지가 있는 묶음(퀘스트): 대사 → 선택 → 대답 → 구매·판매 선택지
+
+        private DialogueEntry talkEntry;
+        private int talkIndex;
+        private string lastTalkKey;
+        private string greetingOverride;
+
+        private string Speaker => merchantDialogue != null && !string.IsNullOrEmpty(merchantDialogue.npcName) ? merchantDialogue.npcName : merchantName;
+
+        private string Say(string text) =>
+            QuestManager.Instance != null && talkEntry != null ? QuestManager.Instance.Format(text, talkEntry.quest) : text;
+
+        private bool StartMerchantTalk()
+        {
+            if (!UsingConversation || merchantDialogue == null) return false;
+            talkEntry = merchantDialogue.Pick(merchantId, lastTalkKey);
+            if (talkEntry == null) return false;
+            lastTalkKey = talkEntry.Key;
+            if (QuestManager.Instance != null) QuestManager.Instance.MarkTalk(merchantId, talkEntry.Key, talkEntry.onceOnly);
+            talkIndex = 0;
+            ShowTalkLine();
+            return true;
+        }
+
+        private void ShowTalkLine()
+        {
+            if (!IsSessionOpen || talkEntry == null) return;
+            if (dialogueRoot != null) dialogueRoot.SetActive(false);
+            string[] lines = talkEntry.lines;
+            bool last = talkIndex >= lines.Length - 1;
+            List<string> choices = talkEntry.VisibleChoiceTexts();
+
+            if (last && choices.Count == 0)
+            {
+                greetingOverride = Say(lines[talkIndex]); // 마지막 줄 = 오늘의 인사 → 바로 구매·판매 선택지
+                ShowChoices();
+                return;
+            }
+            if (last)
+            {
+                conversation.Show(Speaker, Say(lines[talkIndex]), choices, OnTalkChoice, choices.Count - 1);
+                return;
+            }
+            conversation.Show(Speaker, Say(lines[talkIndex]), new List<string>(), _ => { talkIndex++; ShowTalkLine(); });
+        }
+
+        private void OnTalkChoice(int index)
+        {
+            DialogueChoice c = talkEntry != null ? talkEntry.VisibleChoice(index) : null;
+            string reply = QuestManager.Instance != null ? QuestManager.Instance.RunChoice(talkEntry, c) : c?.reply;
+            if (!string.IsNullOrEmpty(reply))
+            {
+                conversation.Show(Speaker, reply, new List<string>(), _ => { greetingOverride = afterTalkLine; ShowChoices(); });
+                return;
+            }
+            greetingOverride = afterTalkLine;
+            ShowChoices();
         }
 
         // 새 대화창에서 고른 선택지 (0 = 구매, 1 = 판매, 그 외 = 괜찮아요)

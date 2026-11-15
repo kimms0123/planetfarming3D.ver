@@ -92,6 +92,8 @@ namespace FarmingSystem.NPC
         [SerializeField] private Color hatColor = new Color(0.93f, 0.8f, 0.45f);
 
         public bool CanTalk { get; private set; }
+        /// <summary>대사 모음 (머리 위 퀘스트 표시가 씀)</summary>
+        public DialogueSet Dialogue => dialogue;
         public bool IsTalking => talking;
 
         private bool talking;

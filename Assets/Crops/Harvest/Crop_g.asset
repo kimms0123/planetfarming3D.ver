@@ -17,7 +17,7 @@ MonoBehaviour:
   icon: {fileID: 21300000, guid: f84c4b4c933bf1f479c80afc906cd641, type: 3}
   maxStack: 99
   description: 
-  season: 0
+  season: 1
   additionalSeasons: 
   totalGrowthDays: 3
   growthStagePrefabs:

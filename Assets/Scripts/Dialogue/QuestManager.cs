@@ -106,6 +106,20 @@ namespace FarmingSystem.Dialogue
             return true;
         }
 
+        /// <summary>대화 선택지의 행동(퀘스트 받기·끝내기)을 실행하고 NPC 대답을 돌려줌 (못 끝내면 "아직 다 못 모았어" 대답)</summary>
+        public string RunChoice(DialogueEntry entry, DialogueChoice choice)
+        {
+            if (choice == null) return null;
+            string reply = choice.reply;
+            if (entry != null && entry.quest != null)
+            {
+                if (choice.action == ChoiceAction.StartQuest) StartQuest(entry.quest);
+                else if (choice.action == ChoiceAction.TurnInQuest && !TryTurnIn(entry.quest))
+                    reply = "어라, 아직 다 모으지 못한 것 같아. ({have}/{amount})";
+            }
+            return Format(reply, entry != null ? entry.quest : null);
+        }
+
         private static int CountItem(ItemData item)
         {
             InventoryManager inv = InventoryManager.Instance;

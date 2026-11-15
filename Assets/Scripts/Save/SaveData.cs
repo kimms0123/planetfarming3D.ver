@@ -50,6 +50,13 @@ namespace FarmingSystem.Save
         public int bargainAttempts;
         public int bargainSuccesses;
 
+        // 상인 일정 (다음 방문일·와 있는지·언제까지·오늘의 특별 상품)
+        public bool merchantSaved;
+        public int merchantNextVisit;
+        public bool merchantOpen;
+        public int merchantEndsOn = -1;
+        public string merchantSpecial = "";
+
         // 주민: 한 집에 한 명, 한 번 정해지면 바뀌지 않음 (모동숲처럼) → 누가 어느 집에 사는지 저장
         public List<ResidentSave> residents = new List<ResidentSave>();
         // 한 번 온 손님 (계속 섬에 있음)
@@ -58,6 +65,19 @@ namespace FarmingSystem.Save
         // 퀘스트 진행 · NPC와 나눈 대화 기억 (처음 만남·오늘 말 걸었는지·한 번만 하는 말)
         public List<QuestSave> quests = new List<QuestSave>();
         public List<TalkSave> talks = new List<TalkSave>();
+
+        // 잡초 (예전 저장엔 없음 → weedsSaved = false면 처음 잡초를 새로 깔아 줌)
+        public bool weedsSaved;
+        public List<WeedSave> weeds = new List<WeedSave>();
+    }
+
+    [Serializable]
+    public class WeedSave
+    {
+        public int x, y;        // 칸 좌표
+        public int bornDay;     // 돋은 날 (며칠 지나면 길게 자람)
+        public bool onField;    // 여름 이벤트로 밭에 생긴 잡초
+        public float yaw, size;
     }
 
     [Serializable]

@@ -18,8 +18,8 @@ MonoBehaviour:
   icon: {fileID: 21300000, guid: a54bf81c89f47594a9c6bdae394b6f97, type: 3}
   prefab: {fileID: 2098505683341402442, guid: eb598f55fd13d524884d81a2fb112f4a, type: 3}
   modelYaw: 0
-  footprint: {x: 3, y: 3}
-  fill: 0.9
+  footprint: {x: 6, y: 4}
+  fill: 1
   manualScale: 0
   cost: 0
   buildDays: 1

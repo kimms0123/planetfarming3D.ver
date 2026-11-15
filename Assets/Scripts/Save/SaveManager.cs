@@ -25,7 +25,7 @@ namespace FarmingSystem.Save
     //   (수확 리듬게임 중이면 끝날 때까지 미뤘다가 저장)
     // - 저장 위치: Application.persistentDataPath/save_1.json ~ save_3.json
     //   (Windows: C:\Users\이름\AppData\LocalLow\회사이름\게임이름) - 메뉴 "저장 폴더 열기"로 바로 열 수 있음
-    // - 저장하는 것: 날짜·시각, 돈, 플레이어 위치, 가방·도구칸, 밭·작물, 건물, 오늘 날씨, 상점 재고, 흥정 누적
+    // - 저장하는 것: 날짜·시각, 돈, 플레이어 위치, 가방·도구칸, 밭·작물, 건물, 오늘 날씨, 상점 재고·상인 일정, 흥정 누적
     //   + 주민(누가 어느 집에 사는지 - 한 번 정해지면 안 바뀜)·한 번 온 손님 (NPC가 돌아다니는 위치는 저장 안 함)
     // - 아이템·작물·건물은 에셋 이름으로 저장 → Items / Buildings 목록에 있어야 불러올 수 있음
     //   (Tools → 행성농사일지 → 저장 → 저장·시작 화면 만들기 를 다시 누르면 목록이 새로 채워짐)
@@ -129,6 +129,7 @@ namespace FarmingSystem.Save
             BargainHistory.Successes = 0;
             if (ResidentManager.Instance != null) ResidentManager.Instance.ResetForNewGame();
             if (QuestManager.Instance != null) QuestManager.Instance.ResetForNewGame();
+            if (WeedManager.Instance != null) WeedManager.Instance.ResetForNewGame();
             ResetTimers();
             Save(force: true);
             Debug.Log($"[저장] {CurrentSlot + 1}번 칸 새 게임 시작");
@@ -298,10 +299,15 @@ namespace FarmingSystem.Save
             if (WeatherManager.Instance != null) d.todayWeather = (int)WeatherManager.Instance.CurrentWeather;
             if (ResidentManager.Instance != null) ResidentManager.Instance.Capture(d);
             if (QuestManager.Instance != null) QuestManager.Instance.Capture(d);
+            if (WeedManager.Instance != null) WeedManager.Instance.Capture(d);
 
             if (ShopManager.Instance != null)
+            {
                 foreach (ShopItemEntry e in ShopManager.Instance.BuyCatalog)
                     if (e != null && e.item != null && e.stock >= 0) d.shopStock.Add(new StockSave { item = e.item.name, stock = e.stock });
+                ShopManager.Instance.GetSchedule(out d.merchantNextVisit, out d.merchantOpen, out d.merchantEndsOn, out d.merchantSpecial);
+                d.merchantSaved = true;
+            }
 
             return d;
         }
@@ -390,11 +396,15 @@ namespace FarmingSystem.Save
             // 7. 오늘 날씨
             if (WeatherManager.Instance != null && d.todayWeather >= 0) WeatherManager.Instance.SetWeatherToday((WeatherType)d.todayWeather);
 
-            // 8. 상점 재고
+            // 8. 상점 재고 + 상인 일정
             if (ShopManager.Instance != null)
+            {
                 foreach (StockSave s in d.shopStock)
                     foreach (ShopItemEntry e in ShopManager.Instance.BuyCatalog)
                         if (e != null && e.item != null && e.item.name == s.item) e.stock = s.stock;
+                if (d.merchantSaved) ShopManager.Instance.RestoreSchedule(d.merchantNextVisit, d.merchantOpen, d.merchantEndsOn, d.merchantSpecial);
+                else ShopManager.Instance.RescheduleFrom(d.day);
+            }
 
             // 9. 흥정 누적
             BargainHistory.Attempts = d.bargainAttempts;
@@ -405,6 +415,9 @@ namespace FarmingSystem.Save
 
             // 11. 퀘스트·대화 기억 (돈을 맞춘 뒤에 - 불러올 때 돈이 바뀐 걸 '번 돈'으로 세지 않게)
             if (QuestManager.Instance != null) QuestManager.Instance.Apply(d);
+
+            // 12. 잡초 (밭·건물을 다 되돌린 뒤에)
+            if (WeedManager.Instance != null) WeedManager.Instance.Apply(d);
         }
 
         private void FillArea(InventoryManager inv, SlotArea area, List<SlotSave> saved)
@@ -432,6 +445,13 @@ namespace FarmingSystem.Save
         }
 
         private ItemData FindItem(string n) => !string.IsNullOrEmpty(n) && itemByName != null && itemByName.TryGetValue(n, out ItemData i) ? i : null;
+        /// <summary>건물 에셋 이름으로 찾기 (새 게임 연출이 '내 우주선'을 찾을 때)</summary>
+        public BuildingData FindBuildingData(string n)
+        {
+            if (buildingByName == null) BuildLookups();
+            return FindBuilding(n);
+        }
+
         private BuildingData FindBuilding(string n) => !string.IsNullOrEmpty(n) && buildingByName != null && buildingByName.TryGetValue(n, out BuildingData b) ? b : null;
 
         // ───────────────────────── '저장했어요' 표시 ─────────────────────────

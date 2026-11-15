@@ -180,6 +180,39 @@ namespace FarmingSystem.Economy
             Debug.Log($"[상점] 오늘의 특별 상품: {todaysSpecialCrop.cropName} (판매가 x{specialSellBonusMultiplier})");
         }
 
+        // ---------- 저장 ----------
+
+        /// <summary>저장용: 다음 방문일, 지금 와 있는지, 언제까지 머무는지, 오늘의 특별 상품 이름</summary>
+        public void GetSchedule(out int next, out bool open, out int endsOn, out string special)
+        {
+            next = nextVisitDay;
+            open = isShopOpen;
+            endsOn = visitEndsOnDay;
+            special = todaysSpecialCrop != null ? todaysSpecialCrop.name : "";
+        }
+
+        /// <summary>저장 불러오기: 상인 일정을 저장된 그대로 (와 있던 날이면 우주선이 다시 내려앉음)</summary>
+        public void RestoreSchedule(int next, bool open, int endsOn, string special)
+        {
+            nextVisitDay = next;
+            visitEndsOnDay = endsOn;
+            todaysSpecialCrop = null;
+            if (open && possibleSpecialCrops != null)
+                foreach (CropData c in possibleSpecialCrops)
+                    if (c != null && c.name == special) { todaysSpecialCrop = c; break; }
+            bool changed = isShopOpen != open;
+            isShopOpen = open;
+            if (changed) OnShopAvailabilityChanged?.Invoke(open);
+            Debug.Log(open ? $"[상점] 불러오기: 상인이 와 있음 (Day {visitEndsOnDay}까지)" : $"[상점] 불러오기: 다음 방문 예정일 Day {nextVisitDay}");
+        }
+
+        /// <summary>저장에 상인 일정이 없던 예전 저장: 불러온 날짜 기준으로 다시 정함</summary>
+        public void RescheduleFrom(int day)
+        {
+            if (isShopOpen) { isShopOpen = false; todaysSpecialCrop = null; OnShopAvailabilityChanged?.Invoke(false); }
+            ScheduleNextVisit(day);
+        }
+
         private void ScheduleNextVisit(int fromDay)
         {
             int interval = UnityEngine.Random.Range(minVisitInterval, maxVisitInterval + 1);

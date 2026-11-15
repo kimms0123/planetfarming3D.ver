@@ -199,6 +199,7 @@ namespace FarmingSystem.Player
                     }
 
                 case FarmActionType.ClearWithered:
+                    if (WeedManager.TryPull(tile)) break; // 잡초면 뽑기
                     tile.ClearWitheredCrop();
                     break;
 
@@ -466,6 +467,10 @@ namespace FarmingSystem.Player
 
             // 시든 작물: 지금은 어떤 도구로든 클릭하면 제거 (나중에 낫 전용으로 바꿀 자리)
             if (tile.CurrentCrop != null && tile.CurrentCrop.IsWithered)
+                return FarmActionType.ClearWithered;
+
+            // 잡초: 괭이로 맨땅을 갈 때는 갈면서 같이 없어지고, 그 밖에는 클릭하면 뽑음
+            if (WeedManager.HasWeed(tile) && !(inventory.CurrentTool == ToolType.Hoe && tile.State == TileState.Natural))
                 return FarmActionType.ClearWithered;
 
             // 2순위: 갈아진 빈 밭 + 핫바에 씨앗(SeedData) 선택 + 지금 계절에 심을 수 있는 씨앗

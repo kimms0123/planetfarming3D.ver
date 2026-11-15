@@ -21,6 +21,19 @@ namespace FarmingSystem.Dialogue
         public string npcName;
         public List<DialogueEntry> entries = new List<DialogueEntry>();
 
+        /// <summary>머리 위 퀘스트 표시: 끝낼 수 있는 퀘스트가 있으면 Ready("?"), 줄 퀘스트가 있으면 Available("!")</summary>
+        public QuestMark GetQuestMark(string npcId)
+        {
+            QuestMark mark = QuestMark.None;
+            foreach (DialogueEntry e in entries)
+            {
+                if (e == null || e.quest == null) continue;
+                if (e.questState == QuestCondition.ReadyToTurnIn && e.Matches(npcId)) return QuestMark.Ready;
+                if (e.questState == QuestCondition.NotStarted && e.Matches(npcId)) mark = QuestMark.Available;
+            }
+            return mark;
+        }
+
         /// <summary>지금 상황에 할 말 고르기 (없으면 null)</summary>
         public DialogueEntry Pick(string npcId, string lastEntryId)
         {
@@ -48,6 +61,8 @@ namespace FarmingSystem.Dialogue
             return candidates[candidates.Count - 1];
         }
     }
+
+    public enum QuestMark { None, Available, Ready }
 
     public enum TalkCondition
     {
@@ -140,6 +155,27 @@ namespace FarmingSystem.Dialogue
         public List<DialogueChoice> choices = new List<DialogueChoice>();
 
         public string Key => !string.IsNullOrEmpty(id) ? id : (lines != null && lines.Length > 0 ? lines[0] : "");
+
+        /// <summary>화면에 보일 선택지 글자 (글자가 빈 선택지는 뺌)</summary>
+        public List<string> VisibleChoiceTexts()
+        {
+            var list = new List<string>();
+            if (choices != null) foreach (DialogueChoice c in choices) if (c != null && !string.IsNullOrEmpty(c.text)) list.Add(c.text);
+            return list;
+        }
+
+        /// <summary>화면 선택지 번호 → 선택지</summary>
+        public DialogueChoice VisibleChoice(int index)
+        {
+            if (index < 0 || choices == null) return null;
+            int shown = -1;
+            foreach (DialogueChoice c in choices)
+            {
+                if (c == null || string.IsNullOrEmpty(c.text)) continue;
+                if (++shown == index) return c;
+            }
+            return null;
+        }
 
         public bool Matches(string npcId)
         {

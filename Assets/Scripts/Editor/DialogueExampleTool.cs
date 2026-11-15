@@ -83,6 +83,70 @@ namespace FarmingSystem.EditorTools
             EditorUtility.DisplayDialog("물고기 NPC 대사·퀘스트", msg, "확인");
         }
 
+        // 여우 상인 예시 대사 (퀘스트 없음 - 인사말만 상황마다 바뀜. 마지막 줄 다음에 "사기/팔기" 선택지가 나옴)
+        [MenuItem("Tools/행성농사일지/대화/여우 상인 예시 대사 만들기")]
+        private static void CreateMerchant()
+        {
+            EnsureFolder(Folder);
+            string path = Folder + "/Merchant_Dialogue.asset";
+            DialogueSet set = AssetDatabase.LoadAssetAtPath<DialogueSet>(path);
+            bool newSet = set == null;
+            if (newSet)
+            {
+                set = ScriptableObject.CreateInstance<DialogueSet>();
+                set.npcName = ""; // 비워 두면 ShopDialogueUI의 Merchant Name을 그대로 씀
+                set.entries = BuildMerchantEntries();
+                AssetDatabase.CreateAsset(set, path);
+                AssetDatabase.SaveAssets();
+            }
+
+            // 첫 만남·오늘 또 왔는지 기억하려면 QuestManager가 필요
+            QuestManager qm = Object.FindAnyObjectByType<QuestManager>(FindObjectsInactive.Include);
+            if (qm == null)
+            {
+                var go = new GameObject("QuestManager");
+                Undo.RegisterCreatedObjectUndo(go, "상인 대사 만들기");
+                qm = go.AddComponent<QuestManager>();
+                qm.FillQuests();
+            }
+
+            var ui = Object.FindAnyObjectByType<FarmingSystem.UI.Shop.ShopDialogueUI>(FindObjectsInactive.Include);
+            string linked = "ShopDialogueUI를 못 찾았어요 → ShopDialogueUI의 Merchant Dialogue 칸에 Merchant_Dialogue를 직접 넣어 주세요";
+            if (ui != null)
+            {
+                var so = new SerializedObject(ui);
+                so.FindProperty("merchantDialogue").objectReferenceValue = set;
+                so.ApplyModifiedProperties();
+                linked = $"'{ui.name}'의 Merchant Dialogue에 연결";
+                EditorSceneManager.MarkSceneDirty(ui.gameObject.scene);
+            }
+            Selection.activeObject = set;
+            string msg = $"완료!\n\n· 대사 모음: {path} {(newSet ? "(새로 만듦)" : "(이미 있어서 그대로)")}\n· {linked}\n\nCtrl+S로 씬 저장";
+            Debug.Log("[대화] " + msg);
+            EditorUtility.DisplayDialog("여우 상인 대사", msg, "확인");
+        }
+
+        private static List<DialogueEntry> BuildMerchantEntries()
+        {
+            var list = new List<DialogueEntry>();
+            list.Add(new DialogueEntry
+            {
+                id = "첫만남",
+                priority = 100,
+                onceOnly = true,
+                talk = TalkCondition.FirstMeeting,
+                lines = new[] { "어머, 처음 보는 얼굴이네? 난 별과 별 사이를 떠도는 여우 상인이야.", "씨앗이든 집 키트든, 필요한 건 다 있어. 천천히 둘러봐!" },
+            });
+            list.Add(new DialogueEntry { id = "태풍", weather = WeatherCondition.Typhoon, priority = 30, lines = new[] { "이런 날씨에도 왔어? 배가 날아갈까 봐 조마조마해… 빨리 골라!" } });
+            list.Add(new DialogueEntry { id = "또옴", talk = TalkCondition.AlreadyToday, priority = 20, lines = new[] { "또 왔네? 뭐 잊은 거라도 있어?" } });
+            list.Add(new DialogueEntry { id = "기본", lines = new[] { "어서 와! 오늘은 뭘 찾아?" } });
+            list.Add(new DialogueEntry { id = "기본2", lines = new[] { "좋은 물건 들여왔어. 구경하고 가!" } });
+            list.Add(new DialogueEntry { id = "아침", time = TimeCondition.Morning, weight = 2f, lines = new[] { "아침부터 부지런하네! 첫 손님이니까 잘해 줄게." } });
+            list.Add(new DialogueEntry { id = "밤", time = TimeCondition.Night, weight = 2f, lines = new[] { "이 시간까지 안 자고 뭐 해? 얼른 사고 들어가 쉬어." } });
+            list.Add(new DialogueEntry { id = "비", weather = WeatherCondition.Rain, weight = 3f, lines = new[] { "비 오는 날엔 손님이 없어서 심심했는데, 잘 왔어!" } });
+            return list;
+        }
+
         [MenuItem("Tools/행성농사일지/대화/퀘스트 목록 새로 채우기")]
         private static void FillQuests()
         {
@@ -100,14 +164,20 @@ namespace FarmingSystem.EditorTools
             // 1. 처음 만났을 때 (한 번만)
             list.Add(new DialogueEntry
             {
-                id = "첫만남", priority = 100, onceOnly = true, talk = TalkCondition.FirstMeeting,
+                id = "첫만남",
+                priority = 100,
+                onceOnly = true,
+                talk = TalkCondition.FirstMeeting,
                 lines = new[] { "오, 이 섬에도 사람이 살았네? 소문 듣고 와 봤지.", "난 바다를 떠도는 낚시꾼이야. 앞으로 잘 부탁해!" },
             });
 
             // 2. 퀘스트: 끝낼 수 있을 때 (가장 먼저)
             list.Add(new DialogueEntry
             {
-                id = "퀘스트_건네기", priority = 60, quest = q, questState = QuestCondition.ReadyToTurnIn,
+                id = "퀘스트_건네기",
+                priority = 60,
+                quest = q,
+                questState = QuestCondition.ReadyToTurnIn,
                 lines = new[] { "오! 그거 {item} 아니야? {have}개나 있네!" },
                 choices = new List<DialogueChoice>
                 {
@@ -119,7 +189,10 @@ namespace FarmingSystem.EditorTools
             // 3. 퀘스트: 아직 안 받았을 때 (첫 만남 다음 대화부터)
             list.Add(new DialogueEntry
             {
-                id = "퀘스트_제안", priority = 50, quest = q, questState = QuestCondition.NotStarted,
+                id = "퀘스트_제안",
+                priority = 50,
+                quest = q,
+                questState = QuestCondition.NotStarted,
                 lines = new[] { "요즘 바다에 먹을 게 없어서 배가 고프네…", "혹시 {item} {amount}개만 나눠 줄 수 있어?" },
                 choices = new List<DialogueChoice>
                 {
@@ -131,7 +204,10 @@ namespace FarmingSystem.EditorTools
             // 4. 퀘스트: 진행 중 (아직 덜 모음)
             list.Add(new DialogueEntry
             {
-                id = "퀘스트_진행중", priority = 40, quest = q, questState = QuestCondition.InProgress,
+                id = "퀘스트_진행중",
+                priority = 40,
+                quest = q,
+                questState = QuestCondition.InProgress,
                 lines = new[] { "{item} {amount}개, 잊지 않았지? 지금 {have}개 있네!" },
             });
 

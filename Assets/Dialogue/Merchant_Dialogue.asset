@@ -1,0 +1,144 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb884e02e99ddb846af38f945d816b6f, type: 3}
+  m_Name: Merchant_Dialogue
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Dialogue.DialogueSet
+  npcName: 
+  entries:
+  - id: "\uCCAB\uB9CC\uB0A8"
+    priority: 100
+    weight: 1
+    onceOnly: 1
+    talk: 1
+    time: 0
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uC5B4\uBA38, \uCC98\uC74C \uBCF4\uB294 \uC5BC\uAD74\uC774\uB124? \uB09C \uBCC4\uACFC
+      \uBCC4 \uC0AC\uC774\uB97C \uB5A0\uB3C4\uB294 \uC5EC\uC6B0 \uC0C1\uC778\uC774\uC57C."
+    - "\uC528\uC557\uC774\uB4E0 \uC9D1 \uD0A4\uD2B8\uB4E0, \uD544\uC694\uD55C \uAC74
+      \uB2E4 \uC788\uC5B4. \uCC9C\uCC9C\uD788 \uB458\uB7EC\uBD10!"
+    choices: []
+  - id: "\uD0DC\uD48D"
+    priority: 30
+    weight: 1
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 3
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uC774\uB7F0 \uB0A0\uC528\uC5D0\uB3C4 \uC654\uC5B4? \uBC30\uAC00 \uB0A0\uC544\uAC08\uAE4C
+      \uBD10 \uC870\uB9C8\uC870\uB9C8\uD574\u2026 \uBE68\uB9AC \uACE8\uB77C!"
+    choices: []
+  - id: "\uB610\uC634"
+    priority: 20
+    weight: 1
+    onceOnly: 0
+    talk: 3
+    time: 0
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uB610 \uC654\uB124? \uBB50 \uC78A\uC740 \uAC70\uB77C\uB3C4 \uC788\uC5B4?"
+    choices: []
+  - id: "\uAE30\uBCF8"
+    priority: 0
+    weight: 1
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uC5B4\uC11C \uC640! \uC624\uB298\uC740 \uBB58 \uCC3E\uC544?"
+    choices: []
+  - id: "\uAE30\uBCF82"
+    priority: 0
+    weight: 1
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uC88B\uC740 \uBB3C\uAC74 \uB4E4\uC5EC\uC654\uC5B4. \uAD6C\uACBD\uD558\uACE0
+      \uAC00!"
+    choices: []
+  - id: "\uC544\uCE68"
+    priority: 0
+    weight: 2
+    onceOnly: 0
+    talk: 0
+    time: 1
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uC544\uCE68\uBD80\uD130 \uBD80\uC9C0\uB7F0\uD558\uB124! \uCCAB \uC190\uB2D8\uC774\uB2C8\uAE4C
+      \uC798\uD574 \uC904\uAC8C."
+    choices: []
+  - id: "\uBC24"
+    priority: 0
+    weight: 2
+    onceOnly: 0
+    talk: 0
+    time: 4
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uC774 \uC2DC\uAC04\uAE4C\uC9C0 \uC548 \uC790\uACE0 \uBB50 \uD574? \uC5BC\uB978
+      \uC0AC\uACE0 \uB4E4\uC5B4\uAC00 \uC26C\uC5B4."
+    choices: []
+  - id: "\uBE44"
+    priority: 0
+    weight: 3
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 2
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uBE44 \uC624\uB294 \uB0A0\uC5D4 \uC190\uB2D8\uC774 \uC5C6\uC5B4\uC11C \uC2EC\uC2EC\uD588\uB294\uB370,
+      \uC798 \uC654\uC5B4!"
+    choices: []
