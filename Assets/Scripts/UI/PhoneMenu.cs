@@ -21,7 +21,7 @@ namespace FarmingSystem.UI
     //  - Esc: 열기/닫기 (가방·상점·대화·리듬게임·건물 설치 중엔 그 창이 먼저 닫히고, 메뉴는 안 열림)
     //  - 열면: 카메라가 캐릭터 앞으로 와서 캐릭터를 화면 오른쪽에, 왼쪽에 홀로그램 패널이 켜짐 (게임 시간 멈춤, 게임 화면 UI 숨김)
     //          + 캐릭터 앞 가슴 높이에도 반투명 직사각형 홀로그램 창이 같이 켜짐 (캐릭터가 그 창을 보는 느낌)
-    //  - 앱: 설정(소리·마우스 감도·상하 반전·전체 화면) / 조작법 / 도감(준비 중) / 게임 끄기(저장 후 종료)
+    //  - 앱: 설정(소리·마우스 감도·상하 반전·전체 화면) / 조작법 / 도감(작물 - CropCollectionWindow) / 게임 끄기(저장 후 종료)
     //  - 마우스: 올리면 고르고 클릭 / 키보드: 방향키(WASD) + Enter(Space·E), Esc = 뒤로·닫기
     // 설치 필요 없음 (게임이 시작되면 저절로 생김). 앱 아이콘·색을 바꾸려면 씬의 아무 오브젝트에 PhoneMenu를 붙이고 Inspector에서
     // 새 앱을 추가하려면 BuildHome()의 앱 목록에 한 줄 추가
@@ -44,8 +44,6 @@ namespace FarmingSystem.UI
         [SerializeField] private bool pauseTime = true;
         [Tooltip("열 때 카메라가 캐릭터 앞으로 와서 캐릭터를 화면 오른쪽에 보여 줌")]
         [SerializeField] private bool frameCamera = true;
-        [Tooltip("도감 앱을 열 수 있는지 (도감을 만들면 켜기)")]
-        [SerializeField] private bool collectionReady = false;
 
         [Header("캐릭터 앞 홀로그램 화면 (게임 속에 떠 있는 작은 창)")]
         [SerializeField] private bool showWorldScreen = true;
@@ -85,6 +83,7 @@ namespace FarmingSystem.UI
         private RectTransform[] quitButtons;
         private bool busy, blockedLastFrame;
         private Sprite rounded, ring, gear, pad, power, book;
+        private CropCollectionWindow collection; // 도감 창 (처음 열 때 만듦)
 
         // 연 동안 잠깐 꺼 둔 것
         private PlayerController player;
@@ -131,6 +130,11 @@ namespace FarmingSystem.UI
 
             UpdateStatus();
             AnimateHolo();
+            if (collection != null && collection.IsOpen)
+            {
+                if (!collection.Tick(esc)) StartCoroutine(BackFromCollection()); // Esc·뒤로 → 폰으로
+                return;
+            }
             switch (page)
             {
                 case Page.Home: HomeInput(esc); break;
@@ -346,6 +350,40 @@ namespace FarmingSystem.UI
 #endif
         }
 
+        // ───────────────────────── 도감 ─────────────────────────
+
+        // 폰 패널이 접히고 → 큰 도감 창이 켜짐
+        private IEnumerator OpenCollection()
+        {
+            busy = true;
+            if (collection == null) collection = new CropCollectionWindow(canvas.transform, font, holoColor, rounded, ring);
+            for (float t = 0f; t < 0.15f; t += Time.unscaledDeltaTime)
+            {
+                float k = t / 0.15f;
+                panel.localScale = new Vector3(Mathf.Lerp(1f, 1.04f, k), Mathf.Lerp(1f, 0.02f, k * k), 1f);
+                yield return null;
+            }
+            panel.gameObject.SetActive(false);
+            panel.localScale = Vector3.one;
+            collection.Open();
+            busy = false;
+        }
+
+        // 도감 창이 다 닫힌 뒤 → 폰 패널이 다시 펼쳐짐
+        private IEnumerator BackFromCollection()
+        {
+            busy = true;
+            panel.gameObject.SetActive(true);
+            for (float t = 0f; t < 0.2f; t += Time.unscaledDeltaTime)
+            {
+                float k = Mathf.SmoothStep(0f, 1f, t / 0.2f);
+                panel.localScale = new Vector3(Mathf.Lerp(0.95f, 1f, k), Mathf.Lerp(0.02f, 1f, k), 1f);
+                yield return null;
+            }
+            panel.localScale = Vector3.one;
+            busy = false;
+        }
+
         // ───────────────────────── 화면 전환 ─────────────────────────
 
         private void ShowPage(Page p) { if (!busy) StartCoroutine(SwitchPage(p)); }
@@ -508,7 +546,7 @@ namespace FarmingSystem.UI
             // 앱 목록 (새 앱은 여기에 한 줄 추가)
             AddApp(g.transform, "설정", settingsIcon != null ? settingsIcon : gear, new Color(0.35f, 0.8f, 0.85f), false, () => ShowPage(Page.Settings));
             AddApp(g.transform, "조작법", controlsIcon != null ? controlsIcon : pad, new Color(0.55f, 0.6f, 1f), false, () => ShowPage(Page.Controls));
-            AddApp(g.transform, collectionReady ? "도감" : "도감 (준비 중)", collectionIcon != null ? collectionIcon : book, new Color(0.45f, 0.9f, 0.55f), !collectionReady, null);
+            AddApp(g.transform, "도감", collectionIcon != null ? collectionIcon : book, new Color(0.45f, 0.9f, 0.55f), false, () => StartCoroutine(OpenCollection()));
             AddApp(g.transform, "게임 끄기", quitIcon != null ? quitIcon : power, new Color(1f, 0.5f, 0.55f), false, () => ShowPage(Page.Quit));
 
             // 페이지 점 (앱이 많아지면 페이지를 늘릴 자리)

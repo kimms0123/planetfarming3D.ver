@@ -69,6 +69,9 @@ namespace FarmingSystem.Save
         // 잡초 (예전 저장엔 없음 → weedsSaved = false면 처음 잡초를 새로 깔아 줌)
         public bool weedsSaved;
         public List<WeedSave> weeds = new List<WeedSave>();
+
+        // 도감: 수확해 본 작물 (작물 데이터 에셋 이름). 예전 저장엔 없음 → 빈 도감
+        public List<string> cropCollection = new List<string>();
     }
 
     [Serializable]

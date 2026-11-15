@@ -309,6 +309,7 @@ namespace FarmingSystem.Farming
             isWatered = false;
             RefreshVisual();
             Debug.Log($"[수확 성공] {name} (좌표 {GridPosition}) - {harvested.cropName} 수확 완료 (등급: {quality}).");
+            CropCollection.Register(harvested); // 처음 수확이면 도감에 등록
             return harvested;
         }
 

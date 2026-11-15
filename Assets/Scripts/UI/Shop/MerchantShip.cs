@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using FarmingSystem.Building;
 using FarmingSystem.Player;
+using FarmingSystem.Save;
 
 namespace FarmingSystem.Economy
 {
@@ -10,6 +11,8 @@ namespace FarmingSystem.Economy
     // - 상인이 오는 날(상점이 열린 날)에만 상인과 우주선이 나타남. 상인이 떠나면 둘 다 사라짐
     //   (상인 오브젝트 자체는 꺼지지 않고 모델·충돌체만 안 보이게 함 → 이 스크립트가 계속 날짜를 확인할 수 있음)
     // - 게임 중에 상인이 도착/출발하면 하늘에서 내려앉고 / 하늘로 떠오르는 연출 (끌 수 있음)
+    //   · 메인 화면(타이틀)이 떠 있는 동안 바뀐 것(게임 불러오기·새 게임)은 연출 없이 바로 맞춤
+    //     → 불러온 날이 상인 날이면 이미 서 있고, 아니면 처음부터 없음 (내려왔다 바로 떠나는 장면 안 보임)
     // - 땅 가까이 오면 헬기 착륙처럼 바람에 먼지가 사방으로 퍼짐 (가까울수록 진하게, 닿는 순간 한 번 크게 퍼짐). 떠날 때도 똑같이
     // - 우주선은 상인 등 뒤(상인이 바라보는 반대쪽)에 상인과 같은 방향으로 놓이고, 땅 높이에 맞춰 바닥에 붙음
     // - 걸어서 통과하지 못하게 우주선 크기의 충돌 상자를 붙임
@@ -90,7 +93,7 @@ namespace FarmingSystem.Economy
         {
             if (!initialized) return;
             bool open = IsVisitDay;
-            if (open != shown) Apply(open, animate);
+            if (open != shown) Apply(open, animate && !TitleScreen.IsShowing); // 메인 화면 중엔 연출 없이
         }
 
         private static bool IsVisitDay => ShopManager.Instance != null && ShopManager.Instance.IsShopOpen;

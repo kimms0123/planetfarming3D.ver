@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 87944e27539aaf4499e0037d176fa40f, type: 3}
+  m_Name: Crop_old_D
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Farming.CropData
+  itemName: "\uC740\uD558\uC218\uC78E"
+  category: 1
+  icon: {fileID: 21300000, guid: 708f05c8fb179894483feb9bec41311f, type: 3}
+  maxStack: 99
+  description: "\uC78E\uC758 \uD770 \uBB34\uB2AC\uAC00 \uBC24\uB9C8\uB2E4 \uC740\uC740\uD788
+    \uBE5B\uB098 \uC628\uC2E4 \uC870\uBA85\uC744 \uB300\uC2E0\uD55C\uB2E4.\n\uB9DB\uC774
+    \uBC0D\uBC0D\uD574 \uC8FC\uB85C \uCC28\uB098 \uC57D\uC7AC\uB85C \uC4F4\uB2E4.\n\uBB34\uB2AC\uAC00
+    \uC9C4\uC9DC \uBCC4\uC790\uB9AC\uC640 \uB611\uAC19\uC740 \uC78E\uC744 \uCC3E\uC73C\uBA74
+    \uD589\uC6B4\uC774 \uC628\uB2E4\uB294 \uC18C\uBB38\uC774 \uC788\uB2E4."
+  season: 0
+  additionalSeasons: 
+  totalGrowthDays: 3
+  growthStagePrefabs:
+  - {fileID: 3336086948862840702, guid: 543865c01726d0f489bb5ddab7ff94b6, type: 3}
+  - {fileID: 6715150825203580101, guid: d23224d1cd9e33e4686f27c95673ee06, type: 3}
+  - {fileID: 6145547605793550988, guid: 0ea97e3327918d04a9168473b71df40d, type: 3}
+  harvestedPrefab: {fileID: 4925223497104391586, guid: 9d5ce7288e1900b4eb49c26de006e4fe, type: 3}
+  witheredPrefab: {fileID: 0}
+  expectedYield: 8
+  basePrice: 10
+  harvestPattern: 
+  harvestTempo: 1
+  harvestShakeScale: 1
+  harvestDifficultyOffset: 0

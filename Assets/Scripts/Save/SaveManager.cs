@@ -46,6 +46,8 @@ namespace FarmingSystem.Save
 
         [Header("데이터 목록 (메뉴가 자동으로 채움 - 새 아이템·건물을 만들면 메뉴를 다시 누르기)")]
         [SerializeField] private List<ItemData> items = new List<ItemData>();
+        /// <summary>게임의 모든 아이템 (도감이 작물 목록을 만들 때 씀)</summary>
+        public IReadOnlyList<ItemData> Items => items;
         [SerializeField] private List<BuildingData> buildingDatas = new List<BuildingData>();
 
         /// <summary>지금 플레이 중인 칸 (0~2). 시작 화면에 있을 땐 -1</summary>
@@ -130,6 +132,7 @@ namespace FarmingSystem.Save
             if (ResidentManager.Instance != null) ResidentManager.Instance.ResetForNewGame();
             if (QuestManager.Instance != null) QuestManager.Instance.ResetForNewGame();
             if (WeedManager.Instance != null) WeedManager.Instance.ResetForNewGame();
+            CropCollection.Clear();
             ResetTimers();
             Save(force: true);
             Debug.Log($"[저장] {CurrentSlot + 1}번 칸 새 게임 시작");
@@ -300,6 +303,7 @@ namespace FarmingSystem.Save
             if (ResidentManager.Instance != null) ResidentManager.Instance.Capture(d);
             if (QuestManager.Instance != null) QuestManager.Instance.Capture(d);
             if (WeedManager.Instance != null) WeedManager.Instance.Capture(d);
+            d.cropCollection = CropCollection.ToList();
 
             if (ShopManager.Instance != null)
             {
@@ -418,6 +422,9 @@ namespace FarmingSystem.Save
 
             // 12. 잡초 (밭·건물을 다 되돌린 뒤에)
             if (WeedManager.Instance != null) WeedManager.Instance.Apply(d);
+
+            // 13. 도감 (수확해 본 작물)
+            CropCollection.Load(d.cropCollection);
         }
 
         private void FillArea(InventoryManager inv, SlotArea area, List<SlotSave> saved)
