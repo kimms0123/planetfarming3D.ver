@@ -225,6 +225,7 @@ namespace FarmingSystem.Economy
         public static ShopTab GetTab(ItemData item)
         {
             if (item == null) return ShopTab.Etc;
+            if (item is FarmingSystem.Building.BuildingKitData) return ShopTab.Tool; // 상자·포탈·건물 키트는 도구 탭에 같이 (기타 = 자동화용)
 
             switch (item.category)
             {
@@ -251,9 +252,24 @@ namespace FarmingSystem.Economy
         /// <summary>지금 상점에 내놓는 물건인지: 씨앗은 지금 계절에 심을 수 있을 때만 (onlyInSeasonSeeds가 켜져 있으면)</summary>
         public bool IsAvailableNow(ItemData item)
         {
+            if (item is ToolData && PlayerOwns(item)) return false; // 도구: 이미 가진 건 안 팖 (사면 목록에서 빠짐)
             if (!onlyInSeasonSeeds || item == null || GameClock.Instance == null) return true;
             if (!(item is SeedData seed) || seed.resultCrop == null) return true;
             return seed.resultCrop.CanGrowIn(GameClock.Instance.CurrentSeason);
+        }
+
+        // 도구칸이나 가방에 그 아이템이 있는지
+        private static bool PlayerOwns(ItemData item)
+        {
+            InventoryManager inv = InventoryManager.Instance;
+            if (inv == null) return false;
+            foreach (SlotArea area in new[] { SlotArea.Tool, SlotArea.Main })
+                for (int i = 0; i < inv.GetSlotCount(area); i++)
+                {
+                    InventorySlotData s = inv.GetSlot(area, i);
+                    if (s != null && !s.IsEmpty && s.item == item) return true;
+                }
+            return false;
         }
 
         public ShopItemEntry GetEntry(int catalogIndex)
@@ -334,6 +350,7 @@ namespace FarmingSystem.Economy
             bool seeds = Instance == null || Instance.sellSeeds;
             if (slot.item is CropData) return crops;
             if (slot.item is SeedData) return seeds;
+            if (slot.item is FarmingSystem.Fishing.FishData) return true; // 물고기는 항상 팔 수 있음 (판매 포탈 포함)
             return false;
         }
 
@@ -357,6 +374,7 @@ namespace FarmingSystem.Economy
         {
             if (!IsSellable(slot)) return 0f;
             if (slot.item is SeedData seed) return GetSeedUnitPrice(seed); // 씨앗은 등급·특별 상품 보너스 없음
+            if (slot.item is FarmingSystem.Fishing.FishData fish) return Mathf.Max(1, fish.basePrice); // 물고기는 정해진 값
 
             CropData crop = (CropData)slot.item;
             // 쓰레기 등급은 작물·특별 상품 보너스와 상관없이 1벨 고정

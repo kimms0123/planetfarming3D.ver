@@ -16,9 +16,10 @@ namespace FarmingSystem.Player
         None,     // 할 수 있는 행동 없음
         Harvest,
         ClearWithered, // 시든 작물 제거
-        Plant,
+        Plant, // 심기
         Till,
-        Water
+        Water, // 물주기
+        Fertilize // 비료 뿌리기
     }
 
     /// <summary>
@@ -198,6 +199,10 @@ namespace FarmingSystem.Player
                         break;
                     }
 
+                case FarmActionType.Fertilize:
+                    FertilizerData.UseOn(tile);
+                    break;
+
                 case FarmActionType.ClearWithered:
                     if (WeedManager.TryPull(tile)) break; // 잡초면 뽑기
                     tile.ClearWitheredCrop();
@@ -225,7 +230,7 @@ namespace FarmingSystem.Player
                     playerController?.PlayHoe(tile.Center);
                     RunAfter(tillImpactDelay, () =>
                     {
-                        if (tile.TryTill())
+                        if (ToolUse.Till(tile))
                             GameClock.Instance?.AdvanceMinutes(tillMinutes);
                     });
                     break;
@@ -234,7 +239,7 @@ namespace FarmingSystem.Player
                     playerController?.PlayWater(tile.Center);
                     RunAfter(waterImpactDelay, () =>
                     {
-                        if (tile.Water())
+                        if (ToolUse.Water(tile))
                             GameClock.Instance?.AdvanceMinutes(waterMinutes);
                     });
                     break;
@@ -293,6 +298,7 @@ namespace FarmingSystem.Player
 
                 int amount = result.GetYield(harvested.expectedYield);
                 int notAdded = InventoryManager.Instance.AddItem(harvested, amount, result.Quality);
+                ToolUse.HarvestAround(tile, harvested, result.Quality, amount);
                 Debug.Log($"[수확] {harvested.cropName} x{amount} ({ItemQualityUtility.GetDisplayName(result.Quality)}, 점수 {result.ScoreRatio:P0}{(result.AllPerfect ? ", ALL PERFECT" : "")}) 수확 완료, 인벤토리에 못 넣은 수량: {notAdded}");
             });
 
@@ -472,6 +478,9 @@ namespace FarmingSystem.Player
             // 잡초: 괭이로 맨땅을 갈 때는 갈면서 같이 없어지고, 그 밖에는 클릭하면 뽑음
             if (WeedManager.HasWeed(tile) && !(inventory.CurrentTool == ToolType.Hoe && tile.State == TileState.Natural))
                 return FarmActionType.ClearWithered;
+
+            // 비료: 핫바에서 비료를 골랐고, 갈아 놓은 빈 밭이면 뿌리기
+            if (FertilizerData.CanUseOn(tile)) return FarmActionType.Fertilize;
 
             // 2순위: 갈아진 빈 밭 + 핫바에 씨앗(SeedData) 선택 + 지금 계절에 심을 수 있는 씨앗
             // CurrentSeed는 선택된 아이템이 SeedData일 때만 값을 반환하므로 수확물(CropData)은 여기서 걸러진다

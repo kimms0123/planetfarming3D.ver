@@ -217,7 +217,7 @@ namespace FarmingSystem.EditorTools
                 .Select(g => AssetDatabase.LoadAssetAtPath<T>(AssetDatabase.GUIDToAssetPath(g)))
                 .Where(a => a != null).ToList();
 
-        private static bool TryInt(string s, out int v)
+        internal static bool TryInt(string s, out int v)
         {
             v = 0;
             if (string.IsNullOrWhiteSpace(s)) return false;
@@ -226,14 +226,14 @@ namespace FarmingSystem.EditorTools
             return false;
         }
 
-        private static bool TryFloat(string s, out float v)
+        internal static bool TryFloat(string s, out float v)
         {
             v = 0f;
             return !string.IsNullOrWhiteSpace(s) && float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out v);
         }
 
         // CSV (UTF-8, 따옴표·줄바꿈 처리)
-        private static List<List<string>> ReadCsv(string path)
+        internal static List<List<string>> ReadCsv(string path)
         {
             string text;
             using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
@@ -268,7 +268,7 @@ namespace FarmingSystem.EditorTools
         }
 
         // 엑셀 .xlsx (첫 번째 시트만). xlsx = zip 안의 XML이라 따로 라이브러리 없이 읽음
-        private static List<List<string>> ReadXlsx(string path)
+        internal static List<List<string>> ReadXlsx(string path)
         {
             using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             using (var zip = new ZipArchive(fs, ZipArchiveMode.Read))

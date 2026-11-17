@@ -37,6 +37,7 @@ namespace FarmingSystem.UI
 
         private static ItemTooltip instance;
         private static readonly FieldInfo SellSlotIndexField = typeof(ShopSellSlotUI).GetField("slotIndex", BindingFlags.Instance | BindingFlags.NonPublic);
+        private static readonly InventorySlotData EmptySlot = new InventorySlotData(); // 빈 칸 (설명 안 띄움)
         private static readonly string[] SeasonNames = { "봄", "여름", "가을", "겨울" };
 
         private Canvas canvas;
@@ -48,6 +49,7 @@ namespace FarmingSystem.UI
         private EventSystem pointerOwner;
         private ItemData shownItem;
         private ItemQuality shownQuality;
+        private int shownDurability;
         private bool visible;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -66,7 +68,8 @@ namespace FarmingSystem.UI
             ItemData item = null;
             ItemQuality quality = ItemQuality.Normal;
             TMP_FontAsset font = null;
-            bool found = Mouse.current != null && !Mouse.current.leftButton.isPressed && FindHovered(out item, out quality, out font);
+            int durability = -1;
+            bool found = Mouse.current != null && !Mouse.current.leftButton.isPressed && FindHovered(out item, out quality, out font, out durability);
 
             if (!found)
             {
@@ -74,16 +77,16 @@ namespace FarmingSystem.UI
                 return;
             }
             if (font != null && font != currentFont) ApplyFont(font);
-            if (!visible || item != shownItem || quality != shownQuality) ShowItem(item, quality);
+            if (!visible || item != shownItem || quality != shownQuality || durability != shownDurability) ShowItem(item, quality, durability);
             if (!visible) SetVisible(true);
             Follow(Mouse.current.position.ReadValue());
         }
 
         // ───────────────────────── 마우스 아래 칸 찾기 ─────────────────────────
 
-        private bool FindHovered(out ItemData item, out ItemQuality quality, out TMP_FontAsset font)
+        private bool FindHovered(out ItemData item, out ItemQuality quality, out TMP_FontAsset font, out int durability)
         {
-            item = null; quality = ItemQuality.Normal; font = null;
+            item = null; quality = ItemQuality.Normal; font = null; durability = -1; // -1 = 가진 물건이 아님 (상점 진열품)
             EventSystem es = EventSystem.current;
             if (es == null) return false;
             if (pointer == null || pointerOwner != es) { pointer = new PointerEventData(es); pointerOwner = es; }
@@ -103,6 +106,13 @@ namespace FarmingSystem.UI
                 data = InventoryManager.Instance.GetSlot(invSlot.Area, invSlot.Index);
             }
 
+            // 보관 상자·판매 포탈 창의 칸
+            if (slot == null)
+            {
+                ContainerSlotView box = top.GetComponentInParent<ContainerSlotView>();
+                if (box != null) { slot = box; data = box.Data ?? EmptySlot; }
+            }
+
             if (slot == null && SellSlotIndexField != null)
             {
                 ShopSellSlotUI sell = top.GetComponentInParent<ShopSellSlotUI>();
@@ -113,7 +123,7 @@ namespace FarmingSystem.UI
                 }
             }
 
-            if (slot != null) { if (data != null && !data.IsEmpty) { item = data.item; quality = data.quality; } }
+            if (slot != null) { if (data != null && !data.IsEmpty) { item = data.item; quality = data.quality; durability = data.durability; } }
             else
             {
                 ShopBuySlotUI buy = top.GetComponentInParent<ShopBuySlotUI>();
@@ -138,10 +148,11 @@ namespace FarmingSystem.UI
 
         // ───────────────────────── 내용 ─────────────────────────
 
-        private void ShowItem(ItemData item, ItemQuality quality)
+        private void ShowItem(ItemData item, ItemQuality quality, int durability)
         {
             shownItem = item;
             shownQuality = quality;
+            shownDurability = durability;
             nameText.text = item.itemName;
 
             // 작물·씨앗: 이름 / 계절 / 특징(설명 첫 줄)만
@@ -157,8 +168,24 @@ namespace FarmingSystem.UI
                 return;
             }
 
+            // 물고기: 이름 / 장소·계절 / 설명 첫 줄
+            if (item is FarmingSystem.Fishing.FishData fish)
+            {
+                subText.text = $"{FarmingSystem.Fishing.FishData.HabitatName(fish.habitat)}  ·  {fish.SeasonText}";
+                descText.text = FirstLine(item.description);
+                Layout();
+                return;
+            }
+
             // 그 외 (도구·재료·건축 키트): 이름 / 종류 / 설명 첫 줄
             subText.text = CategoryName(item);
+            if (item is ToolData tool)
+            {
+                // 도구: 범위 · 내구도 (가진 도구는 남은 횟수, 상점 진열품은 새것 기준)
+                if (tool.range != ToolRange.Single) subText.text += tool.range == ToolRange.Line3 ? "  ·  앞으로 3칸" : "  ·  3x3칸";
+                if (tool.maxDurability > 0)
+                    subText.text += durability >= 0 ? $"  ·  내구도 {Mathf.Max(0, durability)}/{tool.maxDurability}" : $"  ·  내구도 {tool.maxDurability}";
+            }
             descText.text = FirstLine(item.description);
             Layout();
         }
@@ -172,6 +199,7 @@ namespace FarmingSystem.UI
                 case ItemCategory.Crop: return "작물";
                 case ItemCategory.Tool: return "도구";
                 case ItemCategory.Fertilizer: return "비료";
+                case ItemCategory.Fish: return "물고기";
                 default: return "재료";
             }
         }

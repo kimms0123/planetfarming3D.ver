@@ -133,6 +133,8 @@ namespace FarmingSystem.Save
             if (QuestManager.Instance != null) QuestManager.Instance.ResetForNewGame();
             if (WeedManager.Instance != null) WeedManager.Instance.ResetForNewGame();
             CropCollection.Clear();
+            FarmingSystem.Fishing.FishCollection.Clear();
+            FarmingSystem.Building.ContainerStorage.Clear();
             ResetTimers();
             Save(force: true);
             Debug.Log($"[저장] {CurrentSlot + 1}번 칸 새 게임 시작");
@@ -266,6 +268,7 @@ namespace FarmingSystem.Save
             foreach (FarmTile t in FindObjectsByType<FarmTile>(FindObjectsInactive.Include))
             {
                 if (t.State == TileState.Natural && t.CurrentCrop == null) continue;
+                FertilizerData fert = t.Fertilizer;
                 CropInstance c = t.CurrentCrop;
                 d.tiles.Add(new TileSave
                 {
@@ -278,6 +281,7 @@ namespace FarmingSystem.Save
                     withered = c != null && c.IsWithered,
                     storm = c != null && c.IsStormDamaged,
                     daysSinceReady = c != null ? c.DaysSinceReady : 0,
+                    fertilizer = fert != null ? fert.name : "",
                 });
             }
 
@@ -304,6 +308,13 @@ namespace FarmingSystem.Save
             if (QuestManager.Instance != null) QuestManager.Instance.Capture(d);
             if (WeedManager.Instance != null) WeedManager.Instance.Capture(d);
             d.cropCollection = CropCollection.ToList();
+            d.fishCollection = FarmingSystem.Fishing.FishCollection.ToList();
+            foreach (var kv in FarmingSystem.Building.ContainerStorage.All)
+            {
+                var cs = new ContainerSave { key = kv.Key };
+                for (int i = 0; i < kv.Value.Length; i++) AddSlot(cs.slots, i, kv.Value[i]);
+                if (cs.slots.Count > 0) d.containers.Add(cs);
+            }
 
             if (ShopManager.Instance != null)
             {
@@ -319,7 +330,7 @@ namespace FarmingSystem.Save
         private static void AddSlot(List<SlotSave> list, int index, InventorySlotData s)
         {
             if (s == null || s.IsEmpty) return;
-            list.Add(new SlotSave { index = index, item = s.item.name, quantity = s.quantity, quality = (int)s.quality });
+            list.Add(new SlotSave { index = index, item = s.item.name, quantity = s.quantity, quality = (int)s.quality, durability = s.durability });
         }
 
         // ───────────────────────── 불러오기 ─────────────────────────
@@ -363,7 +374,8 @@ namespace FarmingSystem.Save
                     crop = FindItem(ts.crop) as CropData;
                     if (crop == null) missingCrops++;
                 }
-                tile.RestoreSave((TileState)ts.state, ts.watered, crop, ts.growthDay, ts.withered, ts.storm, ts.daysSinceReady);
+                FertilizerData fert = string.IsNullOrEmpty(ts.fertilizer) ? null : FindItem(ts.fertilizer) as FertilizerData;
+                tile.RestoreSave((TileState)ts.state, ts.watered, crop, ts.growthDay, ts.withered, ts.storm, ts.daysSinceReady, fert);
             }
             if (missingCrops > 0) Debug.LogWarning($"[저장] 작물 {missingCrops}개를 못 찾았어요 → SaveManager 목록을 새로 채워 주세요");
 
@@ -425,6 +437,25 @@ namespace FarmingSystem.Save
 
             // 13. 도감 (수확해 본 작물)
             CropCollection.Load(d.cropCollection);
+            FarmingSystem.Fishing.FishCollection.Load(d.fishCollection);
+
+            // 14. 보관 상자·판매 포탈 안의 물건
+            FarmingSystem.Building.ContainerStorage.Clear();
+            if (d.containers != null)
+                foreach (ContainerSave cs in d.containers)
+                {
+                    InventorySlotData[] box = FarmingSystem.Building.ContainerStorage.Get(cs.key);
+                    if (box == null || cs.slots == null) continue;
+                    foreach (SlotSave s in cs.slots)
+                    {
+                        ItemData item = FindItem(s.item);
+                        if (item == null || s.index < 0 || s.index >= box.Length) continue;
+                        box[s.index].item = item;
+                        box[s.index].quantity = s.quantity;
+                        box[s.index].quality = (ItemQuality)s.quality;
+                        box[s.index].durability = s.durability >= 0 ? s.durability : InventoryManager.NewDurability(item);
+                    }
+                }
         }
 
         private void FillArea(InventoryManager inv, SlotArea area, List<SlotSave> saved)
@@ -440,6 +471,7 @@ namespace FarmingSystem.Save
                 slot.item = item;
                 slot.quantity = s.quantity;
                 slot.quality = (ItemQuality)s.quality;
+                slot.durability = s.durability >= 0 ? s.durability : InventoryManager.NewDurability(item);
             }
         }
 

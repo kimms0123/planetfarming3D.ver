@@ -1,2 +1,32 @@
 fileFormatVersion: 2
 guid: 264254887a86da142bc2e9b76ffaaade
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - difficultyModel: {instanceID: 0}
+  - font: {fileID: 11400000, guid: 99ccb23af8238a548af9cee75555b137, type: 2}
+  - tickClip: {instanceID: 0}
+  - accentTickClip: {instanceID: 0}
+  - perfectClip: {instanceID: 0}
+  - goodClip: {instanceID: 0}
+  - missClip: {instanceID: 0}
+  - popClip: {instanceID: 0}
+  - arrowUpSprite: {instanceID: 0}
+  - arrowDownSprite: {instanceID: 0}
+  - arrowLeftSprite: {instanceID: 0}
+  - arrowRightSprite: {instanceID: 0}
+  - keySprite: {instanceID: 0}
+  - keyHighlightSprite: {instanceID: 0}
+  - hudPanelSprite: {instanceID: 0}
+  - progressBackSprite: {instanceID: 0}
+  - progressFillSprite: {instanceID: 0}
+  - guideSprite: {instanceID: 0}
+  - resultWindowSprite: {instanceID: 0}
+  - focusCornerSprite: {instanceID: 0}
+  - sceneUI: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

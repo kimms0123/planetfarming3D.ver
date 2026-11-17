@@ -24,6 +24,8 @@ namespace FarmingSystem.Farming
         // 다 자란 뒤 수확하지 않고 지난 날 수 (수확 리듬게임 난이도에 반영: 오래 둘수록 어려움)
         public int DaysSinceReady { get; private set; }
         public bool IsReadyToHarvest => !IsWithered && CurrentGrowthDay >= Data.totalGrowthDays;
+        /// <summary>이 작물이 심긴 밭에 뿌려져 있던 비료 (없으면 null). 수확 등급·개수 계산이 읽음</summary>
+        public FertilizerData Fertilizer { get; set; }
 
         private GameObject currentStageObject;
         private int currentStageIndex = -1;

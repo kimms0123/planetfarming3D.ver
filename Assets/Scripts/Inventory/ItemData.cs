@@ -8,7 +8,8 @@ namespace FarmingSystem.Inventory
         Crop,
         Tool,
         Material,
-        Fertilizer // 새 값은 항상 맨 끝에 추가 (중간에 넣으면 기존 에셋의 카테고리 값이 밀림)
+        Fertilizer, // 새 값은 항상 맨 끝에 추가 (중간에 넣으면 기존 에셋의 카테고리 값이 밀림)
+        Fish
     }
 
     /// <summary>

@@ -72,6 +72,10 @@ namespace FarmingSystem.Save
 
         // 도감: 수확해 본 작물 (작물 데이터 에셋 이름). 예전 저장엔 없음 → 빈 도감
         public List<string> cropCollection = new List<string>();
+        public List<string> fishCollection = new List<string>(); // 도감: 잡아 본 물고기
+
+        // 보관 상자·판매 포탈 안의 물건 (설치된 자리마다)
+        public List<ContainerSave> containers = new List<ContainerSave>();
     }
 
     [Serializable]
@@ -107,12 +111,20 @@ namespace FarmingSystem.Save
     }
 
     [Serializable]
+    public class ContainerSave
+    {
+        public string key;      // ContainerStorage 열쇠 (S:/P: + 건물 데이터 이름 + @좌표)
+        public List<SlotSave> slots = new List<SlotSave>();
+    }
+
+    [Serializable]
     public class SlotSave
     {
         public int index;
         public string item;     // 에셋 이름
         public int quantity;
         public int quality;     // ItemQuality
+        public int durability = -1; // 도구 남은 내구도 (-1 = 예전 저장이라 기록 없음 → 새것으로)
     }
 
     [Serializable]
@@ -126,6 +138,7 @@ namespace FarmingSystem.Save
         public bool withered;
         public bool storm;
         public int daysSinceReady;
+        public string fertilizer = ""; // 뿌려진 비료 (FertilizerData 에셋 이름, 없으면 빈칸)
     }
 
     [Serializable]

@@ -5,6 +5,13 @@ namespace FarmingSystem.Building
     // 건축물 1종의 정보 (우주선 집, 상인 우주선 등) - 건축물을 추가할 때마다 하나씩 만들면 됨
     // 만들기: Project 창 우클릭 → Create → FarmingSystem → Building Data
     // - 모델(프리팹)이 어떤 크기·방향으로 만들어졌든, 차지할 칸 수(Footprint)에 맞춰 자동으로 크기를 맞추고 바닥에 붙여 줌
+    public enum BuildingFunction
+    {
+        [InspectorName("없음 (집·장식)")] None,
+        [InspectorName("보관 상자")] Storage,
+        [InspectorName("판매 포탈")] SellPortal,
+    }
+
     [CreateAssetMenu(fileName = "NewBuildingData", menuName = "FarmingSystem/Building Data")]
     public class BuildingData : ScriptableObject
     {
@@ -34,5 +41,9 @@ namespace FarmingSystem.Building
         public int buildDays = 1;
         [Tooltip("설치할 때 90도씩 돌릴 수 있게 (끄면 항상 같은 방향)")]
         public bool allowRotate = true;
+
+        [Header("기능 (설치물)")]
+        [Tooltip("다 지어진 뒤 가까이 가서 E를 누르면 하는 일. 보관 상자 = 물건 넣고 빼기 / 판매 포탈 = 넣어 두면 다음 날 아침에 팔림")]
+        public BuildingFunction function = BuildingFunction.None;
     }
 }

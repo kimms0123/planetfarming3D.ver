@@ -20,6 +20,35 @@ namespace FarmingSystem.Building
         private BuildingSystem system;
         private GameObject site;
         private GameObject model;
+        private GameObject modelOverride; // 건물 데이터의 모델 대신 쓸 모델 (주민 집 = 이사 온 주민의 집 모델)
+        private float overrideYaw;
+
+        /// <summary>
+        /// 모델 바꾸기 (주민이 이사 오면 그 주민의 집 모델로). null = 건물 데이터의 원래 모델.
+        /// 아직 공사 중이면 완성될 때 이 모델로 지어짐
+        /// </summary>
+        public void SetModel(GameObject prefab, float yaw = 0f)
+        {
+            modelOverride = prefab;
+            overrideYaw = yaw;
+            if (State != BuildState.Complete || system == null) return;
+            if (model != null) Destroy(model);
+            model = SpawnModel();
+            AddBlockCollider(model != null ? model : gameObject, 4f, true);
+        }
+
+        private GameObject SpawnModel()
+        {
+            if (modelOverride == null) return BuildingSystem.SpawnFitted(Data, transform, system.CellSize, Rotation);
+            var holder = new GameObject("Model").transform;
+            holder.SetParent(transform, false);
+            holder.localRotation = Quaternion.Euler(0f, Rotation * 90f + Data.modelYaw + overrideYaw, 0f);
+            Instantiate(modelOverride, holder, false);
+            Vector2Int fp = BuildingSystem.RotatedFootprint(Data, Rotation);
+            float c = system.CellSize;
+            BuildingSystem.FitToArea(holder, transform.position, fp.x * c * Data.fill, fp.y * c * Data.fill, Data.manualScale);
+            return holder.gameObject;
+        }
 
         public void Setup(BuildingSystem owner, BuildingData data, List<Vector2Int> footprintCells, int rotation, int today)
         {
@@ -55,7 +84,7 @@ namespace FarmingSystem.Building
             if (site != null) Destroy(site);
             if (model != null) Destroy(model);
             State = BuildState.Complete;
-            model = BuildingSystem.SpawnFitted(Data, transform, system.CellSize, Rotation);
+            model = SpawnModel();
             AddBlockCollider(model != null ? model : gameObject, 4f, true);
             Debug.Log($"[건축] {Data.displayName} 완성!");
         }
@@ -84,21 +113,20 @@ namespace FarmingSystem.Building
         private void BuildSite()
         {
             Vector2Int fp = BuildingSystem.RotatedFootprint(Data, Rotation);
+            Vector2Int raw = BuildingSystem.RotatedFootprint(Data, 0); // 돌리기 전 크기 (공사장을 건물 방향으로 돌려서 지음)
             float c = system.CellSize;
-            float sx = fp.x * c * 0.92f, sz = fp.y * c * 0.92f;
 
+            site = new GameObject("ConstructionSite");
+            site.transform.SetParent(transform, false);
+            site.transform.localRotation = Quaternion.Euler(0f, Rotation * 90f, 0f); // 표지판 = 건물 앞(문·주민이 나오는 쪽)
             if (system.constructionSitePrefab != null)
             {
-                site = new GameObject("ConstructionSite");
-                site.transform.SetParent(transform, false);
                 Instantiate(system.constructionSitePrefab, site.transform, false);
-                BuildingSystem.FitToArea(site.transform, transform.position, sx, sz);
+                BuildingSystem.FitToArea(site.transform, transform.position, fp.x * c * 0.92f, fp.y * c * 0.92f);
             }
             else
             {
-                site = new GameObject("ConstructionSite");
-                site.transform.SetParent(transform, false);
-                BuildFence(site.transform, sx, sz);
+                BuildFence(site.transform, raw.x * c * 0.92f, raw.y * c * 0.92f);
             }
             AddBlockCollider(site, 1.2f, false);
         }
@@ -130,9 +158,9 @@ namespace FarmingSystem.Building
                 Part(parent, new Vector3(-hx, y, 0f), new Vector3(0.05f, 0.06f, sz), system.fenceMaterial);
                 Part(parent, new Vector3(hx, y, 0f), new Vector3(0.05f, 0.06f, sz), system.fenceMaterial);
             }
-            // 표지판 (앞쪽 = -Z 쪽 가운데)
-            Part(parent, new Vector3(0f, 0.6f, -hz - 0.15f), new Vector3(0.08f, 1.2f, 0.08f), system.fenceMaterial);
-            Part(parent, new Vector3(0f, 1.25f, -hz - 0.2f), new Vector3(0.9f, 0.6f, 0.06f), system.signMaterial);
+            // 표지판 (건물 앞쪽 = +Z 쪽 가운데. 주민이 나오는 문 쪽과 같음)
+            Part(parent, new Vector3(0f, 0.6f, hz + 0.15f), new Vector3(0.08f, 1.2f, 0.08f), system.fenceMaterial);
+            Part(parent, new Vector3(0f, 1.25f, hz + 0.2f), new Vector3(0.9f, 0.6f, 0.06f), system.signMaterial);
             // 공사 중인 땅 표시 (흙 더미)
             Part(parent, new Vector3(0f, 0.05f, 0f), new Vector3(sx * 0.9f, 0.1f, sz * 0.9f), system.fenceMaterial);
         }

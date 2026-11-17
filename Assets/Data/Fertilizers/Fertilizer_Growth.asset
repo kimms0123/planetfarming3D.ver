@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 737c09016ae05be409f6e2a8830366df, type: 3}
+  m_Name: Fertilizer_Growth
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Farming.FertilizerData
+  itemName: "\uC465\uC465 \uBE44\uB8CC"
+  category: 4
+  icon: {fileID: -939704045, guid: 95a1ba4c7bd414c40ad60b71a5acb59d, type: 3}
+  maxStack: 99
+  description: "\uBFCC\uB9B0 \uBC2D\uC758 \uC791\uBB3C\uC774 \uC870\uAE08 \uB354
+    \uBE68\uB9AC \uC790\uB780\uB2E4."
+  type: 0
+  growthChance: 0.1
+  qualitySteps: 1
+  yieldBonus: 0.15
+  pelletColor: {r: 0.5, g: 0.85, b: 0.4, a: 1}

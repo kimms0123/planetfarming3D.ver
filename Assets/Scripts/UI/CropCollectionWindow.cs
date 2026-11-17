@@ -8,6 +8,7 @@ using TMPro;
 using FarmingSystem.Core;
 using FarmingSystem.Economy;
 using FarmingSystem.Farming;
+using FarmingSystem.Fishing;
 using FarmingSystem.Inventory;
 using FarmingSystem.Save;
 
@@ -25,7 +26,7 @@ namespace FarmingSystem.UI
     //  - 순서: 계절(봄→겨울) → 2차 작물 → 1차 작물 → 코드 순. 번호(No.)는 이 순서
     //  - 정보는 작물 데이터(= 엑셀에서 가져온 값): 이름·계절·성장일·수확량·판매가·씨앗 가격·특징·장단점·이야기
     //  - 마우스: 올리면 보기, 휠 = 스크롤 / 키보드: 방향키(WASD)로 고르기, Esc = 폰으로 돌아가기
-    //  - 물고기 탭은 자리만 (낚시 시스템이 생기면 추가)
+    //  - 탭: 작물 / 물고기 (탭 클릭 또는 Q·E·Tab 키). 물고기는 처음 잡으면 등록 (FishCollection)
     public class CropCollectionWindow
     {
         private const int Columns = 7;
@@ -40,7 +41,9 @@ namespace FarmingSystem.UI
 
         private class Entry
         {
-            public CropData crop;
+            public CropData crop;   // 작물 탭
+            public FishData fish;   // 물고기 탭
+            public ItemData Item => crop != null ? (ItemData)crop : fish;
             public int number;
             public RectTransform rt;
             public Image icon, ring, dot;
@@ -61,7 +64,12 @@ namespace FarmingSystem.UI
         // 상세
         private Image bigIcon;
         private TextMeshProUGUI dNo, dName, dSeason, dBody;
-        private TextMeshProUGUI[] statValues;
+        private TextMeshProUGUI[] statValues, statLabels;
+        private bool fishTab;                       // false = 작물, true = 물고기
+        private Image[] tabFills, tabRings;
+        private TextMeshProUGUI[] tabTexts;
+        private static readonly string[] CropStats = { "성장일", "수확량", "판매가", "씨앗 가격" };
+        private static readonly string[] FishStats = { "장소", "시간", "크기", "판매가" };
         private int selected;
         private float anim;      // 0 → 1 켜짐, 닫을 땐 1 → 0
         private bool closing;
@@ -84,19 +92,46 @@ namespace FarmingSystem.UI
 
         public void Open()
         {
-            RebuildIfNeeded();
-            foreach (Entry e in entries) ShowCell(e);
-            int total = entries.Count, got = 0;
-            foreach (Entry e in entries) if (CropCollection.IsRegistered(e.crop)) got++;
-            progress.text = $"등록  <b>{got}</b> / {total}";
-            emptyNote.gameObject.SetActive(total == 0);
-            Select(Mathf.Clamp(selected, 0, Mathf.Max(0, total - 1)), true);
+            Refresh();
             root.gameObject.SetActive(true);
             root.SetAsLastSibling();
             anim = 0f;
             closing = false;
             IsOpen = true;
         }
+
+        // 지금 탭의 목록·진행도·상세를 다시 그림
+        private void Refresh()
+        {
+            RebuildIfNeeded();
+            foreach (Entry e in entries) ShowCell(e);
+            int total = entries.Count, got = 0;
+            foreach (Entry e in entries) if (Got(e)) got++;
+            progress.text = $"등록  <b>{got}</b> / {total}";
+            emptyNote.text = fishTab ? "물고기 데이터를 찾지 못했어요.\n(물고기 → 시트에서 가져오기를 한 번 실행해 주세요)"
+                                     : "작물 데이터를 찾지 못했어요.\n(작물 관리 → 목록 정리를 한 번 실행해 주세요)";
+            emptyNote.gameObject.SetActive(total == 0);
+            for (int i = 0; i < statLabels.Length; i++) statLabels[i].text = (fishTab ? FishStats : CropStats)[i];
+            for (int i = 0; i < 2; i++)
+            {
+                bool on = (i == 1) == fishTab;
+                tabFills[i].color = new Color(holo.r, holo.g, holo.b, on ? 0.4f : 0.08f);
+                tabRings[i].color = new Color(holo.r, holo.g, holo.b, on ? 0.95f : 0.3f);
+                tabTexts[i].fontStyle = on ? FontStyles.Bold : FontStyles.Normal;
+                tabTexts[i].alpha = on ? 1f : 0.45f;
+            }
+            Select(Mathf.Clamp(selected, 0, Mathf.Max(0, total - 1)), true);
+        }
+
+        private void SetTab(bool fish)
+        {
+            if (fishTab == fish) return;
+            fishTab = fish;
+            selected = 0;
+            Refresh();
+        }
+
+        private static bool Got(Entry e) => e.crop != null ? CropCollection.IsRegistered(e.crop) : FishCollection.IsRegistered(e.fish);
 
         /// <summary>매 프레임 (PhoneMenu가 부름). 다 닫히면 false</summary>
         public bool Tick(bool esc)
@@ -118,6 +153,7 @@ namespace FarmingSystem.UI
             if (anim < 1f) return true;
 
             if (esc || Pressed(Key.Backspace) || (Gamepad.current != null && Gamepad.current.buttonEast.wasPressedThisFrame)) { closing = true; return true; }
+            if (Pressed(Key.Q) || Pressed(Key.E) || Pressed(Key.Tab)) SetTab(!fishTab); // 탭 바꾸기
             if (entries.Count > 0)
             {
                 int to = selected;
@@ -166,33 +202,51 @@ namespace FarmingSystem.UI
 
         private static bool IsOld(CropData c) => c.name.StartsWith("Crop_old_");
 
+        // 물고기: 바다 → 강 → 어디든, 그 안에서 에셋 이름(Fish_F01 …) 순
+        private static List<FishData> AllFish()
+        {
+            var list = new List<FishData>();
+            if (SaveManager.Instance != null)
+                foreach (ItemData it in SaveManager.Instance.Items)
+                    if (it is FishData f && !list.Contains(f)) list.Add(f);
+            if (list.Count == 0)
+                foreach (FishData f in Resources.FindObjectsOfTypeAll<FishData>())
+                    if (!list.Contains(f)) list.Add(f);
+            list.Sort((a, b) => string.CompareOrdinal(a.name, b.name));
+            return list;
+        }
+
         private void RebuildIfNeeded()
         {
-            List<CropData> crops = AllCrops();
-            bool same = crops.Count == entries.Count;
-            for (int i = 0; same && i < crops.Count; i++) same = entries[i].crop == crops[i];
+            var items = new List<ItemData>();
+            if (fishTab) foreach (FishData f in AllFish()) items.Add(f);
+            else foreach (CropData c in AllCrops()) items.Add(c);
+            bool same = items.Count == entries.Count;
+            for (int i = 0; same && i < items.Count; i++) same = entries[i].Item == items[i];
             if (same) return;
 
             foreach (Entry e in entries) UnityEngine.Object.Destroy(e.rt.gameObject);
             entries.Clear();
-            for (int i = 0; i < crops.Count; i++) entries.Add(MakeCell(crops[i], i));
+            for (int i = 0; i < items.Count; i++) entries.Add(MakeCell(items[i], i));
             content.anchoredPosition = Vector2.zero;
         }
 
-        private Entry MakeCell(CropData crop, int index)
+        private Entry MakeCell(ItemData item, int index)
         {
-            var e = new Entry { crop = crop, number = index + 1 };
+            var e = new Entry { crop = item as CropData, fish = item as FishData, number = index + 1 };
             e.rt = Rect("No" + e.number, content, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(Cell, Cell));
             Image bg = Img(e.rt, rounded, new Color(1f, 1f, 1f, 0.07f));
             bg.raycastTarget = true;
             e.ring = Img(Stretch(Rect("Ring", e.rt, Vector2.one * 0.5f, Vector2.zero, Vector2.zero)), ringSprite, new Color(holo.r, holo.g, holo.b, 0.25f));
             e.ring.raycastTarget = false;
-            e.icon = Img(Rect("Icon", e.rt, new Vector2(0.5f, 0.5f), new Vector2(0f, -6f), new Vector2(Cell * 0.66f, Cell * 0.66f)), crop.icon, Color.white);
+            e.icon = Img(Rect("Icon", e.rt, new Vector2(0.5f, 0.5f), new Vector2(0f, -6f), new Vector2(Cell * 0.66f, Cell * 0.66f)), item.icon, Color.white);
             e.icon.preserveAspect = true;
             e.icon.raycastTarget = false;
             e.no = Text(e.rt, $"{e.number:00}", 17f, new Vector2(-Cell * 0.5f + 26f, Cell * 0.5f - 16f), new Vector2(44f, 22f), TextAlignmentOptions.Left);
             e.no.alpha = 0.7f;
-            e.dot = Img(Rect("Season", e.rt, new Vector2(0.5f, 0.5f), new Vector2(Cell * 0.5f - 16f, Cell * 0.5f - 16f), new Vector2(12f, 12f)), rounded, SeasonColors[(int)crop.season]);
+            Color dotColor = e.crop != null ? SeasonColors[(int)e.crop.season]
+                           : e.fish.seasons != null && e.fish.seasons.Length > 0 && e.fish.seasons.Length < 4 ? SeasonColors[(int)e.fish.seasons[0]] : Color.white;
+            e.dot = Img(Rect("Season", e.rt, new Vector2(0.5f, 0.5f), new Vector2(Cell * 0.5f - 16f, Cell * 0.5f - 16f), new Vector2(12f, 12f)), rounded, dotColor);
             e.dot.raycastTarget = false;
             int i = index;
             var hover = e.rt.gameObject.AddComponent<CollectionCellHover>(); // EventTrigger는 휠을 먹어서 스크롤이 안 됨 → 전용
@@ -202,9 +256,9 @@ namespace FarmingSystem.UI
 
         private void ShowCell(Entry e)
         {
-            bool got = CropCollection.IsRegistered(e.crop);
-            e.icon.sprite = e.crop.icon;
-            e.icon.enabled = e.crop.icon != null;
+            bool got = Got(e);
+            e.icon.sprite = e.Item.icon;
+            e.icon.enabled = e.Item.icon != null;
             e.icon.color = got ? Color.white : Silhouette;
         }
 
@@ -243,10 +297,9 @@ namespace FarmingSystem.UI
                 dBody.text = "";
                 return;
             }
-            CropData c = e.crop;
-            bool got = CropCollection.IsRegistered(c);
-            bigIcon.sprite = c.icon;
-            bigIcon.enabled = c.icon != null;
+            bool got = Got(e);
+            bigIcon.sprite = e.Item.icon;
+            bigIcon.enabled = e.Item.icon != null;
             bigIcon.color = got ? Color.white : Silhouette;
             dNo.text = $"No.{e.number:00}";
 
@@ -255,9 +308,12 @@ namespace FarmingSystem.UI
                 dName.text = "???";
                 dSeason.text = "???";
                 foreach (var v in statValues) v.text = "?";
-                dBody.text = "<alpha=#AA>아직 수확하지 않은 작물이에요.\n직접 길러서 수확하면 도감에 등록돼요.";
+                dBody.text = e.fish != null ? "<alpha=#AA>아직 잡지 않은 물고기예요.\n낚싯대로 잡으면 도감에 등록돼요."
+                                            : "<alpha=#AA>아직 수확하지 않은 작물이에요.\n직접 길러서 수확하면 도감에 등록돼요.";
                 return;
             }
+            if (e.fish != null) { ShowFish(e.fish); return; }
+            CropData c = e.crop;
 
             dName.text = c.cropName;
             dSeason.text = SeasonText(c);
@@ -280,6 +336,26 @@ namespace FarmingSystem.UI
                 sb.Append($"<b><color=#{head}>{titles[i]}</color></b>\n{body}");
             }
             dBody.text = sb.Length > 0 ? sb.ToString() : "<alpha=#AA>설명이 아직 없어요.";
+        }
+
+        private void ShowFish(FishData f)
+        {
+            dName.text = f.itemName;
+            string season = f.SeasonText;
+            if (f.seasons != null && f.seasons.Length > 0 && f.seasons.Length < 4)
+            {
+                var parts = new List<string>();
+                foreach (Season s in f.seasons) parts.Add($"<color=#{ColorUtility.ToHtmlStringRGB(SeasonColors[(int)s])}>{SeasonNames[(int)s]}</color>");
+                season = string.Join("  ·  ", parts);
+            }
+            dSeason.text = season;
+            statValues[0].text = FishData.HabitatName(f.habitat);
+            statValues[1].text = f.startHour == f.endHour ? "종일" : $"{f.startHour}~{f.endHour}시";
+            statValues[2].text = new string('●', f.shadowSize);
+            statValues[3].text = $"{f.basePrice:N0}벨";
+            string head = ColorUtility.ToHtmlStringRGB(holo);
+            string body = string.IsNullOrWhiteSpace(f.description) ? "<alpha=#AA>설명이 아직 없어요." : f.description.Trim();
+            dBody.text = $"<b><color=#{head}>설명</color></b>\n{body}\n\n<b><color=#{head}>희귀도</color></b>\n{FishData.RarityName(f.rarity)}";
         }
 
         private static string SeasonText(CropData c)
@@ -319,8 +395,11 @@ namespace FarmingSystem.UI
 
             TextMeshProUGUI title = Text(root, "도감", 42f, new Vector2(-w * 0.5f + 170f, h * 0.5f - 58f), new Vector2(160f, 60f), TextAlignmentOptions.Left);
             title.fontStyle = FontStyles.Bold;
-            Tab("작물", new Vector2(-w * 0.5f + 360f, h * 0.5f - 58f), true);
-            Tab("물고기 · 준비 중", new Vector2(-w * 0.5f + 560f, h * 0.5f - 58f), false);
+            tabFills = new Image[2];
+            tabRings = new Image[2];
+            tabTexts = new TextMeshProUGUI[2];
+            Tab(0, "작물", new Vector2(-w * 0.5f + 360f, h * 0.5f - 58f), () => SetTab(false));
+            Tab(1, "물고기", new Vector2(-w * 0.5f + 530f, h * 0.5f - 58f), () => SetTab(true));
             progress = Text(root, "", 28f, new Vector2(w * 0.5f - 190f, h * 0.5f - 58f), new Vector2(300f, 50f), TextAlignmentOptions.Right);
             Img(Rect("Line", root, new Vector2(0.5f, 1f), new Vector2(0f, -112f), new Vector2(w - 60f, 2f)), null, new Color(holo.r, holo.g, holo.b, 0.35f)).raycastTarget = false;
 
@@ -381,8 +460,9 @@ namespace FarmingSystem.UI
             dSeason = TopLeftText(d, 26f, tx, 132f, tw, 40f);
 
             // 숫자 4칸
-            string[] labels = { "성장일", "수확량", "판매가", "씨앗 가격" };
+            string[] labels = CropStats;
             statValues = new TextMeshProUGUI[labels.Length];
+            statLabels = new TextMeshProUGUI[labels.Length];
             float bw = (dw - 48f - 3f * 10f) / 4f;
             for (int i = 0; i < labels.Length; i++)
             {
@@ -390,7 +470,8 @@ namespace FarmingSystem.UI
                 box.pivot = new Vector2(0f, 1f);
                 box.anchoredPosition = new Vector2(24f + i * (bw + 10f), -246f);
                 Img(box, rounded, new Color(1f, 1f, 1f, 0.08f)).raycastTarget = false;
-                Text(box, labels[i], 19f, new Vector2(0f, 18f), new Vector2(bw, 28f), TextAlignmentOptions.Center).alpha = 0.7f;
+                statLabels[i] = Text(box, labels[i], 19f, new Vector2(0f, 18f), new Vector2(bw, 28f), TextAlignmentOptions.Center);
+                statLabels[i].alpha = 0.7f;
                 statValues[i] = Text(box, "-", 27f, new Vector2(0f, -14f), new Vector2(bw, 36f), TextAlignmentOptions.Center);
                 statValues[i].fontStyle = FontStyles.Bold;
             }
@@ -403,15 +484,17 @@ namespace FarmingSystem.UI
 
         private Sprite tabFill, tabRing; // 탭: 모서리를 덜 둥글게 (네모에 가깝게)
 
-        private void Tab(string label, Vector2 pos, bool active)
+        // 탭 버튼 (클릭 = 그 탭으로, 색은 Refresh에서)
+        private void Tab(int index, string label, Vector2 pos, Action click)
         {
             if (tabFill == null) { tabFill = SquareSprite(32, 7f, false); tabRing = SquareSprite(32, 7f, true); }
-            var t = Rect(label, root, new Vector2(0.5f, 0.5f), pos, new Vector2(active ? 150f : 230f, 50f));
-            Img(t, tabFill, new Color(holo.r, holo.g, holo.b, active ? 0.4f : 0.08f)).raycastTarget = false;
-            Img(Stretch(Rect("Ring", t, Vector2.one * 0.5f, Vector2.zero, Vector2.zero)), tabRing, new Color(holo.r, holo.g, holo.b, active ? 0.95f : 0.3f)).raycastTarget = false;
-            TextMeshProUGUI txt = Text(t, label, 24f, Vector2.zero, t.sizeDelta, TextAlignmentOptions.Center);
-            txt.fontStyle = active ? FontStyles.Bold : FontStyles.Normal;
-            txt.alpha = active ? 1f : 0.4f;
+            var t = Rect(label, root, new Vector2(0.5f, 0.5f), pos, new Vector2(150f, 50f));
+            tabFills[index] = Img(t, tabFill, new Color(holo.r, holo.g, holo.b, 0.08f));
+            tabFills[index].raycastTarget = true;
+            tabRings[index] = Img(Stretch(Rect("Ring", t, Vector2.one * 0.5f, Vector2.zero, Vector2.zero)), tabRing, new Color(holo.r, holo.g, holo.b, 0.3f));
+            tabRings[index].raycastTarget = false;
+            tabTexts[index] = Text(t, label, 24f, Vector2.zero, t.sizeDelta, TextAlignmentOptions.Center);
+            Hover(t.gameObject, null, click);
         }
 
         // 모서리 반지름 r인 사각형 (ringOnly = 테두리 3px만). 9칸 늘이기라 크기와 상관없이 모서리 유지

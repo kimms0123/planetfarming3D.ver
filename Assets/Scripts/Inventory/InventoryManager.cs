@@ -8,7 +8,9 @@ namespace FarmingSystem.Inventory
     {
         Hoe,
         WateringCan,
-        None
+        None,
+        Sickle,     // 낫(수확 장갑): 들고 수확하면 리듬게임 한 번으로 주변 칸의 같은 작물까지 수확
+        FishingRod  // 낚싯대: 물가에서 좌클릭으로 찌를 던짐 (FishingManager)
     }
 
     // 칸이 어느 구역에 있는지 (가방 30칸 / 도구칸)
@@ -24,6 +26,7 @@ namespace FarmingSystem.Inventory
         public ItemData item;
         public int quantity;
         public ItemQuality quality = ItemQuality.Normal; // Crop 계열이 아닌 아이템은 의미 없음, 항상 Normal 취급
+        public int durability; // 도구의 남은 사용 횟수 (도구가 아니거나 내구도 무한이면 0). 칸을 옮겨도 따라감
 
         public bool IsEmpty => item == null || quantity <= 0;
 
@@ -32,6 +35,7 @@ namespace FarmingSystem.Inventory
             item = null;
             quantity = 0;
             quality = ItemQuality.Normal;
+            durability = 0;
         }
 
         public void CopyFrom(InventorySlotData other)
@@ -39,6 +43,7 @@ namespace FarmingSystem.Inventory
             item = other.item;
             quantity = other.quantity;
             quality = other.quality;
+            durability = other.durability;
         }
     }
 
@@ -147,6 +152,36 @@ namespace FarmingSystem.Inventory
             }
         }
 
+        // ---------- 도구 내구도 ----------
+
+        /// <summary>새 도구의 내구도 (도구가 아니거나 무한이면 0)</summary>
+        public static int NewDurability(ItemData item) => item is ToolData t ? Mathf.Max(0, t.maxDurability) : 0;
+
+        /// <summary>도구가 부서졌을 때 (부서진 도구)</summary>
+        public event Action<ToolData> OnToolBroken;
+
+        /// <summary>
+        /// 지금 든 도구를 한 번 씀 → 내구도 1 줄어듦. 0이 되면 부서져서 사라짐.
+        /// Max Durability가 0인 도구(기본 호미·물뿌리개)는 닳지 않음.
+        /// </summary>
+        public void UseCurrentTool(int uses = 1)
+        {
+            InventorySlotData s = GetSlot(SlotArea.Tool, currentToolSlot);
+            ToolData tool = s != null && !s.IsEmpty ? s.item as ToolData : null;
+            if (tool == null || tool.maxDurability <= 0) return;
+
+            s.durability -= uses;
+            if (s.durability <= 0)
+            {
+                Debug.Log($"[도구] {tool.itemName}이(가) 부서졌어요");
+                s.Clear();
+                FixToolSelection(announce: true);
+                OnToolBroken?.Invoke(tool);
+                FarmingSystem.NPC.IslandNotice.Show($"{tool.itemName}이(가) 부서졌어요!", this);
+            }
+            OnInventoryChanged?.Invoke();
+        }
+
         public event Action<ToolType> OnToolChanged;
         public event Action<int> OnSelectedHotbarIndexChanged;
         public event Action OnInventoryChanged;
@@ -198,6 +233,7 @@ namespace FarmingSystem.Inventory
                 toolSlots[slot].item = tool;
                 toolSlots[slot].quantity = 1;
                 toolSlots[slot].quality = ItemQuality.Normal;
+                toolSlots[slot].durability = NewDurability(tool);
                 slot++;
             }
         }
@@ -218,6 +254,7 @@ namespace FarmingSystem.Inventory
                 slots[entry.slotIndex].item = entry.item;
                 slots[entry.slotIndex].quantity = entry.quantity;
                 slots[entry.slotIndex].quality = entry.quality;
+                slots[entry.slotIndex].durability = NewDurability(entry.item);
                 Debug.Log($"[시작 아이템 배치] 슬롯 {entry.slotIndex + 1}번 - {entry.item.itemName} x{entry.quantity} ({entry.quality})");
             }
         }
@@ -328,6 +365,7 @@ namespace FarmingSystem.Inventory
             slot.item = item;
             slot.quantity = quantity;
             slot.quality = quality;
+            if (slot.durability <= 0 || !(item is ToolData)) slot.durability = NewDurability(item);
 
             string name = item != null ? item.itemName : "(비움)";
             Debug.Log($"[슬롯 설정] {index + 1}번 슬롯에 {name} x{quantity} ({quality}) 배치됨");
@@ -399,6 +437,7 @@ namespace FarmingSystem.Inventory
                     toolSlots[i].item = item;
                     toolSlots[i].quantity = 1;
                     toolSlots[i].quality = ItemQuality.Normal;
+                    toolSlots[i].durability = NewDurability(item);
                     quantity--;
                 }
             }
@@ -409,6 +448,26 @@ namespace FarmingSystem.Inventory
             FixToolSelection(announce: true);
             OnInventoryChanged?.Invoke();
             return quantity;
+        }
+
+        /// <summary>
+        /// 도구 내구도를 그대로 유지해서 넣기 (상자에서 꺼낼 때). 못 넣은 수량 반환.
+        /// 도구가 아니거나 내구도 무한이면 AddItem과 같음. 도구는 빈 도구칸 → 빈 가방칸 순서
+        /// </summary>
+        public int AddItemKeepDurability(ItemData item, int quantity, ItemQuality quality, int durability)
+        {
+            if (!(item is ToolData) || durability <= 0 || quantity <= 0) return AddItem(item, quantity, quality);
+            InventorySlotData target = null;
+            if (toolSlots != null) foreach (InventorySlotData s in toolSlots) if (s.IsEmpty) { target = s; break; }
+            if (target == null) foreach (InventorySlotData s in slots) if (s.IsEmpty) { target = s; break; }
+            if (target == null) return quantity;
+            target.item = item;
+            target.quantity = 1;
+            target.quality = ItemQuality.Normal;
+            target.durability = durability;
+            FixToolSelection(announce: true);
+            OnInventoryChanged?.Invoke();
+            return quantity - 1;
         }
 
         // 가방 30칸에만 넣기 (같은 아이템 먼저 채우고 빈 칸). 남은 수량 반환
@@ -432,6 +491,7 @@ namespace FarmingSystem.Inventory
                     slots[i].item = item;
                     slots[i].quantity = canAdd;
                     slots[i].quality = quality;
+                    slots[i].durability = NewDurability(item);
                     quantity -= canAdd;
                 }
             }

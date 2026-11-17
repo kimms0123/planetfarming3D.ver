@@ -70,6 +70,44 @@ namespace FarmingSystem.UI
                 if (star) gradeBadge.color = data.quality == ItemQuality.Perfect ? perfectColor : goodColor;
             }
             if (selectedFrame != null) selectedFrame.SetActive(selected);
+            ShowDurability(data);
+        }
+
+        // 도구 내구도 막대 (칸 아래쪽, 닳는 도구만). 처음 필요할 때 만듦
+        private RectTransform durabilityBar;
+        private Image durabilityFill;
+
+        private void ShowDurability(InventorySlotData data)
+        {
+            ToolData tool = hasItem ? data.item as ToolData : null;
+            bool show = tool != null && tool.maxDurability > 0;
+            if (!show) { if (durabilityBar != null) durabilityBar.gameObject.SetActive(false); return; }
+
+            if (durabilityBar == null)
+            {
+                var bg = new GameObject("DurabilityBar", typeof(RectTransform), typeof(Image));
+                bg.transform.SetParent(transform, false);
+                durabilityBar = (RectTransform)bg.transform;
+                durabilityBar.anchorMin = new Vector2(0.14f, 0.09f);
+                durabilityBar.anchorMax = new Vector2(0.86f, 0.16f);
+                durabilityBar.offsetMin = durabilityBar.offsetMax = Vector2.zero;
+                Image bgImg = bg.GetComponent<Image>();
+                bgImg.color = new Color(0.2f, 0.16f, 0.13f, 0.75f);
+                bgImg.raycastTarget = false;
+
+                var fill = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+                fill.transform.SetParent(durabilityBar, false);
+                var frt = (RectTransform)fill.transform;
+                frt.anchorMin = Vector2.zero;
+                frt.anchorMax = Vector2.one;
+                frt.offsetMin = frt.offsetMax = Vector2.zero;
+                durabilityFill = fill.GetComponent<Image>();
+                durabilityFill.raycastTarget = false;
+            }
+            durabilityBar.gameObject.SetActive(true);
+            float k = Mathf.Clamp01(data.durability / (float)tool.maxDurability);
+            ((RectTransform)durabilityFill.transform).anchorMax = new Vector2(k, 1f);
+            durabilityFill.color = k > 0.5f ? new Color(0.45f, 0.8f, 0.4f) : k > 0.2f ? new Color(0.95f, 0.78f, 0.3f) : new Color(0.9f, 0.35f, 0.3f);
         }
 
         // 끌고 있는 동안 원래 칸 아이콘을 흐리게

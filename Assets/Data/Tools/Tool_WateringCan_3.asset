@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d8dd5a5ae51a7bb4489374a8ffa37b20, type: 3}
+  m_Name: Tool_WateringCan_3
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Inventory.ToolData
+  itemName: "\uC18C\uB098\uAE30 \uBB3C\uBFCC\uB9AC\uAC1C"
+  category: 2
+  icon: {fileID: 503589221, guid: 405855ca255aa474fb1556456802d165, type: 3}
+  maxStack: 1
+  description: "\uC8FC\uBCC0 9\uCE78\uC5D0 \uD55C \uBC88\uC5D0 \uBB3C\uC744 \uC900\uB2E4."
+  toolType: 1
+  range: 2
+  maxDurability: 500

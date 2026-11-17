@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Farming.SeedData
   itemName: "\uBB49\uAC8C\uB098\uBB34 \uC528\uC557"
   category: 0
-  icon: {fileID: 21300000, guid: 4869ed040e6c8cc47ac7fee0dc355cb0, type: 3}
+  icon: {fileID: 192938521, guid: 25b2f9728bdf05748851597c693f17b7, type: 3}
   maxStack: 99
   description: 
   resultCrop: {fileID: 11400000, guid: b499e8d7ab954214a90b7a05cb4253ff, type: 2}

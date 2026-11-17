@@ -17,6 +17,7 @@ namespace FarmingSystem.NPC
     // - 처음 놓은 자리 둘레(Wander Radius)를 천천히 걸어 다님. 같은 높이의 땅만 걷고 물·절벽·장애물 앞에선 멈춰서 다른 곳으로
     //   Roam Mode = Free 이면 구역 없이 섬 땅(밭 칸) 위를 자유롭게 (물·나무·건물·급한 턱은 피함)
     //   플레이어가 가까이 오면 멈춰서 바라봄 (말 걸기 쉽게). 모델에 Animator가 있으면 "Speed"(걷기 속도), "IsTalking"(대화 중) 값을 넘김
+    // - 밤이 되면 ResidentManager가 GoHome()을 불러 줌 → 집(문 앞)까지 걸어가서 스르륵 들어감. 아침엔 PlaceAt()으로 문 앞에 다시 나옴
     // 붙이는 곳: NPC 오브젝트 (물가에 빈 오브젝트를 놓고 이 스크립트만 붙여도 됨)
     public class NPCDialogue : MonoBehaviour
     {
@@ -115,8 +116,15 @@ namespace FarmingSystem.NPC
         private Transform placeholderRoot;
         private Animator npcAnimator;
 
-        private void Start()
+        private void Start() => EnsureInit();
+
+        // 처음 한 번: 놓인 자리를 '처음 자리'로 기억 (Start보다 먼저 옮겨질 수 있어서 따로 뺌)
+        private bool initDone;
+        private void EnsureInit()
         {
+            if (initDone) return;
+            initDone = true;
+            fullScale = transform.localScale;
             baseRotation = transform.rotation;
             if (makePlaceholder && GetComponentInChildren<Renderer>() == null) BuildPlaceholder();
             npcAnimator = GetComponentInChildren<Animator>();
@@ -129,9 +137,124 @@ namespace FarmingSystem.NPC
             idleTimer = Random.Range(idleTime.x, idleTime.y);
         }
 
+        // ───────────────────────── 밤에 집으로 · 아침에 나오기 ─────────────────────────
+
+        /// <summary>처음 자리 (돌아다니는 구역의 가운데)</summary>
+        public Vector3 HomePosition { get { EnsureInit(); return home; } }
+        /// <summary>집으로 걸어가는 중이거나 문 앞에서 들어가는 중</summary>
+        public bool IsGoingHome => goingHome || entering;
+
+        private static readonly float[] GoHomeAngles = { 0f, 40f, -40f, 80f, -80f }; // 막히면 옆으로 비켜 가 봄
+        private Vector3 fullScale = Vector3.one;
+        private bool goingHome, entering, scaling;
+        private Vector3 doorPos;
+        private float goHomeLeft, stuckTime;
+        private System.Action onEnteredHome;
+
+        /// <summary>집(문 앞)까지 걸어가서 들어감. 막혀서 못 가거나 maxSeconds가 지나면 그 자리에서 들어감. 다 들어가면 entered 호출</summary>
+        public void GoHome(Vector3 door, float maxSeconds, System.Action entered)
+        {
+            EnsureInit();
+            doorPos = door;
+            goHomeLeft = maxSeconds;
+            stuckTime = 0f;
+            onEnteredHome = entered;
+            goingHome = true;
+            hasTarget = false;
+        }
+
+        /// <summary>집에 가던 것 그만두기 (잠자기로 시간이 바뀌었을 때 등)</summary>
+        public void CancelGoHome()
+        {
+            goingHome = false;
+            onEnteredHome = null;
+            if (entering || scaling) { StopAllCoroutines(); entering = scaling = false; transform.localScale = fullScale; }
+        }
+
+        /// <summary>그 자리에 세우기 (아침에 문 앞으로). '처음 자리'는 그대로. popIn = 스르륵 나타남</summary>
+        public void PlaceAt(Vector3 pos, Quaternion rot, bool popIn)
+        {
+            EnsureInit();
+            CancelGoHome();
+            float y = SpawnGroundY(pos, out float gy) ? gy : pos.y;
+            transform.SetPositionAndRotation(new Vector3(pos.x, y, pos.z), rot);
+            hasTarget = false;
+            idleTimer = Random.Range(1f, 2.5f);
+            if (popIn && isActiveAndEnabled) StartCoroutine(ScaleTo(Vector3.zero, fullScale, 0.4f, null));
+        }
+
+        private void UpdateGoHome(float dt)
+        {
+            goHomeLeft -= dt;
+            Vector3 pos = transform.position;
+            Vector3 to = doorPos - pos;
+            to.y = 0f;
+            float dist = to.magnitude;
+            if (dist < 0.35f || goHomeLeft <= 0f || stuckTime > 2.5f) { EnterHome(); return; }
+
+            Vector3 want = to / dist, dir = Vector3.zero;
+            bool found = false;
+            foreach (float a in GoHomeAngles)
+            {
+                Vector3 d = Quaternion.Euler(0f, a, 0f) * want;
+                if (!CanStepHome(pos, d)) continue;
+                dir = d;
+                found = true;
+                break;
+            }
+            if (!found) { stuckTime += dt; SetWalking(false); return; }
+            stuckTime = Mathf.Max(0f, stuckTime - dt);
+
+            Vector3 next = pos + dir * Mathf.Min(dist, walkSpeed * 1.8f * dt); // 집에 갈 땐 조금 서둘러서
+            if (RawGround(next, out float y, out _)) next.y = Mathf.Lerp(pos.y, y, 1f - Mathf.Exp(-15f * dt));
+            transform.position = next;
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir), 1f - Mathf.Exp(-6f * dt));
+            SetWalking(true);
+        }
+
+        // 집에 갈 때 한 걸음: 땅이 있고(물·낭떠러지 아님) 턱이 낮고 앞이 안 막혔는지
+        private bool CanStepHome(Vector3 pos, Vector3 dir)
+        {
+            if (!RawGround(pos + dir * 0.5f, out float y, out bool land)) return false;
+            if (roamMode == RoamMode.Free && !land) return false;
+            if (Mathf.Abs(y - pos.y) > Mathf.Max(stepHeight, heightTolerance)) return false;
+            return !Blocked(pos, dir);
+        }
+
+        private void EnterHome()
+        {
+            goingHome = false;
+            entering = true;
+            CanTalk = false;
+            SetWalking(false);
+            StartCoroutine(ScaleTo(fullScale, Vector3.zero, 0.4f, () =>
+            {
+                entering = false;
+                transform.localScale = fullScale;
+                System.Action cb = onEnteredHome;
+                onEnteredHome = null;
+                cb?.Invoke(); // ResidentManager가 숨김
+            }));
+        }
+
+        private System.Collections.IEnumerator ScaleTo(Vector3 from, Vector3 to, float seconds, System.Action done)
+        {
+            scaling = true;
+            for (float t = 0f; t < seconds; t += Time.deltaTime)
+            {
+                transform.localScale = Vector3.Lerp(from, to, Mathf.SmoothStep(0f, 1f, t / seconds));
+                yield return null;
+            }
+            transform.localScale = to;
+            scaling = false;
+            done?.Invoke();
+        }
+
         /// <summary>다른 곳으로 옮기기 (주민이 새 집 앞으로 이사 올 때). 그 자리가 새 '처음 자리'가 됨</summary>
         public void Relocate(Vector3 pos, Quaternion rot)
         {
+            EnsureInit();
+            CancelGoHome();
             transform.SetPositionAndRotation(pos, rot);
             baseRotation = rot;
             homeReady = false;
@@ -182,12 +305,15 @@ namespace FarmingSystem.NPC
                 return;
             }
 
+            if (entering) { CanTalk = false; return; } // 문 앞에서 들어가는 중
+
             CanTalk = CheckCanTalk();
             Keyboard kb = Keyboard.current;
             // 대화를 끝낸 E 키가 바로 다시 대화를 시작하지 않게 잠깐 쉼
             if (CanTalk && kb != null && kb.eKey.wasPressedThisFrame && Time.frameCount > endFrame + 2) { SetWalking(false); StartTalk(); return; }
 
-            if (wander) UpdateWander(Time.deltaTime);
+            if (goingHome) UpdateGoHome(Time.deltaTime);
+            else if (wander) UpdateWander(Time.deltaTime);
             else if (turnToPlayer) transform.rotation = Quaternion.Slerp(transform.rotation, baseRotation, 1f - Mathf.Exp(-4f * Time.deltaTime));
         }
 
@@ -332,6 +458,9 @@ namespace FarmingSystem.NPC
         private void OnDisable()
         {
             if (talking) EndTalk();
+            // 꺼지면 코루틴이 멈추므로 크기·상태를 원래대로
+            goingHome = false;
+            if (entering || scaling) { entering = scaling = false; transform.localScale = fullScale; }
         }
 
         // 모동숲 대화 시점: 플레이어 등 뒤 + 살짝 옆 + 위에서, 두 사람 사이(NPC 쪽)를 내려다봄 → 키가 달라도 둘 다 잘 보임

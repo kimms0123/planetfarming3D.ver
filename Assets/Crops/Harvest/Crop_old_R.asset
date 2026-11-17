@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Farming.CropData
   itemName: "\uBE59\uD558\uBCC4\uAF43"
   category: 1
-  icon: {fileID: 21300000, guid: b22e8d5967c17d8439001bc95b56b38b, type: 3}
+  icon: {fileID: -1813026322, guid: 25b2f9728bdf05748851597c693f17b7, type: 3}
   maxStack: 99
   description: "\uC904\uAE30 \uC704\uC5D0 \uC5BC\uC74C \uACB0\uC815 \uAF43\uC774
     \uD53C\uC5B4 \uC8FC\uBCC0\uC744 \uC11C\uB298\uD558\uAC8C \uC2DD\uD78C\uB2E4.\n\uCDA9\uACA9\uC5D0
@@ -23,7 +23,7 @@ MonoBehaviour:
     \uC7AC\uBC30\uD55C\uB2E4.\n\uAE68\uC9C4 \uC870\uAC01\uC740 \uBC84\uB9AC\uC9C0
     \uC54A\uACE0 \uBE59\uC218 \uC704\uC5D0 \uC62C\uB824 \uBA39\uC73C\uBA74 \uC2DD\uAC10\uC774
     \uB6F0\uC5B4\uB098\uB2E4."
-  season: 0
+  season: 3
   additionalSeasons: 
   totalGrowthDays: 3
   growthStagePrefabs:

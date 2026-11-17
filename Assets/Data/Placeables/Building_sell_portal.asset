@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4d631e4b036a67429f4301a6d5360af, type: 3}
+  m_Name: Building_sell_portal
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Building.BuildingData
+  displayName: "\uD310\uB9E4 \uD3EC\uD0C8"
+  description: "\uC791\uBB3C\uACFC \uC528\uC557\uC744 \uB123\uC5B4 \uB450\uBA74 \uB2E4\uC74C
+    \uB0A0 \uC544\uCE68\uC5D0 \uD314\uB9B0\uB2E4."
+  icon: {fileID: 0}
+  prefab: {fileID: 3636765482654978846, guid: 86997fa2a15ff824b81a8e9ac25795fb, type: 3}
+  modelYaw: 0
+  footprint: {x: 1, y: 1}
+  fill: 0.85
+  manualScale: 0
+  cost: 0
+  buildDays: 0
+  allowRotate: 1
+  function: 2

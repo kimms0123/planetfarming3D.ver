@@ -224,7 +224,8 @@ namespace FarmingSystem.Rhythm
         private int keyPressCount;            // 이번 판에 들어온 방향키 입력 수 (진단용)
         private bool pausedWorldThisSession;  // 이번 판에 실제로 시간을 멈췄는지
         // 가장 잘했을 때의 수확량 배율 (가방 공간 미리 확인용)
-        public float MaxYieldMultiplier => Mathf.Max(Mathf.Max(topGradeYield, highGradeYield), Mathf.Max(normalGradeYield, trashGradeYield));
+        public float MaxYieldMultiplier => Mathf.Max(Mathf.Max(topGradeYield, highGradeYield), Mathf.Max(normalGradeYield, trashGradeYield))
+                                           * (1f + FarmingSystem.Farming.FertilizerData.MaxYieldBonus); // 수확량 비료까지 받았을 때
 
         // ---------- 색 (보내준 UI 이미지 톤) ----------
         private static readonly Color Cream = new Color(1f, 0.98f, 0.93f, 0.96f);
@@ -776,6 +777,22 @@ namespace FarmingSystem.Rhythm
             result.YieldMultiplier = result.Tier == 3 ? topGradeYield : result.Tier == 2 ? highGradeYield
                                    : result.Tier == 1 ? normalGradeYield : trashGradeYield;
 
+            // 비료 효과: 품질 비료 = 등급 올림 (수확량 배율은 원래 등급 그대로) / 수확량 비료 = 개수 늘림
+            string fertNote = "";
+            FarmingSystem.Farming.CropInstance grown = cropTransform != null ? cropTransform.GetComponent<FarmingSystem.Farming.CropInstance>() : null;
+            FarmingSystem.Farming.FertilizerData fert = grown != null ? grown.Fertilizer : null;
+            if (fert != null && fert.type == FarmingSystem.Farming.FertilizerType.Quality && result.Tier < 3)
+            {
+                result.Tier = Mathf.Min(3, result.Tier + fert.qualitySteps);
+                result.Quality = ItemQualityUtility.FromRank(result.Tier);
+                fertNote = " <size=75%><color=#5E8A4A>(비료 효과)</color></size>";
+            }
+            else if (fert != null && fert.type == FarmingSystem.Farming.FertilizerType.Yield)
+            {
+                result.YieldMultiplier *= 1f + Mathf.Clamp(fert.yieldBonus, 0f, FarmingSystem.Farming.FertilizerData.MaxYieldBonus);
+                fertNote = " <size=75%><color=#5E8A4A>(비료 효과)</color></size>";
+            }
+
             for (int i = 0; i < resultStars.Length; i++)
                 resultStars[i].color = i < result.Tier ? StarLitColor(i) : ResultStarOff; // 별 개수 = 등급 (쓰레기 0개)
 
@@ -788,7 +805,7 @@ namespace FarmingSystem.Rhythm
             resultTitle.color = result.AllPerfect ? Gold : Brown;
             resultBody.text =
                 $"<size=120%><b>{context?.CropName}</b></size>\n" +
-                $"\n\n등급  <b><color=#{ColorUtility.ToHtmlStringRGB(gradeColor)}>{ItemQualityUtility.GetDisplayName(result.Quality)}</color></b>{(stormDamaged ? " <size=75%><color=#8A6E58>(회오리 피해)</color></size>" : "")}   ·   수확량  <b>{finalYield}개</b>\n" +
+                $"\n\n등급  <b><color=#{ColorUtility.ToHtmlStringRGB(gradeColor)}>{ItemQualityUtility.GetDisplayName(result.Quality)}</color></b>{(stormDamaged ? " <size=75%><color=#8A6E58>(회오리 피해)</color></size>" : "")}   ·   수확량  <b>{finalYield}개</b>{fertNote}\n" +
                 $"<color=#{ColorUtility.ToHtmlStringRGB(perfectColor * 0.85f)}>Perfect {pP * 100f:0}%</color>   " +
                 $"<color=#{ColorUtility.ToHtmlStringRGB(goodColor * 0.8f)}>Good {pG * 100f:0}%</color>   " +
                 $"<color=#{ColorUtility.ToHtmlStringRGB(missColor * 0.9f)}>Miss {pM * 100f:0}%</color>\n" +

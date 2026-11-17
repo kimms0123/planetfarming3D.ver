@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using FarmingSystem.Core;
 using FarmingSystem.Inventory;
@@ -44,6 +45,68 @@ namespace FarmingSystem.Farming
         public TileState State => state;
         public bool IsWatered => isWatered;
         public CropInstance CurrentCrop { get; private set; }
+
+        // ───── 비료 ─────
+        /// <summary>이 밭에 뿌려진 비료 (없으면 null). 씨앗을 심으면 그 작물에 효과, 수확하면 사라짐</summary>
+        public FertilizerData Fertilizer { get; private set; }
+        /// <summary>비료를 뿌릴 수 있는 밭인지 (갈아 놓았고, 작물이 없고, 아직 비료가 없음)</summary>
+        public bool CanFertilize => state == TileState.Tilled && CurrentCrop == null && Fertilizer == null;
+        private GameObject fertilizerMark;
+        private static readonly Dictionary<Color, Material> pelletMaterials = new Dictionary<Color, Material>();
+
+        /// <summary>비료 뿌리기 (갈아 놓은 빈 밭에만)</summary>
+        public bool ApplyFertilizer(FertilizerData data)
+        {
+            if (data == null || !CanFertilize)
+            {
+                Debug.Log($"[비료 실패] {name} - 갈아 놓은 빈 밭이 아니거나 이미 비료가 있음");
+                return false;
+            }
+            Fertilizer = data;
+            RefreshFertilizerMark();
+            Debug.Log($"[비료] {name} (좌표 {GridPosition}) - {data.itemName}을(를) 뿌렸습니다.");
+            return true;
+        }
+
+        private void ClearFertilizer()
+        {
+            Fertilizer = null;
+            RefreshFertilizerMark();
+        }
+
+        // 뿌린 밭에 작은 알갱이 몇 개 (비료 색)
+        private void RefreshFertilizerMark()
+        {
+            if (fertilizerMark != null) { Destroy(fertilizerMark); fertilizerMark = null; }
+            if (Fertilizer == null || state != TileState.Tilled) return;
+
+            if (!pelletMaterials.TryGetValue(Fertilizer.pelletColor, out Material mat) || mat == null)
+            {
+                Shader sh = Shader.Find("Universal Render Pipeline/Lit");
+                mat = new Material(sh != null ? sh : Shader.Find("Standard"));
+                mat.color = Fertilizer.pelletColor;
+                if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Fertilizer.pelletColor);
+                pelletMaterials[Fertilizer.pelletColor] = mat;
+            }
+
+            Bounds b = GetGroundBounds();
+            Vector3 top = GetSurfacePosition();
+            fertilizerMark = new GameObject("FertilizerMark");
+            fertilizerMark.transform.SetParent(transform, true);
+            var rng = new System.Random(GridPosition.x * 73856093 ^ GridPosition.y * 19349663); // 칸마다 늘 같은 자리
+            float half = Mathf.Min(b.extents.x, b.extents.z) * 0.7f, size = Mathf.Min(b.size.x, b.size.z) * 0.07f;
+            for (int i = 0; i < 9; i++)
+            {
+                GameObject p = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                Collider col = p.GetComponent<Collider>();
+                if (col != null) Destroy(col); // 클릭·걷기에 걸리지 않게
+                p.transform.SetParent(fertilizerMark.transform, true);
+                float x = ((float)rng.NextDouble() * 2f - 1f) * half, z = ((float)rng.NextDouble() * 2f - 1f) * half;
+                p.transform.position = new Vector3(top.x + x, top.y + size * 0.2f, top.z + z);
+                p.transform.localScale = Vector3.one * size * (0.7f + (float)rng.NextDouble() * 0.6f);
+                p.GetComponent<Renderer>().sharedMaterial = mat;
+            }
+        }
 
         private void OnEnable()
         {
@@ -166,10 +229,11 @@ namespace FarmingSystem.Farming
         /// 저장 불러오기: 밭 상태·물·작물을 저장된 그대로 되돌림 (계절 검사 없이 바로 심음)
         /// crop이 null이면 작물 없음
         /// </summary>
-        public void RestoreSave(TileState savedState, bool watered, CropData crop, int growthDay, bool withered, bool stormDamaged, int daysSinceReady)
+        public void RestoreSave(TileState savedState, bool watered, CropData crop, int growthDay, bool withered, bool stormDamaged, int daysSinceReady, FertilizerData savedFertilizer = null)
         {
             if (CurrentCrop != null) { Destroy(CurrentCrop.gameObject); CurrentCrop = null; }
             state = savedState;
+            Fertilizer = savedState == TileState.Tilled ? savedFertilizer : null;
             isWatered = watered && savedState == TileState.Tilled;
 
             if (crop != null && savedState == TileState.Tilled)
@@ -181,8 +245,10 @@ namespace FarmingSystem.Farming
                 cropObj.transform.localScale = transform.lossyScale * cropScaleMultiplier;
                 CurrentCrop = cropObj.AddComponent<CropInstance>();
                 CurrentCrop.RestoreSave(crop, growthDay, withered, stormDamaged, daysSinceReady);
+                CurrentCrop.Fertilizer = Fertilizer;
             }
             RefreshVisual();
+            RefreshFertilizerMark();
         }
 
         public bool TryTill()
@@ -237,6 +303,7 @@ namespace FarmingSystem.Farming
 
             CurrentCrop = cropObj.AddComponent<CropInstance>();
             CurrentCrop.Initialize(cropData);
+            CurrentCrop.Fertilizer = Fertilizer; // 뿌려 둔 비료가 이 작물에 듣음
 
             Debug.Log($"[씨앗심기 성공] {name} (좌표 {GridPosition}) - {seedData.itemName}을(를) 심었습니다 -> {cropData.cropName}로 자람");
             return true;
@@ -283,6 +350,7 @@ namespace FarmingSystem.Farming
             string cropName = CurrentCrop.Data != null ? CurrentCrop.Data.cropName : "작물";
             Destroy(CurrentCrop.gameObject);
             CurrentCrop = null;
+            ClearFertilizer();
             RefreshVisual();
             Debug.Log($"[{reason}] {name} (좌표 {GridPosition}) - {cropName}이(가) 날아갔어요");
             return true;
@@ -305,6 +373,7 @@ namespace FarmingSystem.Farming
             CropData harvested = CurrentCrop.Data;
             Destroy(CurrentCrop.gameObject);
             CurrentCrop = null;
+            ClearFertilizer(); // 비료는 작물 한 번만
 
             isWatered = false;
             RefreshVisual();
@@ -325,6 +394,7 @@ namespace FarmingSystem.Farming
             string cropName = CurrentCrop.Data.cropName;
             Destroy(CurrentCrop.gameObject);
             CurrentCrop = null;
+            ClearFertilizer();
             RefreshVisual();
             Debug.Log($"[시든 작물 제거] {name} (좌표 {GridPosition}) - 시든 {cropName}을(를) 치웠습니다. 밭은 갈린 상태로 남아 바로 다시 심을 수 있어요.");
             return true;
@@ -353,6 +423,13 @@ namespace FarmingSystem.Farming
                 else if (isWatered)
                 {
                     CurrentCrop.Grow();
+                    // 성장 비료: 확률로 하루치 더 자람
+                    if (Fertilizer != null && Fertilizer.type == FertilizerType.Growth && !CurrentCrop.IsReadyToHarvest
+                        && UnityEngine.Random.value < Fertilizer.growthChance)
+                    {
+                        CurrentCrop.ApplyGrowthBonus(1);
+                        Debug.Log($"[비료] {name} - {Fertilizer.itemName} 덕분에 하루치 더 자랐어요");
+                    }
                 }
                 else
                 {

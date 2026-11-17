@@ -132,7 +132,7 @@ namespace FarmingSystem.NPC
                 if (!show) continue;
                 bool ready = tg.mark == QuestMark.Ready;
                 tg.iconText.text = ready ? "?" : "!";
-                tg.iconBg.color = ready ? new Color(0.45f, 0.85f, 0.45f) : new Color(1f, 0.82f, 0.25f);
+                tg.iconText.color = ready ? ReadyMarkColor : NewMarkColor; // 바탕 없이 글자만 (캐릭터를 가리지 않게)
                 float bob = Mathf.Sin(Time.unscaledTime * 3f) * 0.08f;
                 float above = Height(tg) + 0.45f + bob;
                 PlaceAt(tg.icon, cam, tg.t.position + Vector3.up * above);
@@ -251,6 +251,9 @@ namespace FarmingSystem.NPC
             promptLabel.text = text;
         }
 
+        private static readonly Color NewMarkColor = new Color(0.93f, 0.2f, 0.2f);    // "!" 빨강 (새 퀘스트)
+        private static readonly Color ReadyMarkColor = new Color(0.2f, 0.72f, 0.3f);  // "?" 초록 (건네줄 수 있음)
+
         private void MakeIcon(Target tg)
         {
             if (canvas == null) Build();
@@ -260,14 +263,15 @@ namespace FarmingSystem.NPC
             rt.sizeDelta = new Vector2(40f, 40f);
             rt.pivot = new Vector2(0.5f, 0f);
             Image img = go.GetComponent<Image>();
-            img.sprite = circle;
+            img.color = Color.clear;      // 동그란 바탕 없음 - 머리 위에 글자만 (모동숲처럼)
             img.raycastTarget = false;
-            var outline = go.AddComponent<Outline>();
-            outline.effectColor = new Color(0.15f, 0.12f, 0.1f, 0.9f);
-            outline.effectDistance = new Vector2(2f, -2f);
             tg.icon = rt;
             tg.iconBg = img;
-            tg.iconText = MakeText(go.transform, "!", 28f, new Color(0.2f, 0.15f, 0.1f), FontStyles.Bold);
+            tg.iconText = MakeText(go.transform, "!", 44f, NewMarkColor, FontStyles.Bold);
+            tg.iconText.textWrappingMode = TextWrappingModes.NoWrap;
+            tg.iconText.overflowMode = TextOverflowModes.Overflow;
+            tg.iconText.outlineWidth = 0.28f;   // 어떤 배경에서도 보이게 흰 테두리
+            tg.iconText.outlineColor = new Color32(255, 255, 255, 255);
         }
 
         // size×size 흰색 둥근 사각형 (radius = size/2 이면 원). 9-slice 테두리 = radius → 늘려도 모서리가 안 찌그러짐
