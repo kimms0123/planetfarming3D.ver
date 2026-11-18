@@ -25,5 +25,11 @@ namespace FarmingSystem.Economy
 
         /// <summary>흥정이 끝난 뒤 결과를 알려줌 (학습·기록용, 안 써도 됨)</summary>
         public virtual void OnResult(BargainContext ctx, bool accepted) { }
+
+        /// <summary>상인 대사 바꾸기 (안 바꾸면 원래 대사 그대로). FCM 성향별 대사에 씀</summary>
+        public virtual string GetLine(MerchantLineKind kind, string fallback) => fallback;
     }
+
+    /// <summary>판매 창에서 성향에 따라 바뀔 수 있는 상인 대사 종류</summary>
+    public enum MerchantLineKind { Greet, Accept, Reject }
 }

@@ -20,8 +20,13 @@ namespace FarmingSystem.UI.Shop
     /// 3. 상인이 고민 (제안 금액이 바들바들 떨림)
     /// 4. 수락: 금액이 제안한 값까지 쭉 바뀜 → [바로 판매] 때 그 금액을 받음
     ///    거절: 원래 금액 그대로 (담은 물품을 바꾸기 전까지 다시 흥정 불가)
-    /// 수락 확률: 원래 금액의 Safe Ratio(110%)까지는 항상 수락 → Max Ratio(150%)로 갈수록 줄어듦 → 그 이상은 항상 거절
-    /// (지금은 간단한 확률 규칙. 나중에 FCM/RBFN 흥정으로 AcceptChance()만 바꾸면 됨)
+    /// 수락 확률은 흥정 모델(BargainModel)이 정함 - 연출은 그대로 두고 판단만 바꿔 끼우는 구조
+    ///  - Bargain Model 칸이 비어 있으면: 기본 규칙 (Safe Ratio 110%까지 항상 수락 → Max Ratio 150%로 갈수록 줄어듦 → 그 이상 거절)
+    ///  - 나중에 FCM/RBFN 모델(BargainModel 상속 에셋)을 만들어 그 칸에 넣으면 끝 (이 파일은 안 고쳐도 됨)
+    ///  - 모델 입력 = BargainContext (제안 배율, 거래 규모, 품질, 특별 상품, 제철, 시도 횟수, 누적 성공률, 날씨)
+    ///  - 상인 AI(MerchantMind): 판매할 때마다 FCM 성향 학습, 거절 뒤 팔았는지/떠났는지로 RBFN 버티기 예측 학습
+    ///    (Bargain Model 칸이 비어 있어도 학습은 계속됨 → 나중에 FCM 모델을 넣으면 바로 그동안 배운 걸 씀)
+    ///  - Log Bargains를 켜면 흥정마다 특징값 + 결과가 CSV로 쌓임 → 학습 데이터
     /// </summary>
     public class ShopSellPanelUI : MonoBehaviour
     {
@@ -54,9 +59,13 @@ namespace FarmingSystem.UI.Shop
         [Header("흥정")]
         [Tooltip("끄면 흥정하기 버튼이 비활성")]
         [SerializeField] private bool bargainEnabled = true;
-        [Tooltip("원래 금액의 이 배율까지는 항상 수락 (1.1 = 10% 더까지)")]
+        [Tooltip("흥정 판단 모델 (BargainModel 에셋). 비우면 아래 Safe/Max Ratio 기본 규칙\n나중에 FCM/RBFN 모델 에셋을 여기에 넣으면 됨")]
+        [SerializeField] private BargainModel bargainModel;
+        [Tooltip("흥정할 때마다 특징값과 결과를 CSV로 저장 (FCM/RBFN 학습 데이터용)")]
+        [SerializeField] private bool logBargains = false;
+        [Tooltip("원래 금액의 이 배율까지는 항상 수락 (1.1 = 10% 더까지) - Bargain Model이 비어 있을 때만 씀")]
         [SerializeField, Range(1f, 2f)] private float safeRatio = 1.1f;
-        [Tooltip("원래 금액의 이 배율 이상은 항상 거절 (1.5 = 50% 더)")]
+        [Tooltip("원래 금액의 이 배율 이상은 항상 거절 (1.5 = 50% 더) - Bargain Model이 비어 있을 때만 씀")]
         [SerializeField, Range(1.01f, 3f)] private float maxRatio = 1.5f;
         [Tooltip("PV 촬영용: 켜면 얼마를 불러도 항상 수락")]
         [SerializeField] private bool alwaysAccept = false;
@@ -97,12 +106,18 @@ namespace FarmingSystem.UI.Shop
         private BargainState bargainState = BargainState.None;
         private long dealTotal = -1;     // 수락된 금액 (-1 = 흥정 안 함/거절)
         private long lastBaseTotal;
+        private int bargainAttempts;     // 이번에 창을 열고 몇 번 흥정했는지 (모델 입력)
         private Coroutine bargainRoutine;
         private TMP_InputField bargainInput;
         private TextMeshProUGUI bargainButtonText, clearAllButtonText;
         private string clearAllOriginalLabel;
         private Color totalBaseColor = Color.white;
         private bool totalColorSaved;
+
+        // 상인 AI 학습용 (MerchantMind)
+        private bool bargainedThisCart;          // 이번에 담은 물품으로 흥정했는지
+        private float lastOfferRatio = 1f;       // 마지막으로 부른 배율
+        private BargainContext pendingReject;    // 거절당한 흥정 → 그 뒤 팔았는지/떠났는지 기다리는 중
 
         private bool Busy => bargainState == BargainState.Typing || bargainState == BargainState.Thinking;
 
@@ -130,10 +145,11 @@ namespace FarmingSystem.UI.Shop
         public void Open()
         {
             Init();
+            bargainAttempts = 0;
             if (panelRoot != null) panelRoot.SetActive(true);
             Subscribe();
 
-            SetLine(greetLine);
+            SetLine(LineFor(MerchantLineKind.Greet, greetLine));
             RefreshSpecialItem();
             ClearCart();
             Debug.Log("[ShopSellPanelUI] 판매 창 열림");
@@ -142,6 +158,7 @@ namespace FarmingSystem.UI.Shop
         /// <summary>창만 닫는다 (대화창이 거래를 끝낼 때 호출). Closed 이벤트는 보내지 않음.</summary>
         public void Close()
         {
+            ResolvePendingReject(false); // 거절당하고 안 팔고 나감
             ExitBargain();
             Unsubscribe();
             if (panelRoot != null) panelRoot.SetActive(false);
@@ -227,6 +244,9 @@ namespace FarmingSystem.UI.Shop
 
         private void ClearCart()
         {
+            ResolvePendingReject(false); // 거절당하고 물건을 다 뺌 (판 뒤엔 이미 비어 있음)
+            bargainedThisCart = false;
+            lastOfferRatio = 1f;
             ExitBargain();
             ResetBargain();
             cart.Clear();
@@ -285,6 +305,10 @@ namespace FarmingSystem.UI.Shop
         {
             if (cart.Count == 0 || ShopManager.Instance == null || Busy) return;
 
+            // 상인 AI 학습 자료는 팔기 전에 모아 둠 (팔면 인벤토리에서 빠지니까)
+            BargainContext saleCtx = BuildBargainContext(lastBaseTotal);
+            float sellFraction = CropSellFraction();
+
             // 복사본을 넘김 - 판매 도중 OnInventoryChanged가 cart를 정리해도 안전
             int earned = ShopManager.Instance.TrySellBatch(new Dictionary<int, int>(cart));
             // 흥정이 수락됐으면 받은 금액을 흥정 금액에 맞춤 (차액만큼 더 주거나 덜 줌)
@@ -294,6 +318,11 @@ namespace FarmingSystem.UI.Shop
                 if (diff > 0) CurrencyManager.Instance.AddBells((int)diff);
                 else if (diff < 0) CurrencyManager.Instance.TrySpendBells((int)(-diff));
                 earned = (int)dealTotal;
+            }
+            if (earned > 0)
+            {
+                ResolvePendingReject(true); // 거절당했는데도 원래 가격에 팜
+                MerchantMind.RecordSale(MakeSaleRecord(saleCtx, sellFraction, earned));
             }
             SetLine(earned >= 0 ? string.Format(soldLine, ShopUIUtil.Money(earned)) : failedLine);
             ClearCart();
@@ -432,23 +461,108 @@ namespace FarmingSystem.UI.Shop
             bargainRoutine = StartCoroutine(BargainSequence(offer));
         }
 
-        /// <summary>제안 금액을 받아들일 확률 (0~1). 나중에 AI 흥정으로 바꿀 때 여기만 바꾸면 됨</summary>
-        private float AcceptChance(long offer, long baseTotal)
-        {
-            if (alwaysAccept || offer <= baseTotal) return 1f;
-            float ratio = baseTotal > 0 ? offer / (float)baseTotal : 999f;
-            if (ratio <= safeRatio) return 1f;
-            if (ratio >= maxRatio) return 0f;
-            float k = (ratio - safeRatio) / Mathf.Max(0.0001f, maxRatio - safeRatio);
-            return 1f - k * k * (3f - 2f * k); // 부드럽게 줄어듦
-        }
-
+        // 흥정 판단: 상황 정보 만들기 → 모델이 수락 확률 계산 → 주사위 → 결과를 모델·기록에 알림
+        // (연출은 BargainSequence가 담당. 판단 방식을 바꿀 땐 여기가 아니라 Bargain Model 에셋을 바꿈)
         private bool Decide(long offer)
         {
-            bool accepted = UnityEngine.Random.value <= AcceptChance(offer, lastBaseTotal);
+            bargainAttempts++;
+            BargainContext ctx = BuildBargainContext(offer);
+            float chance = alwaysAccept ? 1f
+                : bargainModel != null ? Mathf.Clamp01(bargainModel.AcceptChance(ctx))
+                : RuleBasedBargainModel.Compute(ctx, safeRatio, maxRatio);
+            bool accepted = UnityEngine.Random.value <= chance;
+
+            BargainHistory.Record(accepted);
+            if (bargainModel != null) bargainModel.OnResult(ctx, accepted);
+            if (logBargains) BargainLogger.Write(ctx, chance, accepted);
+
+            // 상인 AI: 다시 흥정했으면 앞의 거절은 결론 없이 버림, 이번에 거절이면 플레이어 반응을 기다림
+            bargainedThisCart = true;
+            lastOfferRatio = ctx.OfferRatio;
+            pendingReject = accepted ? null : ctx;
+
             dealTotal = accepted ? offer : -1;
             bargainState = BargainState.Done;
             return accepted;
+        }
+
+        // ---------- 상인 AI (FCM/RBFN) 연결 ----------
+
+        // 성향별 대사 (Bargain Model이 FCM 모델이면 바뀌고, 아니면 원래 대사)
+        private string LineFor(MerchantLineKind kind, string fallback)
+            => bargainModel != null ? bargainModel.GetLine(kind, fallback) : fallback;
+
+        // 거절당한 흥정의 결말을 버티기 예측(RBFN)에 알려 줌
+        private void ResolvePendingReject(bool stayed)
+        {
+            if (pendingReject == null) return;
+            MerchantMind.LearnStay(pendingReject, stayed);
+            pendingReject = null;
+        }
+
+        // 갖고 있던 작물 중 이번에 담은 작물 비율 (작물이 없으면 1)
+        private float CropSellFraction()
+        {
+            InventoryManager inventory = InventoryManager.Instance;
+            if (inventory == null) return 1f;
+            int held = 0, selling = 0;
+            for (int i = 0; i < inventory.TotalSlotCount; i++)
+            {
+                InventorySlotData slot = inventory.GetSlot(i);
+                if (slot == null || slot.IsEmpty || !(slot.item is CropData)) continue;
+                held += slot.quantity;
+                if (cart.TryGetValue(i, out int q)) selling += Mathf.Min(q, slot.quantity);
+            }
+            return held > 0 ? selling / (float)held : 1f;
+        }
+
+        private SaleRecord MakeSaleRecord(BargainContext ctx, float sellFraction, long earned)
+        {
+            var shares = new Dictionary<CropData, float>();
+            float sum = 0f;
+            foreach (BargainContext.Line l in ctx.Lines) sum += Mathf.Max(0, l.Total);
+            if (sum > 0f)
+                foreach (BargainContext.Line l in ctx.Lines)
+                    if (l.Item is CropData crop)
+                    {
+                        shares.TryGetValue(crop, out float v);
+                        shares[crop] = v + l.Total / sum;
+                    }
+            return new SaleRecord
+            {
+                SellFraction = sellFraction,
+                Bargained = bargainedThisCart,
+                OfferRatio = lastOfferRatio,
+                AvgQuality = ctx.Features[2],
+                SpecialShare = ctx.Features[3],
+                Value = earned,
+                CropShares = shares,
+            };
+        }
+
+        // 지금 담은 물품으로 흥정 상황 정보 만들기
+        private BargainContext BuildBargainContext(long offer)
+        {
+            var lines = new List<BargainContext.Line>();
+            InventoryManager inventory = InventoryManager.Instance;
+            ShopManager shop = ShopManager.Instance;
+            if (inventory != null && shop != null)
+            {
+                foreach (int index in cartOrder)
+                {
+                    InventorySlotData slot = inventory.GetSlot(index);
+                    if (slot == null || slot.IsEmpty || !cart.TryGetValue(index, out int qty)) continue;
+                    lines.Add(new BargainContext.Line
+                    {
+                        Item = slot.item,
+                        Quantity = qty,
+                        Quality = slot.quality,
+                        Total = shop.GetSellLineTotal(index, qty),
+                        TodaysSpecial = shop.IsTodaysSpecial(slot.item),
+                    });
+                }
+            }
+            return BargainContext.Create(offer, lastBaseTotal, lines, bargainAttempts);
         }
 
         private IEnumerator BargainSequence(long offer)
@@ -479,7 +593,7 @@ namespace FarmingSystem.UI.Shop
             if (accepted)
             {
                 // 4-1. 수락: 원래 금액 → 제안 금액으로 쭉 바뀌며 커졌다 돌아옴
-                SetLine(offer <= lastBaseTotal ? bargainCheapLine : string.Format(bargainAcceptLine, ShopUIUtil.Money(offer)));
+                SetLine(offer <= lastBaseTotal ? bargainCheapLine : string.Format(LineFor(MerchantLineKind.Accept, bargainAcceptLine), ShopUIUtil.Money(offer)));
                 t = 0f;
                 while (t < bargainCountTime)
                 {
@@ -497,7 +611,7 @@ namespace FarmingSystem.UI.Shop
             else
             {
                 // 4-2. 거절: 빨갛게 번쩍이며 고개 젓듯 흔들림 → 원래 금액
-                SetLine(bargainRejectLine);
+                SetLine(LineFor(MerchantLineKind.Reject, bargainRejectLine));
                 t = 0f;
                 while (t < 0.6f)
                 {

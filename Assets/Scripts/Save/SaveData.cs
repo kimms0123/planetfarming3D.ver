@@ -50,6 +50,9 @@ namespace FarmingSystem.Save
         public int bargainAttempts;
         public int bargainSuccesses;
 
+        // 상인 AI (FCM 성향 중심·프로필, RBFN 가중치) - MerchantMind.ToJson()
+        public string merchantMind = "";
+
         // 상인 일정 (다음 방문일·와 있는지·언제까지·오늘의 특별 상품)
         public bool merchantSaved;
         public int merchantNextVisit;

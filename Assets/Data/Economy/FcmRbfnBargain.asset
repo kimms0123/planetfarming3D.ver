@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4baeec7a421d4704ba7b88d53247d434, type: 3}
+  m_Name: FcmRbfnBargain
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Economy.FcmRbfnBargainModel
+  safeRatio: 1.1
+  maxRatio: 1.5
+  typeBonus:
+  - 0.05
+  - 0.08
+  - -0.15
+  - -0.05
+  stayToughness: 0.2
+  qualityWeight: 0.15
+  attemptPenalty: 0.08
+  weatherWeight: 0.05
+  lines:
+  - typeName: "\uC989\uC2DC \uD310\uB9E4\uD615"
+    greet:
+    - "\uC654\uAD6C\uB098! \uC624\uB298\uB3C4 \uC2DC\uC6D0\uD558\uAC8C \uD314\uACE0
+      \uAC08 \uAC70\uC9C0?"
+    - "\uC5ED\uC2DC \uB108\uB294 \uC624\uC790\uB9C8\uC790 \uAEBC\uB0B4 \uB193\uB294\uAD6C\uB098.
+      \uC88B\uC544 \uC88B\uC544!"
+    accept:
+    - "\uC88B\uC544, {0}! \uB2E8\uACE8\uC774\uB2C8\uAE4C \uAE30\uBD84 \uC88B\uAC8C
+      \uD574 \uC904\uAC8C."
+    reject:
+    - "\uC5D0\uC774, \uD3C9\uC18C\uCC98\uB7FC \uAE54\uB054\uD558\uAC8C \uC6D0\uB798
+      \uAC00\uACA9\uC73C\uB85C \uD558\uC790~"
+  - typeName: "\uC7A5\uAE30 \uBCF4\uC720\uD615"
+    greet:
+    - "\uC624\uB79C\uB9CC\uC5D0 \uAEBC\uB0B4 \uC624\uB294\uAD6C\uB098. \uC544\uAEF4
+      \uB454 \uC88B\uC740 \uBB3C\uAC74\uC774\uC9C0?"
+    - "\uB124\uAC00 \uAC00\uC838\uC624\uB294 \uAC74 \uB298 \uC798 \uC775\uC5C8\uB354\uB77C.
+      \uBB50 \uAC00\uC838\uC654\uC5B4?"
+    accept:
+    - "{0}! \uAE30\uB2E4\uB9B0 \uBCF4\uB78C\uC774 \uC788\uB294 \uBB3C\uAC74\uC774\uB2C8\uAE4C."
+    reject:
+    - "\uC544\uBB34\uB9AC \uC88B\uC544\uB3C4 \uADF8\uAC74 \uC880 \uC138\uB2E4~ \uC6D0\uB798
+      \uAC00\uACA9\uC73C\uB85C \uD558\uC790."
+  - typeName: "\uD765\uC815 \uC9D1\uCC29\uD615"
+    greet:
+    - "\uB610 \uC654\uAD6C\uB098... \uC774\uBC88\uC5D4 \uC5BC\uB9C8\uB97C \uBD80\uB974\uB824\uACE0?"
+    - "\uD765, \uC624\uB298\uC740 \uB098\uB3C4 \uB2E8\uB2E8\uD788 \uC900\uBE44\uD588\uB2E4\uACE0!"
+    accept:
+    - "\uC54C\uC558\uC5B4 \uC54C\uC558\uC5B4, {0}! \uB108\uD55C\uD150 \uBABB \uC774\uAE30\uACA0\uB2E4."
+    reject:
+    - "\uB610 \uADF8 \uC218\uBC95\uC774\uC57C? \uC774\uBC88\uC5D4 \uC548 \uB118\uC5B4\uAC00!"
+    - "\uB9E4\uBC88 \uAE4E\uC774\uBA74 \uB0B4\uAC00 \uAD76\uC5B4~ \uC6D0\uB798 \uAC00\uACA9!"
+  - typeName: "\uAE30\uD68C\uC8FC\uC758\uD615"
+    greet:
+    - "\uD2B9\uBCC4 \uC0C1\uD488 \uBCF4\uACE0 \uB2EC\uB824\uC654\uC9C0? \uB2E4 \uC54C\uC544~"
+    - "\uC624\uB298 \uBB50\uAC00 \uBE44\uC2FC\uC9C0 \uBC8C\uC368 \uC54C\uACE0 \uC628
+      \uB208\uCE58\uC778\uB370?"
+    accept:
+    - "{0}... \uB208\uCE58 \uD558\uB098\uB294 \uBE60\uB974\uB2E4\uB2C8\uAE4C."
+    reject:
+    - "\uD2B9\uBCC4 \uC0C1\uD488 \uB355 \uBD24\uC73C\uBA74 \uB410\uC9C0, \uAC70\uAE30\uC11C
+      \uB354\uB294 \uC548 \uB3FC~"

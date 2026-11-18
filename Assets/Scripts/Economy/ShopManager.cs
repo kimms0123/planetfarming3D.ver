@@ -50,6 +50,8 @@ namespace FarmingSystem.Economy
         [Tooltip("방문할 때마다 이 목록 중 하나를 무작위로 골라 판매 보너스를 준다. 비워두면 특별 상품 없음")]
         [SerializeField] private CropData[] possibleSpecialCrops;
         [SerializeField] private float specialSellBonusMultiplier = 1.5f;
+        [Tooltip("켜면 상인 AI(RBFN 수요 예측)가 고름: 이번 계절 작물 중 플레이어가 잘 팔 것 같은 작물일수록 잘 뽑힘\n끄면 위 목록에서 완전 무작위 (예전 방식)")]
+        [SerializeField] private bool aiPicksSpecial = true;
 
         [Header("판매 가능한 물건")]
         [Tooltip("수확한 작물 판매")]
@@ -176,7 +178,10 @@ namespace FarmingSystem.Economy
                 return;
             }
 
-            todaysSpecialCrop = possibleSpecialCrops[UnityEngine.Random.Range(0, possibleSpecialCrops.Length)];
+            todaysSpecialCrop = aiPicksSpecial
+                ? MerchantMind.PickSpecial(possibleSpecialCrops)
+                : possibleSpecialCrops[UnityEngine.Random.Range(0, possibleSpecialCrops.Length)];
+            if (todaysSpecialCrop == null) return;
             Debug.Log($"[상점] 오늘의 특별 상품: {todaysSpecialCrop.cropName} (판매가 x{specialSellBonusMultiplier})");
         }
 

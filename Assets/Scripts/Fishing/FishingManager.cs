@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -12,15 +13,15 @@ namespace FarmingSystem.Fishing
 {
     // 낚시 (모동숲 방식)
     //  1. 물가에 물고기 그림자가 헤엄침 (플레이어 주변 물가에 몇 마리씩, 지금 계절·시간·장소에 맞는 물고기)
-    //  2. 낚싯대를 들고 물 쪽을 보며 좌클릭 → 찌를 던짐 (십자선이 가리키는 물, 너무 멀면 앞쪽으로)
+    //  2. 낚싯대를 들고 물 쪽을 보며 좌클릭 → 낚싯대를 꺼내 찌를 던짐 (십자선이 가리키는 물, 너무 멀면 앞쪽으로)
     //  3. 찌 근처(4m 안)의 물고기가 다가와서 몇 번 툭툭 건드림 (이때 누르면 놀라서 도망)
     //  4. 찌가 '쑥' 들어가면 그때 좌클릭 → 잡음! (물고기마다 누를 수 있는 시간이 다름)
-    //  5. 잡으면 그림·이름·설명 창 → 가방에 들어가고 도감에 등록
+    //  5. 잡으면 낚아 올리는 동작 → 그림·이름·설명 창 → 가방에 들어가고 도감에 등록
     //  - 우클릭이나 이동 키 = 찌를 거둠 / 낚싯대 내구도는 물고기가 물었을 때(잡든 놓치든) 1 줄어듦
-    // 설치: Tools → 행성농사일지 → 물고기 → 낚시 준비하기 (씬에 이 컴포넌트 + 낚싯대 + 상점)
-    //       씬에 없으면 게임이 시작될 때 기본 설정으로 저절로 생김 (그림자는 검은 타원)
-    // 플레이어 애니메이터에 아래 이름의 파라미터가 있으면 같이 움직임 (없으면 무시)
-    //  Trigger "FishCast"(던지기), "FishReel"(거두기), "FishCatch"(잡음) / Bool "Fishing"(낚시 중)
+    // 플레이어 동작: 캐릭터 모델에 FishingController(클립 8개) + FishingFX가 붙어 있으면 그 동작·찌·줄·물보라를 씀
+    //  (FishingController의 [F] 테스트 흐름은 꺼지고 이 스크립트가 진행)
+    //  없으면 동작 없이 간단한 찌·줄로 진행
+    // 설치: Tools → 행성농사일지 → 물고기 → 낚시 준비하기. 씬에 없으면 게임이 시작될 때 기본 설정으로 저절로 생김
     public class FishingManager : MonoBehaviour
     {
         public static FishingManager Instance { get; private set; }
@@ -32,6 +33,12 @@ namespace FarmingSystem.Fishing
         [SerializeField] private float fishModelYaw = 0f;
         [Tooltip("물고기 등(맨 위)이 물 표면에서 얼마나 아래에 오는지 (m). 물이 불투명해서 안 보이면 0이나 음수로")]
         [SerializeField] private float swimDepth = 0.05f;
+        [Tooltip("물 표면에 검은 그림자를 그림 (모동숲처럼). 물이 불투명해도 물고기 위치가 보임")]
+        [SerializeField] private bool surfaceShadow = true;
+        [Tooltip("물 표면 그림자 진하기 (0 = 안 보임 ~ 1 = 새까맘)")]
+        [SerializeField, Range(0f, 1f)] private float shadowOpacity = 0.6f;
+        [Tooltip("물 표면 그림자 크기 (물고기 길이에 곱함)")]
+        [SerializeField] private float shadowScale = 1.15f;
         [Tooltip("플레이어 주변에 동시에 보이는 물고기 수")]
         [SerializeField] private int maxShadows = 5;
         [Tooltip("플레이어에서 이 거리 안의 물가에 생김 (m)")]
@@ -47,9 +54,7 @@ namespace FarmingSystem.Fishing
         [Tooltip("찌 근처 이 거리 안의 물고기가 다가옴 (m)")]
         [SerializeField] private float noticeRange = 4f;
 
-        private enum State { Idle, Casting, Waiting, Approaching, Nibbling, Biting, Reeling }
-        private State state = State.Idle;
-        private float stateTimer;
+        private enum Outcome { Cancel, Early, Missed, Caught }
 
         private float waterY;
         private bool waterReady;
@@ -58,18 +63,22 @@ namespace FarmingSystem.Fishing
         private List<FishData> allFish;
 
         private PlayerController player;
-        private Animator playerAnim;
         private bool playerWasEnabled;
         private FarmActionController farmActions;
+        private FishingController anim; // 팀 낚시 동작 (캐릭터 모델에 붙어 있으면)
+        private FishingFX fx;           // 팀 찌·줄·물보라
 
+        private bool fishing;
+        private Coroutine flow;
+        private Vector3 castTo;
+        private FishShadow hooked;
+        private Material shadowMat, surfaceMat;
+
+        // 동작이 없을 때 쓰는 간단한 찌·줄
         private Transform bobber;
         private LineRenderer line;
-        private Vector3 castFrom, castTo;
-        private FishShadow hooked;
-        private int nibblesLeft;
-        private float dip;           // 찌가 물에 잠긴 정도 (연출)
-        private float noFishTimer;
-        private Material shadowMat;
+        private float dip;
+        private bool simpleBobberFloating;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoCreate()
@@ -93,25 +102,28 @@ namespace FarmingSystem.Fishing
         private void Update()
         {
             if (!waterReady) DetectWater();
-            if (player == null) { player = FindAnyObjectByType<PlayerController>(); if (player != null) playerAnim = player.GetComponentInChildren<Animator>(); }
+            if (player == null) FindPlayer();
             if (farmActions == null) farmActions = FindAnyObjectByType<FarmActionController>();
             if (player == null || !waterReady) return;
 
             UpdateShadows(Time.deltaTime);
-            if (TitleScreen.IsShowing) { if (state != State.Idle) EndFishing(false); return; }
-
-            switch (state)
-            {
-                case State.Idle: UpdateIdle(); break;
-                case State.Casting: UpdateCasting(); break;
-                case State.Waiting: UpdateWaiting(); break;
-                case State.Approaching: UpdateApproach(); break;
-                case State.Nibbling: UpdateNibble(); break;
-                case State.Biting: UpdateBite(); break;
-                case State.Reeling: UpdateReel(); break;
-            }
-            UpdateBobberAndLine();
+            if (TitleScreen.IsShowing) { if (fishing) Abort(); return; }
+            if (!fishing) TryStart();
+            UpdateSimpleBobber();
         }
+
+        private void FindPlayer()
+        {
+            player = FindAnyObjectByType<PlayerController>();
+            if (player == null) return;
+            anim = player.GetComponentInChildren<FishingController>(true);
+            fx = player.GetComponentInChildren<FishingFX>(true);
+            if (anim != null) anim.externalControl = true; // [F] 테스트 흐름 끄기
+        }
+
+        // 팀 동작을 쓸 수 있는지 (클립이 다 들어 있어야)
+        private bool Animated => anim != null && fx != null && anim.animator != null
+                                 && anim.equip != null && anim.cast != null && anim.waitLoop != null && anim.bite != null;
 
         // ───────────────────────── 물 ─────────────────────────
 
@@ -270,9 +282,45 @@ namespace FarmingSystem.Fishing
                 blob.transform.localScale = new Vector3(length * 0.38f, 0.05f, length);
                 blob.GetComponent<Renderer>().sharedMaterial = ShadowMaterial();
             }
+            // 물 표면 그림자 (Model 다음 두 번째 자식 - 꼬리 흔들기는 Model만)
+            if (surfaceShadow)
+            {
+                GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                quad.name = "SurfaceShadow";
+                Destroy(quad.GetComponent<Collider>());
+                quad.transform.SetParent(go.transform, false);
+                quad.transform.localPosition = new Vector3(0f, swimDepth + 0.03f, 0f); // 물 표면 바로 위
+                quad.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                quad.transform.localScale = new Vector3(length * 0.45f * shadowScale, length * shadowScale, 1f);
+                Renderer r = quad.GetComponent<Renderer>();
+                r.sharedMaterial = SurfaceMaterial();
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                r.receiveShadows = false;
+            }
+
             FishShadow s = go.AddComponent<FishShadow>();
             s.Init(f, p, length);
             return s;
+        }
+
+        // 가장자리가 부드러운 검은 타원 (투명)
+        private Material SurfaceMaterial()
+        {
+            if (surfaceMat != null) return surfaceMat;
+            const int N = 64;
+            var tex = new Texture2D(N, N, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            for (int y = 0; y < N; y++)
+                for (int x = 0; x < N; x++)
+                {
+                    float u = (x + 0.5f) / N * 2f - 1f, v = (y + 0.5f) / N * 2f - 1f;
+                    float d = Mathf.Sqrt(u * u + v * v);
+                    tex.SetPixel(x, y, new Color(0f, 0f, 0f, Mathf.Clamp01((1f - d) * 2.2f)));
+                }
+            tex.Apply();
+            surfaceMat = new Material(Shader.Find("Sprites/Default")) { mainTexture = tex };
+            surfaceMat.color = new Color(0.02f, 0.04f, 0.08f, shadowOpacity);
+            surfaceMat.renderQueue = 3100; // 물 위에 그려지게
+            return surfaceMat;
         }
 
         private Material ShadowMaterial()
@@ -288,7 +336,7 @@ namespace FarmingSystem.Fishing
 
         public float WaterY => waterY;
 
-        // ───────────────────────── 던지기 ─────────────────────────
+        // ───────────────────────── 낚시 시작 ─────────────────────────
 
         private bool CanStart()
         {
@@ -300,24 +348,11 @@ namespace FarmingSystem.Fishing
             return true;
         }
 
-        private void UpdateIdle()
+        private void TryStart()
         {
             if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame || !CanStart()) return;
             if (!FindCastPoint(out Vector3 target)) { FishCatchPopup.Hint("물가를 바라보고 던져 주세요"); return; }
-
-            player.FaceTowards(target);
-            playerWasEnabled = player.enabled;
-            player.enabled = false; // 낚시 중엔 제자리
-            SetAnim("FishCast", true);
-            EnsureGear();
-            castFrom = RodTip();
-            castTo = new Vector3(target.x, waterY, target.z);
-            bobber.gameObject.SetActive(true);
-            line.enabled = true;
-            hooked = null;
-            dip = 0f;
-            state = State.Casting;
-            stateTimer = 0f;
+            flow = StartCoroutine(Flow(target));
         }
 
         // 십자선(또는 마우스)이 가리키는 물. 너무 멀거나 땅이면 바라보는 쪽 물을 찾음
@@ -352,38 +387,193 @@ namespace FarmingSystem.Fishing
             return false;
         }
 
-        private void UpdateCasting()
+        // ───────────────────────── 낚시 흐름 ─────────────────────────
+
+        private IEnumerator Flow(Vector3 target)
         {
-            stateTimer += Time.deltaTime;
-            float k = Mathf.Clamp01(stateTimer / 0.45f);
-            Vector3 p = Vector3.Lerp(castFrom, castTo, k);
-            p.y += Mathf.Sin(k * Mathf.PI) * 1.2f;
-            bobber.position = p;
-            if (k < 1f) return;
-            Ripple.Spawn(castTo, 0.5f);
-            state = State.Waiting;
-            stateTimer = Random.Range(1f, 2.5f); // 물고기가 알아채기까지
-            noFishTimer = 0f;
+            fishing = true;
+            hooked = null;
+            castTo = new Vector3(target.x, waterY, target.z);
+            player.FaceTowards(target);
+            playerWasEnabled = player.enabled;
+            player.enabled = false; // 낚시 중엔 제자리
+            bool animated = Animated;
+
+            // 1. 꺼내서 던지기
+            if (animated)
+            {
+                anim.BeginExternal();
+                yield return anim.PlayOnce(anim.equip);
+                fx.SetCastTarget(castTo + Vector3.up * 0.02f);
+                anim.Play(anim.cast);
+                float until = Time.time + anim.cast.length + fx.castFlightTime + 0.5f;
+                while (!fx.BobberInWater && Time.time < until) yield return null; // CastRelease 이벤트 → 찌가 날아가 물에 떨어짐
+                while (!anim.CurrentClipDone(anim.cast)) yield return null;
+                anim.Play(anim.waitLoop);
+            }
+            else
+            {
+                EnsureGear();
+                bobber.gameObject.SetActive(true);
+                line.enabled = true;
+                Vector3 from = RodTip();
+                for (float t = 0f; t < 0.45f; t += Time.deltaTime)
+                {
+                    float k = t / 0.45f;
+                    Vector3 p = Vector3.Lerp(from, castTo, k);
+                    p.y += Mathf.Sin(k * Mathf.PI) * 1.2f;
+                    bobber.position = p;
+                    yield return null;
+                }
+                Ripple.Spawn(castTo, 0.5f);
+                dip = 0f;
+                simpleBobberFloating = true;
+            }
+
+            // 2. 기다리기 → 다가옴 → 툭툭 → 쑥!
+            Outcome result = Outcome.Cancel;
+            int phase = 0;              // 0 = 물고기 찾는 중, 1 = 다가오는 중, 2 = 툭툭 건드리는 중
+            float wait = Random.Range(1f, 2.5f), noFish = 0f, nibbleTimer = 0f;
+            int nibbles = 0;
+            bool hinted = false;
+            while (true)
+            {
+                yield return null;
+                float dt = Time.deltaTime;
+                if (CancelPressed()) { result = Outcome.Cancel; break; }
+                bool click = ClickPressed();
+
+                if (phase == 0)
+                {
+                    if (click) { result = Outcome.Cancel; break; } // 아무것도 없을 때 누르면 그냥 거둠
+                    noFish += dt;
+                    if (!hinted && noFish > 6f) { hinted = true; FishCatchPopup.Hint("물고기 그림자 가까이에 던져 보세요"); }
+                    wait -= dt;
+                    if (wait > 0f) continue;
+                    hooked = NearestShadow();
+                    if (hooked == null) { wait = 1f; continue; }
+                    phase = 1;
+                }
+                else if (phase == 1)
+                {
+                    if (hooked == null) { phase = 0; wait = 1f; continue; }
+                    if (click) { result = Outcome.Early; break; }
+                    Vector3 front = castTo + (Flat(hooked.transform.position) - Flat(castTo)).normalized * hooked.Length * 0.5f;
+                    if (hooked.SwimTo(front, castTo, 1.1f, dt, waterY - swimDepth))
+                    {
+                        phase = 2;
+                        nibbles = hooked.Data.rarity >= FishRarity.Rare ? Random.Range(2, 6) : Random.Range(1, 4);
+                        nibbleTimer = Random.Range(0.8f, 1.6f);
+                    }
+                }
+                else
+                {
+                    if (hooked == null) { result = Outcome.Cancel; break; }
+                    if (click) { result = Outcome.Early; break; }
+                    nibbleTimer -= dt;
+                    if (nibbleTimer > 0f) continue;
+                    if (nibbles > 0)
+                    {
+                        nibbles--;
+                        hooked.Lunge();
+                        if (animated) fx.Nibble(); else dip = 0.07f; // 툭
+                        nibbleTimer = Random.Range(0.9f, 1.8f);
+                        continue;
+                    }
+
+                    // 쑥! → 이 시간 안에 눌러야 함
+                    hooked.Lunge();
+                    if (animated) anim.Play(anim.bite); // Bite 이벤트 → 찌가 쏙 + 물보라
+                    else { dip = 0.32f; Ripple.Spawn(castTo, 0.9f); }
+                    float window = hooked.Data.biteWindow;
+                    result = Outcome.Missed;
+                    while (window > 0f)
+                    {
+                        yield return null;
+                        if (ClickPressed()) { result = Outcome.Caught; break; }
+                        if (CancelPressed()) break;
+                        window -= Time.deltaTime;
+                    }
+                    break;
+                }
+            }
+
+            // 3. 결과
+            if (result == Outcome.Caught && hooked != null)
+            {
+                FishData fish = hooked.Data;
+                shadows.Remove(hooked);
+                Destroy(hooked.gameObject);
+                hooked = null;
+                SpendRod();
+                bool isNew = FishCollection.Register(fish);
+                int notAdded = InventoryManager.Instance != null ? InventoryManager.Instance.AddItem(fish, 1) : 1;
+                Debug.Log($"[낚시] {fish.itemName} 잡음{(notAdded > 0 ? " (가방이 가득 차서 놓아줌)" : "")}");
+                if (animated)
+                {
+                    if (anim.reelSuccess != null) yield return anim.PlayOnce(anim.reelSuccess); // Hook·FishOut → 물고기가 튀어 올라 매달림
+                    FishCatchPopup.Show(fish, isNew, notAdded > 0);
+                    if (anim.celebrate != null) yield return anim.PlayOnce(anim.celebrate);
+                }
+                else
+                {
+                    Ripple.Spawn(castTo, 1.1f);
+                    FishCatchPopup.Show(fish, isNew, notAdded > 0);
+                }
+            }
+            else
+            {
+                if (hooked != null) { hooked.Flee(); hooked = null; }
+                if (result == Outcome.Missed) { SpendRod(); FishCatchPopup.Hint("놓쳤어요… 물고기가 도망갔어요"); }
+                else if (result == Outcome.Early) FishCatchPopup.Hint("너무 빨랐어요… 물고기가 도망갔어요");
+                if (animated && (result == Outcome.Missed || result == Outcome.Early) && anim.fail != null)
+                {
+                    if (result == Outcome.Missed) while (!anim.CurrentClipDone(anim.bite)) yield return null;
+                    yield return anim.PlayOnce(anim.fail); // LineSlack → 줄이 풀리며 찌가 돌아옴
+                }
+            }
+
+            // 4. 거두고 낚싯대 넣기
+            if (animated)
+            {
+                if (anim.unequip != null) yield return anim.PlayOnce(anim.unequip); // RodDespawn → 찌·줄 숨김
+                fx.ResetAll();
+                anim.EndExternal();
+            }
+            else
+            {
+                simpleBobberFloating = false;
+                Vector3 from = bobber.position;
+                for (float t = 0f; t < 0.3f; t += Time.deltaTime)
+                {
+                    bobber.position = Vector3.Lerp(from, RodTip(), t / 0.3f);
+                    yield return null;
+                }
+                bobber.gameObject.SetActive(false);
+                line.enabled = false;
+            }
+            RestorePlayer();
+            fishing = false;
+            flow = null;
         }
 
-        private bool CancelPressed()
+        // 시작 화면으로 돌아갈 때 등 강제로 끝내기
+        private void Abort()
         {
-            if (Mouse.current != null && Mouse.current.rightButton.wasPressedThisFrame) return true;
-            Keyboard kb = Keyboard.current;
-            return kb != null && (kb.wKey.wasPressedThisFrame || kb.aKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame);
+            if (flow != null) StopCoroutine(flow);
+            flow = null;
+            if (hooked != null) { hooked.Flee(); hooked = null; }
+            if (anim != null) anim.EndExternal();
+            if (fx != null) fx.ResetAll();
+            simpleBobberFloating = false;
+            if (bobber != null) bobber.gameObject.SetActive(false);
+            if (line != null) line.enabled = false;
+            RestorePlayer();
+            fishing = false;
         }
 
-        private bool ClickPressed() => Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame && !PhoneMenu.IsOpen && !UIInputBlocker.IsBlocked;
-
-        private void UpdateWaiting()
+        private FishShadow NearestShadow()
         {
-            if (CancelPressed() || ClickPressed()) { StartReel(); return; }
-            stateTimer -= Time.deltaTime;
-            noFishTimer += Time.deltaTime;
-            if (noFishTimer > 6f && noFishTimer - Time.deltaTime <= 6f) FishCatchPopup.Hint("물고기 그림자 가까이에 던져 보세요");
-            if (stateTimer > 0f) return;
-
-            // 찌 근처에서 가장 가까운 물고기
             FishShadow best = null;
             float bestD = noticeRange;
             foreach (FishShadow s in shadows)
@@ -392,85 +582,18 @@ namespace FarmingSystem.Fishing
                 float d = Vector3.Distance(Flat(s.transform.position), Flat(castTo));
                 if (d < bestD) { bestD = d; best = s; }
             }
-            if (best == null) { stateTimer = 1f; return; }
-            hooked = best;
-            state = State.Approaching;
+            return best;
         }
 
-        private void UpdateApproach()
+        private bool CancelPressed()
         {
-            if (hooked == null) { state = State.Waiting; stateTimer = 1f; return; }
-            if (CancelPressed()) { StartReel(); return; }
-            if (ClickPressed()) { Scare("너무 빨랐어요… 물고기가 도망갔어요"); return; }
-            Vector3 front = castTo + (Flat(hooked.transform.position) - Flat(castTo)).normalized * hooked.Length * 0.5f;
-            if (hooked.SwimTo(front, castTo, 1.1f, Time.deltaTime, waterY - swimDepth))
-            {
-                state = State.Nibbling;
-                nibblesLeft = hooked.Data.rarity >= FishRarity.Rare ? Random.Range(2, 6) : Random.Range(1, 4);
-                stateTimer = Random.Range(0.8f, 1.6f);
-            }
+            if (PhoneMenu.IsOpen) return false;
+            if (Mouse.current != null && Mouse.current.rightButton.wasPressedThisFrame) return true;
+            Keyboard kb = Keyboard.current;
+            return kb != null && (kb.wKey.wasPressedThisFrame || kb.aKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame);
         }
 
-        private void UpdateNibble()
-        {
-            if (hooked == null) { StartReel(); return; }
-            if (CancelPressed()) { StartReel(); return; }
-            if (ClickPressed()) { Scare("너무 빨랐어요… 물고기가 도망갔어요"); return; }
-            stateTimer -= Time.deltaTime;
-            if (stateTimer > 0f) return;
-            if (nibblesLeft > 0)
-            {
-                nibblesLeft--;
-                dip = 0.07f; // 툭
-                hooked.Lunge();
-                stateTimer = Random.Range(0.9f, 1.8f);
-                return;
-            }
-            // 쑥!
-            state = State.Biting;
-            stateTimer = hooked.Data.biteWindow;
-            dip = 0.32f;
-            hooked.Lunge();
-            Ripple.Spawn(castTo, 0.9f);
-        }
-
-        private void UpdateBite()
-        {
-            if (hooked == null) { StartReel(); return; }
-            dip = 0.32f;
-            if (ClickPressed()) { Catch(); return; }
-            stateTimer -= Time.deltaTime;
-            if (CancelPressed() || stateTimer <= 0f)
-            {
-                SpendRod();
-                Scare("놓쳤어요… 물고기가 도망갔어요");
-            }
-        }
-
-        private void Catch()
-        {
-            FishData fish = hooked.Data;
-            shadows.Remove(hooked);
-            Destroy(hooked.gameObject);
-            hooked = null;
-            SetAnim("FishCatch", false);
-            Ripple.Spawn(castTo, 1.1f);
-            SpendRod();
-
-            bool isNew = FishCollection.Register(fish);
-            int notAdded = InventoryManager.Instance != null ? InventoryManager.Instance.AddItem(fish, 1) : 1;
-            FishCatchPopup.Show(fish, isNew, notAdded > 0);
-            Debug.Log($"[낚시] {fish.itemName} 잡음{(notAdded > 0 ? " (가방이 가득 차서 놓아줌)" : "")}");
-            StartReel();
-        }
-
-        private void Scare(string message)
-        {
-            if (hooked != null) hooked.Flee();
-            hooked = null;
-            FishCatchPopup.Hint(message);
-            StartReel();
-        }
+        private bool ClickPressed() => Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame && !PhoneMenu.IsOpen && !UIInputBlocker.IsBlocked;
 
         private void SpendRod()
         {
@@ -478,39 +601,13 @@ namespace FarmingSystem.Fishing
                 InventoryManager.Instance.UseCurrentTool();
         }
 
-        private void StartReel()
-        {
-            if (hooked != null) { hooked.Flee(); hooked = null; }
-            SetAnim("FishReel", false);
-            state = State.Reeling;
-            stateTimer = 0f;
-            castFrom = bobber != null ? bobber.position : castTo;
-        }
-
-        private void UpdateReel()
-        {
-            stateTimer += Time.deltaTime;
-            float k = Mathf.Clamp01(stateTimer / 0.3f);
-            bobber.position = Vector3.Lerp(castFrom, RodTip(), k);
-            if (k >= 1f) EndFishing(true);
-        }
-
-        private void EndFishing(bool restore)
-        {
-            state = State.Idle;
-            if (bobber != null) bobber.gameObject.SetActive(false);
-            if (line != null) line.enabled = false;
-            RestorePlayer();
-        }
-
         private void RestorePlayer()
         {
             if (player != null && playerWasEnabled) player.enabled = true;
             playerWasEnabled = false;
-            SetBool("Fishing", false);
         }
 
-        // ───────────────────────── 찌·낚싯줄 ─────────────────────────
+        // ───────────────────────── 간단한 찌·줄 (동작이 없을 때) ─────────────────────────
 
         private Vector3 RodTip() => player.transform.position + Vector3.up * 1.5f + player.transform.forward * 0.7f;
 
@@ -547,17 +644,17 @@ namespace FarmingSystem.Fishing
             return m;
         }
 
-        private void UpdateBobberAndLine()
+        private void UpdateSimpleBobber()
         {
             if (bobber == null || !bobber.gameObject.activeSelf) return;
-            if (state == State.Waiting || state == State.Approaching || state == State.Nibbling || state == State.Biting)
+            if (simpleBobberFloating)
             {
-                dip = Mathf.MoveTowards(dip, state == State.Biting ? 0.32f : 0f, Time.deltaTime * 0.6f);
+                dip = Mathf.MoveTowards(dip, 0f, Time.deltaTime * 0.6f);
                 float bob = Mathf.Sin(Time.time * 2.4f) * 0.02f;
                 bobber.position = new Vector3(castTo.x, waterY + 0.03f + bob - dip, castTo.z);
             }
             Vector3 a = RodTip(), b = bobber.position;
-            float sag = state == State.Casting ? 0.1f : Mathf.Min(0.6f, Vector3.Distance(a, b) * 0.08f);
+            float sag = Mathf.Min(0.6f, Vector3.Distance(a, b) * 0.08f);
             for (int i = 0; i < line.positionCount; i++)
             {
                 float t = i / (float)(line.positionCount - 1);
@@ -565,27 +662,6 @@ namespace FarmingSystem.Fishing
                 p.y -= Mathf.Sin(t * Mathf.PI) * sag;
                 line.SetPosition(i, p);
             }
-        }
-
-        // ───────────────────────── 애니메이션 (있으면) ─────────────────────────
-
-        private void SetAnim(string trigger, bool fishing)
-        {
-            SetBool("Fishing", fishing || state != State.Idle);
-            if (playerAnim == null || !HasParam(trigger, AnimatorControllerParameterType.Trigger)) return;
-            playerAnim.SetTrigger(trigger);
-        }
-
-        private void SetBool(string name, bool v)
-        {
-            if (playerAnim != null && HasParam(name, AnimatorControllerParameterType.Bool)) playerAnim.SetBool(name, v);
-        }
-
-        private bool HasParam(string name, AnimatorControllerParameterType type)
-        {
-            if (playerAnim == null || playerAnim.runtimeAnimatorController == null) return false;
-            foreach (AnimatorControllerParameter p in playerAnim.parameters) if (p.name == name && p.type == type) return true;
-            return false;
         }
 
         private static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z);

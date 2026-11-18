@@ -129,6 +129,7 @@ namespace FarmingSystem.Save
             playSeconds = 0f;
             BargainHistory.Attempts = 0;
             BargainHistory.Successes = 0;
+            MerchantMind.Reset();
             if (ResidentManager.Instance != null) ResidentManager.Instance.ResetForNewGame();
             if (QuestManager.Instance != null) QuestManager.Instance.ResetForNewGame();
             if (WeedManager.Instance != null) WeedManager.Instance.ResetForNewGame();
@@ -242,6 +243,7 @@ namespace FarmingSystem.Save
                 playSeconds = playSeconds,
                 bargainAttempts = BargainHistory.Attempts,
                 bargainSuccesses = BargainHistory.Successes,
+                merchantMind = MerchantMind.ToJson(),
             };
 
             GameClock clock = GameClock.Instance;
@@ -425,6 +427,7 @@ namespace FarmingSystem.Save
             // 9. 흥정 누적
             BargainHistory.Attempts = d.bargainAttempts;
             BargainHistory.Successes = d.bargainSuccesses;
+            MerchantMind.FromJson(d.merchantMind); // 예전 저장(빈 값)이면 처음부터
 
             // 10. 주민(누가 어느 집에)·손님 (집이 다 놓인 뒤에)
             if (ResidentManager.Instance != null) ResidentManager.Instance.OnGameLoaded(d);

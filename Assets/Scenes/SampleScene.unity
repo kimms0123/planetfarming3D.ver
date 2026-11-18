@@ -448981,6 +448981,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: d2c44892764caa048beb21fc4bf9dd38, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1395155877}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: d2c44892764caa048beb21fc4bf9dd38, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1395155881}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: d2c44892764caa048beb21fc4bf9dd38, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1395155880}
   m_SourcePrefab: {fileID: 100100000, guid: d2c44892764caa048beb21fc4bf9dd38, type: 3}
 --- !u!1001 &818215742
 PrefabInstance:
@@ -672015,8 +672021,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d6a7c0bcc05d85244afee27d79b4faab, type: 2}
   - {fileID: 11400000, guid: e6e747e5a8dac2247bbd53d2b9719283, type: 2}
   - {fileID: 11400000, guid: 466fc154a0be1844e989570a6de2ebf1, type: 2}
-  - {fileID: 11400000, guid: fcc9180da8f98c14c8a4c3b40a859448, type: 2}
-  - {fileID: 11400000, guid: aa7fad31036a08e49862773cbf03b376, type: 2}
+  - {fileID: 11400000, guid: 895bea5ef197a3044a9290000a6049a0, type: 2}
   - {fileID: 11400000, guid: d5e4d3881ee94be49be4c0c4e0aa6448, type: 2}
   - {fileID: 11400000, guid: e893a627486de3442822754f2ffe0943, type: 2}
   - {fileID: 11400000, guid: f3d32d0ee97082e4ca21e3994bf46416, type: 2}
@@ -672037,15 +672042,35 @@ MonoBehaviour:
   - {fileID: 11400000, guid: b69865c1ae2d4404fa4c0d51af9a86cd, type: 2}
   - {fileID: 11400000, guid: 6b9b419226ce81640af52fa4e09b0df1, type: 2}
   - {fileID: 11400000, guid: 4d5fad92979d9b849892d591cc3f2eb8, type: 2}
-  - {fileID: 11400000, guid: 11a228dcc1da793498a6ce97e72feb9c, type: 2}
-  - {fileID: 11400000, guid: 9494c99fbd248f845b5401396f40f1c6, type: 2}
+  - {fileID: 11400000, guid: 5611505c96d9eaf41967d3ca7a0650e8, type: 2}
   - {fileID: 11400000, guid: 09cd89a262da4a5438e9f43b23489bb0, type: 2}
   - {fileID: 11400000, guid: e60814e8a6cf2434ab6ba90f79f613f9, type: 2}
   - {fileID: 11400000, guid: fb84628ad9144c84b94d3a149ed2a010, type: 2}
+  - {fileID: 11400000, guid: 7faac6d80f75ac64fb739edde1b192de, type: 2}
+  - {fileID: 11400000, guid: ccbd493a72e8e8e4d8accdf6c34b6dc8, type: 2}
+  - {fileID: 11400000, guid: cc290c92f6725bf4f9727d52ca2234e5, type: 2}
+  - {fileID: 11400000, guid: 269673b3892602e408d9e489a76d4857, type: 2}
+  - {fileID: 11400000, guid: acbd8ca95cfaa6843b7d3cad5ca548d8, type: 2}
+  - {fileID: 11400000, guid: fce6ee51d6fce1043967b2cef75be146, type: 2}
+  - {fileID: 11400000, guid: 18f8dce3ae438d64da90600bbf66e970, type: 2}
+  - {fileID: 11400000, guid: 9b5889c92bcab054aa678be2f4877dcd, type: 2}
+  - {fileID: 11400000, guid: 9a1ab2f0c3154214b8a71a6ca7aec9d7, type: 2}
+  - {fileID: 11400000, guid: 1f11446aad61ef349b6fd045374c6b8f, type: 2}
+  - {fileID: 11400000, guid: 7b3ced3b1e0b3a74ab48bf2c1ef7053b, type: 2}
+  - {fileID: 11400000, guid: 50d990241bc5c20429edecc02ee32bf3, type: 2}
+  - {fileID: 11400000, guid: 8bff6f23ae222d44a88214a457301f00, type: 2}
+  - {fileID: 11400000, guid: 1a4791ff8346f654a86eb93d5457fbba, type: 2}
+  - {fileID: 11400000, guid: ca93ee26f1818944298dba058fc8155e, type: 2}
+  - {fileID: 11400000, guid: d3224d4f89e769249b42e791dd18af31, type: 2}
+  - {fileID: 11400000, guid: a20e0a192485e924d8c81dbd3db36df6, type: 2}
+  - {fileID: 11400000, guid: 34a4536252325824899c2e20231e13c1, type: 2}
+  - {fileID: 11400000, guid: 7605da10c57588c4fa9de0e36de55735, type: 2}
+  - {fileID: 11400000, guid: 19436e71c8561174fba16d45ca25664f, type: 2}
   - {fileID: 11400000, guid: b22d116cd5419ed438b76fbc27935c25, type: 2}
   - {fileID: 11400000, guid: f1befa916990cfb40a91e88df2cb417f, type: 2}
   - {fileID: 11400000, guid: f651ba162fb6a374eba09142b7e3cc0a, type: 2}
   - {fileID: 11400000, guid: 499bb6b9cbc1be04da14f4687ab8979e, type: 2}
+  - {fileID: 11400000, guid: 76f0c2316a4cca3418185b1eafcd0888, type: 2}
   - {fileID: 11400000, guid: 20ca38f4d6130ed468cad9ac4e4a67bd, type: 2}
   - {fileID: 11400000, guid: 9dd5d907eb3064d4c8497a618724f0f5, type: 2}
   - {fileID: 11400000, guid: adc6e5ca6ef24274f8107dd629dd586a, type: 2}
@@ -787405,6 +787430,88 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &1395155880
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1395155875}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3cbd5e9a07fd594e857f6fedd40df7e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FishingController
+  equip: {fileID: -3206263651483497662, guid: d2c44892764caa048beb21fc4bf9dd38, type: 3}
+  cast: {fileID: 7896679309779607623, guid: d2c44892764caa048beb21fc4bf9dd38, type: 3}
+  waitLoop: {fileID: -3545652582204683642, guid: d2c44892764caa048beb21fc4bf9dd38, type: 3}
+  bite: {fileID: -7653847362332097697, guid: d2c44892764caa048beb21fc4bf9dd38, type: 3}
+  reelSuccess: {fileID: 8195394017938382407, guid: d2c44892764caa048beb21fc4bf9dd38, type: 3}
+  celebrate: {fileID: 5336171071401514536, guid: d2c44892764caa048beb21fc4bf9dd38, type: 3}
+  fail: {fileID: 5703688115460763318, guid: d2c44892764caa048beb21fc4bf9dd38, type: 3}
+  unequip: {fileID: 6651284380104590841, guid: d2c44892764caa048beb21fc4bf9dd38, type: 3}
+  animator: {fileID: 0}
+  movementToDisable: {fileID: 0}
+  biteDelayMin: 2.5
+  biteDelayMax: 6
+  reactionWindow: 0.9
+  mouseClickHooks: 0
+  blendTime: 0.08
+  externalControl: 0
+--- !u!114 &1395155881
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1395155875}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff13e818f5c637443ad3e64885cfc5b6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FishingFX
+  rodTip: {fileID: 0}
+  rod: {fileID: 0}
+  castDistance: 4.5
+  castFlightTime: 0.55
+  waterMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  waterLevelOffset: 0
+  lineColor: {r: 0.95, g: 0.95, b: 0.95, a: 0.9}
+  lineWidth: 0.012
+  bobberTop: {r: 0.93, g: 0.25, b: 0.2, a: 1}
+  bobberBottom: {r: 1, g: 1, b: 1, a: 1}
+  bobberSize: 0.16
+  bobberPrefab: {fileID: 0}
+  fishPrefab: {fileID: 0}
+  fishHangLength: 0.35
+  sparkleColor: {r: 1, g: 0.93, b: 0.55, a: 1}
+  splashColor: {r: 0.75, g: 0.92, b: 1, a: 0.9}
+  onRodSpawn:
+    m_PersistentCalls:
+      m_Calls: []
+  onCast:
+    m_PersistentCalls:
+      m_Calls: []
+  onBobberLand:
+    m_PersistentCalls:
+      m_Calls: []
+  onBite:
+    m_PersistentCalls:
+      m_Calls: []
+  onHook:
+    m_PersistentCalls:
+      m_Calls: []
+  onFishOut:
+    m_PersistentCalls:
+      m_Calls: []
+  onLineSlack:
+    m_PersistentCalls:
+      m_Calls: []
+  onRodDespawn:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1001 &1395277458
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -833316,6 +833423,8 @@ MonoBehaviour:
   soldLine: "\uACE0\uB9C8\uC6CC! {0}\uC5D0 \uC0AC \uAC08\uAC8C."
   failedLine: "\uC74C... \uC9C0\uAE08\uC740 \uAC70\uB798\uD558\uAE30 \uC5B4\uB835\uACA0\uB294\uAC78."
   bargainEnabled: 1
+  bargainModel: {fileID: 11400000, guid: 5fa258c6e4787be4187d45b99b8a89e0, type: 2}
+  logBargains: 0
   safeRatio: 1.1
   maxRatio: 1.5
   alwaysAccept: 0
@@ -916694,8 +916803,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1637614522}
-  - component: {fileID: 1637614521}
-  - component: {fileID: 1637614520}
   - component: {fileID: 1637614519}
   - component: {fileID: 1637614524}
   - component: {fileID: 1637614523}
@@ -916733,63 +916840,6 @@ CharacterController:
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0, z: 0}
---- !u!23 &1637614520
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1637614518}
-  m_Enabled: 0
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_ForceMeshLod: -1
-  m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_MaskInteraction: 0
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!33 &1637614521
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1637614518}
-  m_Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!4 &1637614522
 Transform:
   m_ObjectHideFlags: 0
@@ -981614,6 +981664,62 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 586942333}
   m_SourcePrefab: {fileID: 100100000, guid: 09fcd8699d3665941a8ef6696320e444, type: 3}
+--- !u!1 &1753388834
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1753388836}
+  - component: {fileID: 1753388835}
+  m_Layer: 0
+  m_Name: FishingManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1753388835
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1753388834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c7c90f3ff7f33fc43b946c11007b2b4b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Fishing.FishingManager
+  fishModel: {fileID: 919132149155446097, guid: 371c4192e0652f04b9f7b32467116ccd, type: 3}
+  fishModelYaw: 0
+  swimDepth: 0.05
+  surfaceShadow: 1
+  shadowOpacity: 0.6
+  shadowScale: 1.15
+  maxShadows: 5
+  spawnRadius: 16
+  waterSurfaceY: -999
+  minCast: 1.5
+  maxCast: 7
+  noticeRange: 4
+--- !u!4 &1753388836
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1753388834}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1753493479 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 7407277059092317233, guid: 09fcd8699d3665941a8ef6696320e444, type: 3}
@@ -1087488,6 +1087594,9 @@ MonoBehaviour:
   - item: {fileID: 11400000, guid: e60814e8a6cf2434ab6ba90f79f613f9, type: 2}
     price: 60
     stock: -1
+  - item: {fileID: 11400000, guid: 76f0c2316a4cca3418185b1eafcd0888, type: 2}
+    price: 400
+    stock: -1
   onlyInSeasonSeeds: 1
   possibleSpecialCrops:
   - {fileID: 11400000, guid: 1c46efc24261b5a468453f780d61fcfb, type: 2}
@@ -1087533,6 +1087642,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: fcc9180da8f98c14c8a4c3b40a859448, type: 2}
   - {fileID: 11400000, guid: aa7fad31036a08e49862773cbf03b376, type: 2}
   specialSellBonusMultiplier: 1.5
+  aiPicksSpecial: 1
   sellCrops: 1
   sellSeeds: 1
   seedSellRatio: 0.5
@@ -1206938,3 +1207048,4 @@ SceneRoots:
   - {fileID: 1956342322}
   - {fileID: 1558157818}
   - {fileID: 524789695}
+  - {fileID: 1753388836}

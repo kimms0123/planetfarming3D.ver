@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d8dd5a5ae51a7bb4489374a8ffa37b20, type: 3}
+  m_Name: Tool_FishingRod
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Inventory.ToolData
+  itemName: "\uB09A\uC2EF\uB300"
+  category: 2
+  icon: {fileID: 0}
+  maxStack: 1
+  description: "\uBB3C\uAC00\uB97C \uBC14\uB77C\uBCF4\uACE0 \uB358\uC9C0\uBA74 \uCC0C\uAC00
+    \uB0A0\uC544\uAC04\uB2E4. \uCC0C\uAC00 \uC465 \uB4E4\uC5B4\uAC08 \uB54C \uB2F9\uAE30\uC790."
+  toolType: 4
+  range: 0
+  maxDurability: 40

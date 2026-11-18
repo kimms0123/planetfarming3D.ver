@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 66d2402d63bd9c546a62b18ad8400b6c, type: 3}
+  m_Name: Fish_F02
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Fishing.FishData
+  itemName: "\uC740\uD558\uBA78\uCE58"
+  category: 5
+  icon: {fileID: 0}
+  maxStack: 99
+  description: "\uB5BC\uB97C \uC9C0\uC5B4 \uB2E4\uB2C8\uBA74 \uBC14\uB2E4\uC5D0 \uC791\uC740
+    \uC740\uD558\uAC00 \uC0DD\uAE34 \uAC83\uCC98\uB7FC \uBCF4\uC778\uB2E4."
+  habitat: 0
+  seasons: 
+  startHour: 0
+  endHour: 0
+  shadowSize: 1
+  rarity: 0
+  basePrice: 18
+  biteWindow: 1
