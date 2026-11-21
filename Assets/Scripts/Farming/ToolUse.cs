@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using FarmingSystem.Inventory;
 using FarmingSystem.Player;
+using FarmingSystem.Audio;
 
 namespace FarmingSystem.Farming
 {
@@ -18,6 +19,7 @@ namespace FarmingSystem.Farming
         public static bool Till(FarmTile center)
         {
             if (center == null || !center.TryTill()) return false;
+            GameAudio.PlayAt(SoundId.Till, center.transform.position);
             foreach (FarmTile t in Around(center, ToolType.Hoe))
                 if (t.State == TileState.Natural && t.CurrentCrop == null && IsClear(t)) t.TryTill();
             Spend();
@@ -28,6 +30,7 @@ namespace FarmingSystem.Farming
         public static bool Water(FarmTile center)
         {
             if (center == null || !center.Water()) return false;
+            GameAudio.PlayAt(SoundId.Water, center.transform.position);
             foreach (FarmTile t in Around(center, ToolType.WateringCan))
                 if (t.State == TileState.Tilled && !t.IsWatered) t.Water();
             Spend();

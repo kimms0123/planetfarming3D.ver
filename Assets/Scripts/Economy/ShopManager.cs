@@ -5,6 +5,7 @@ using FarmingSystem.Core;
 using FarmingSystem.Inventory;
 using FarmingSystem.Farming;
 using FarmingSystem.Weather;
+using FarmingSystem.Audio;
 
 namespace FarmingSystem.Economy
 {
@@ -341,6 +342,7 @@ namespace FarmingSystem.Economy
             InventoryManager.Instance.AddItem(entry.item, quantity);
             if (entry.stock > 0) entry.stock -= quantity;
 
+            GameAudio.Play(SoundId.Coin);
             Debug.Log($"[구매 성공] {entry.item.itemName} x{quantity} ({totalPrice}벨 지불)");
             return BuyResult.Success;
         }
@@ -435,6 +437,7 @@ namespace FarmingSystem.Economy
                 inventory.RemoveFromSlot(pair.Key, pair.Value);
 
             CurrencyManager.Instance?.AddBells((int)total);
+            if (total > 0) GameAudio.Play(SoundId.Sell);
             Debug.Log($"[판매 성공] {cart.Count}개 슬롯 일괄 판매 -> {total}벨 획득");
             return (int)total;
         }

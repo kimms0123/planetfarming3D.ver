@@ -573,11 +573,13 @@ namespace FarmingSystem.UI
         private void BuildSettings()
         {
             CanvasGroup g = NewPage(Page.Settings);
-            float y = 150f;
+            float y = 180f;
             AddSlider(g.transform, "전체 소리", y, () => GameSettings.MasterVolume, v => GameSettings.MasterVolume = v, 0f, 1f, 0.1f);
-            AddSlider(g.transform, "마우스 감도", y -= 100f, () => GameSettings.MouseSensitivity, v => GameSettings.MouseSensitivity = v, 0.2f, 3f, 0.1f);
-            AddToggle(g.transform, "카메라 상하 반전", y -= 100f, () => GameSettings.InvertY, v => GameSettings.InvertY = v);
-            AddToggle(g.transform, "전체 화면", y -= 100f, () => GameSettings.Fullscreen, v => GameSettings.Fullscreen = v);
+            AddSlider(g.transform, "배경음", y -= 88f, () => GameSettings.BgmVolume, v => GameSettings.BgmVolume = v, 0f, 1f, 0.1f);
+            AddSlider(g.transform, "효과음", y -= 88f, () => GameSettings.SfxVolume, v => GameSettings.SfxVolume = v, 0f, 1f, 0.1f);
+            AddSlider(g.transform, "마우스 감도", y -= 88f, () => GameSettings.MouseSensitivity, v => GameSettings.MouseSensitivity = v, 0.2f, 3f, 0.1f);
+            AddToggle(g.transform, "카메라 상하 반전", y -= 88f, () => GameSettings.InvertY, v => GameSettings.InvertY = v);
+            AddToggle(g.transform, "전체 화면", y -= 88f, () => GameSettings.Fullscreen, v => GameSettings.Fullscreen = v);
         }
 
         private Row AddRow(Transform parent, string label, float y)

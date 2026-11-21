@@ -497,6 +497,7 @@ namespace FarmingSystem.Save
         private IEnumerator NewGameSequence(IntroCameraPath opening)
         {
             state = State.Starting;
+            FarmingSystem.Audio.GameAudio.SetIntro(true); // 오프닝 배경음
             uiRoot.blocksRaycasts = false;
             fade.raycastTarget = true;
             for (float t = 0f; t < 0.8f; t += Time.unscaledDeltaTime)
@@ -536,6 +537,7 @@ namespace FarmingSystem.Save
                     barBottom.anchoredPosition = new Vector2(0f, -BarHeight * k);
                     yield return null;
                 }
+            FarmingSystem.Audio.GameAudio.SetIntro(false); // → 평소 배경음으로 넘어감
             ExitTitle(); // 카메라는 오프닝이 평소 카메라로 넘겨줌
         }
 
@@ -973,11 +975,13 @@ namespace FarmingSystem.Save
             title.characterSpacing = 8f;
             Divider(optionGroup.transform, new Vector2(0f, 270f));
 
-            float y = 160f;
+            float y = 200f;
             AddSlider("전체 소리", y, () => GameSettings.MasterVolume, v => GameSettings.MasterVolume = v, 0f, 1f, 0.1f, v => $"{Mathf.RoundToInt(v * 100f)}%");
-            AddSlider("마우스 감도", y -= 105f, () => GameSettings.MouseSensitivity, v => GameSettings.MouseSensitivity = v, 0.2f, 3f, 0.1f, v => $"{Mathf.RoundToInt(v * 100f)}%");
-            AddToggle("카메라 상하 반전", y -= 105f, () => GameSettings.InvertY, v => GameSettings.InvertY = v);
-            AddToggle("전체 화면", y -= 105f, () => GameSettings.Fullscreen, v => GameSettings.Fullscreen = v);
+            AddSlider("배경음", y -= 90f, () => GameSettings.BgmVolume, v => GameSettings.BgmVolume = v, 0f, 1f, 0.1f, v => $"{Mathf.RoundToInt(v * 100f)}%");
+            AddSlider("효과음", y -= 90f, () => GameSettings.SfxVolume, v => GameSettings.SfxVolume = v, 0f, 1f, 0.1f, v => $"{Mathf.RoundToInt(v * 100f)}%");
+            AddSlider("마우스 감도", y -= 90f, () => GameSettings.MouseSensitivity, v => GameSettings.MouseSensitivity = v, 0.2f, 3f, 0.1f, v => $"{Mathf.RoundToInt(v * 100f)}%");
+            AddToggle("카메라 상하 반전", y -= 90f, () => GameSettings.InvertY, v => GameSettings.InvertY = v);
+            AddToggle("전체 화면", y -= 90f, () => GameSettings.Fullscreen, v => GameSettings.Fullscreen = v);
 
             TextButton(optionGroup.transform, "BACK", new Vector2(0f, -390f), 42f, BackToMenu);
         }

@@ -5,6 +5,7 @@ using TMPro;
 using FarmingSystem.Core;
 using FarmingSystem.Save;
 using FarmingSystem.UI;
+using FarmingSystem.Audio;
 
 namespace FarmingSystem.Fishing
 {
@@ -64,6 +65,7 @@ namespace FarmingSystem.Fishing
                 : $"판매가 <b>{fish.basePrice:N0}벨</b>";
             p.canvas.enabled = true;
             p.panel.gameObject.SetActive(true);
+            GameAudio.PlayJingle(fish.rarity >= FishRarity.Rare ? SoundId.FishResultRare : SoundId.FishResult); // 따단
             p.shownAt = Time.unscaledTime;
             if (!p.showing) UIInputBlocker.Block(p);
             p.showing = true;
@@ -73,6 +75,7 @@ namespace FarmingSystem.Fishing
         public static void Hint(string text)
         {
             FishCatchPopup p = Get();
+            if (p.hint.text != text || Time.unscaledTime > p.hintUntil) GameAudio.Play(SoundId.Notice, 0.6f); // 같은 문구 반복은 조용히
             p.canvas.enabled = true;
             p.hint.text = text;
             p.hintUntil = Time.unscaledTime + 2f;

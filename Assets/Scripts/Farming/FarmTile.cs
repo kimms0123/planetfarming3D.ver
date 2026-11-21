@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using FarmingSystem.Core;
 using FarmingSystem.Inventory;
+using FarmingSystem.Audio;
 
 namespace FarmingSystem.Farming
 {
@@ -305,6 +306,7 @@ namespace FarmingSystem.Farming
             CurrentCrop.Initialize(cropData);
             CurrentCrop.Fertilizer = Fertilizer; // 뿌려 둔 비료가 이 작물에 듣음
 
+            GameAudio.PlayAt(SoundId.Plant, transform.position);
             Debug.Log($"[씨앗심기 성공] {name} (좌표 {GridPosition}) - {seedData.itemName}을(를) 심었습니다 -> {cropData.cropName}로 자람");
             return true;
         }
@@ -396,6 +398,7 @@ namespace FarmingSystem.Farming
             CurrentCrop = null;
             ClearFertilizer();
             RefreshVisual();
+            GameAudio.PlayAt(SoundId.ClearCrop, transform.position);
             Debug.Log($"[시든 작물 제거] {name} (좌표 {GridPosition}) - 시든 {cropName}을(를) 치웠습니다. 밭은 갈린 상태로 남아 바로 다시 심을 수 있어요.");
             return true;
         }

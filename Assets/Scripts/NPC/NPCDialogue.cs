@@ -6,6 +6,7 @@ using FarmingSystem.Farming;
 using FarmingSystem.Player;
 using FarmingSystem.UI.Shop;
 using FarmingSystem.Dialogue;
+using FarmingSystem.Audio;
 
 namespace FarmingSystem.NPC
 {
@@ -363,6 +364,7 @@ namespace FarmingSystem.NPC
             }
 
             talking = true;
+            GameAudio.Play(SoundId.DialoguePop);
             lineIndex = 0;
             startFrame = Time.frameCount;
             UIInputBlocker.Block(this);

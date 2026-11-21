@@ -9,6 +9,7 @@ using FarmingSystem.Inventory;
 using FarmingSystem.Player;
 using FarmingSystem.UI;
 using FarmingSystem.Effects;
+using FarmingSystem.Audio;
 
 namespace FarmingSystem.Rhythm
 {
@@ -635,7 +636,7 @@ namespace FarmingSystem.Rhythm
                     AudioSource src = tickSources[tickSourceIndex];
                     tickSourceIndex = (tickSourceIndex + 1) % tickSources.Length;
                     src.clip = accent ? Pick(accentTickClip, genAccent) : Pick(tickClip, genTick);
-                    src.volume = metronomeVolume;
+                    src.volume = metronomeVolume * GameAudio.SfxVolume;
                     src.PlayScheduled(at);
                 }
                 nextTickBeat++;
@@ -736,7 +737,7 @@ namespace FarmingSystem.Rhythm
                            : string.IsNullOrEmpty(reason) ? "MISS" : $"MISS\n<size=45%>{reason}</size>";
             popupText.color = j == 0 ? perfectColor : j == 1 ? goodColor : missColor;
             popupLife = 0.6f;
-            sfxSource.PlayOneShot(j == 0 ? Pick(perfectClip, genPerfect) : j == 1 ? Pick(goodClip, genGood) : Pick(missClip, genMiss), sfxVolume);
+            sfxSource.PlayOneShot(j == 0 ? Pick(perfectClip, genPerfect) : j == 1 ? Pick(goodClip, genGood) : Pick(missClip, genMiss), sfxVolume * GameAudio.SfxVolume);
             if (reaction != null) reaction.React(j, pattern.Notes[index].Direction); // 노트 방향을 따라 작물이 움직임
             if (j == 0) FarmFX.Perfect(cropCenterPoint + Vector3.up * 0.2f); // PERFECT 반짝이
 
@@ -761,7 +762,7 @@ namespace FarmingSystem.Rhythm
             }
             else phaseTimer = 0.3f;
 
-            sfxSource.PlayOneShot(Pick(popClip, genPop), sfxVolume);
+            sfxSource.PlayOneShot(Pick(popClip, genPop), sfxVolume * GameAudio.SfxVolume);
         }
 
         private void ShowResult()
@@ -813,6 +814,8 @@ namespace FarmingSystem.Rhythm
 
             hudRoot.SetActive(false);
             resultPanel.SetActive(true);
+            GameAudio.PlayJingle(result.AllPerfect || result.Tier >= 3 ? SoundId.RhythmPerfect
+                               : result.Tier == 2 ? SoundId.RhythmGood : result.Tier == 1 ? SoundId.RhythmNormal : SoundId.RhythmBad); // 따단
             phase = Phase.Result;
             phaseTimer = resultShowSeconds;
         }
@@ -1060,7 +1063,7 @@ namespace FarmingSystem.Rhythm
                 if (on && s >= gaugeStarsLit)
                 {
                     starPop[s] = 1f; // 새로 켜진 별: 톡 커졌다가 돌아옴 + 소리
-                    sfxSource.PlayOneShot(genAccent, sfxVolume);
+                    sfxSource.PlayOneShot(genAccent, sfxVolume * GameAudio.SfxVolume);
                 }
                 bool unreachable = (s == 2 && topLost) || (storm && s >= 1) || bestPossible < StarThreshold(s) - 0.0001f;
                 progressStars[s].color = on ? StarLitColor(s) : unreachable ? StarLocked : StarOff;

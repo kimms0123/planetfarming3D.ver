@@ -5,6 +5,7 @@ using FarmingSystem.Economy;
 using FarmingSystem.Inventory;
 using FarmingSystem.NPC;
 using FarmingSystem.Save;
+using FarmingSystem.Audio;
 
 namespace FarmingSystem.Dialogue
 {
@@ -89,6 +90,7 @@ namespace FarmingSystem.Dialogue
             states[q.name] = QuestState.Active;
             progress[q.name] = 0;
             Debug.Log($"[퀘스트] 시작: {q.title}");
+            GameAudio.PlayJingle(SoundId.QuestAccept);
             IslandNotice.Show($"새 부탁: {q.title}", this);
         }
 
@@ -101,6 +103,7 @@ namespace FarmingSystem.Dialogue
             if (q.rewardItem != null && InventoryManager.Instance != null) InventoryManager.Instance.AddItem(q.rewardItem, q.rewardItemAmount);
             states[q.name] = QuestState.Completed;
             Debug.Log($"[퀘스트] 완료: {q.title}");
+            GameAudio.PlayJingle(SoundId.QuestComplete);
             IslandNotice.Show(q.rewardBells > 0 ? $"부탁 완료! {q.title}  +{q.rewardBells:N0}벨" : $"부탁 완료! {q.title}", this);
             if (SaveManager.Instance != null) SaveManager.Instance.Save();
             return true;

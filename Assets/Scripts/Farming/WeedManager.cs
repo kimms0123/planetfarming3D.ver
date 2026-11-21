@@ -6,6 +6,7 @@ using FarmingSystem.NPC;
 using FarmingSystem.Player;
 using FarmingSystem.Save;
 using FarmingSystem.World;
+using FarmingSystem.Audio;
 
 namespace FarmingSystem.Farming
 {
@@ -335,6 +336,7 @@ namespace FarmingSystem.Farming
         {
             if (!HasWeed(tile)) return false;
             Instance.Remove(tile);
+            GameAudio.PlayAt(SoundId.ClearCrop, tile.transform.position);
             Debug.Log($"[잡초] {tile.name} 잡초를 뽑았어요");
             return true;
         }

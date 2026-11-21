@@ -7,6 +7,7 @@ using FarmingSystem.NPC;
 using FarmingSystem.Player;
 using FarmingSystem.Save;
 using FarmingSystem.UI.Shop;
+using FarmingSystem.Audio;
 
 namespace FarmingSystem.Building
 {
@@ -127,6 +128,7 @@ namespace FarmingSystem.Building
             if (pcWasOn) pc.enabled = false;
             if (canvas == null) BuildUI();
             canvas.enabled = true;
+            GameAudio.Play(SoundId.SleepJingle);
             yield return Fade(0f, 1f, 1f);
 
             // 다음날 아침 (새벽이면 그날 아침)
@@ -140,6 +142,7 @@ namespace FarmingSystem.Building
 
             for (float t = 0f; t < 0.8f; t += Time.unscaledDeltaTime) yield return null; // 잠깐 검은 화면
 
+            GameAudio.Play(SoundId.MorningChime);
             yield return Fade(1f, 0f, 1f);
             canvas.enabled = false;
             if (pcWasOn && pc != null) pc.enabled = true;

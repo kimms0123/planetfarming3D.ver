@@ -12,7 +12,7 @@ namespace FarmingSystem.Save
     //  - 카메라 상하 반전
     //  - 전체 화면 (에디터에서는 변화 없음, 빌드에서 적용)
     // 게임을 켜면 저장된 값을 자동으로 적용 (설치 필요 없음)
-    // 배경음·효과음을 따로 조절하는 건 배경음악이 들어갈 때 같이 추가 예정
+    //  - 배경음 / 효과음: 따로 조절 (GameAudio가 씀)
     public static class GameSettings
     {
         private const string KeyMaster = "opt_master", KeyMouse = "opt_mouse", KeyInvert = "opt_invert", KeyFull = "opt_fullscreen";
@@ -21,6 +21,22 @@ namespace FarmingSystem.Save
         {
             get => PlayerPrefs.GetFloat(KeyMaster, 1f);
             set { PlayerPrefs.SetFloat(KeyMaster, Mathf.Clamp01(value)); PlayerPrefs.Save(); ApplyAudio(); }
+        }
+
+        // 배경음·효과음 크기 (전체 소리와 곱해짐). 매 프레임 읽어서 값을 기억해 둠
+        private const string KeyBgm = "opt_bgm", KeySfx = "opt_sfx";
+        private static float bgm = -1f, sfx = -1f;
+
+        public static float BgmVolume
+        {
+            get { if (bgm < 0f) bgm = PlayerPrefs.GetFloat(KeyBgm, 1f); return bgm; }
+            set { bgm = Mathf.Clamp01(value); PlayerPrefs.SetFloat(KeyBgm, bgm); PlayerPrefs.Save(); }
+        }
+
+        public static float SfxVolume
+        {
+            get { if (sfx < 0f) sfx = PlayerPrefs.GetFloat(KeySfx, 1f); return sfx; }
+            set { sfx = Mathf.Clamp01(value); PlayerPrefs.SetFloat(KeySfx, sfx); PlayerPrefs.Save(); }
         }
 
         public static float MouseSensitivity

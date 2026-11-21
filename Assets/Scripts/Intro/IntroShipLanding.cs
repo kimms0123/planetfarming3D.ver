@@ -6,6 +6,7 @@ using FarmingSystem.Building;
 using FarmingSystem.Farming;
 using FarmingSystem.Player;
 using FarmingSystem.Save;
+using FarmingSystem.Audio;
 
 namespace FarmingSystem.Intro
 {
@@ -255,6 +256,7 @@ namespace FarmingSystem.Intro
             Vector3 from = StartPos();
             Vector3 hover = landPos + Vector3.up * 2f;
 
+            GameAudio.PlayFollow(SoundId.ShipEngine, t);
             // 1) 비스듬히 날아옴 (점점 느려짐) - 기울었다가 수평으로
             float time = 0f;
             while (time < flyTime)
@@ -282,6 +284,7 @@ namespace FarmingSystem.Intro
 
             // 3) 닿는 순간: 먼지 크게 + 화면 흔들림
             Burst(70);
+            GameAudio.PlayAt(SoundId.ShipThud, landPos);
             StartCoroutine(ShakeRoutine());
 
             // 4) 캐릭터 등장

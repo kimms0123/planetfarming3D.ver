@@ -9,6 +9,7 @@ using FarmingSystem.NPC;
 using FarmingSystem.Player;
 using FarmingSystem.Save;
 using FarmingSystem.UI;
+using FarmingSystem.Audio;
 
 namespace FarmingSystem.Building
 {
@@ -141,7 +142,9 @@ namespace FarmingSystem.Building
             if (key == null) return;
             bool portal = b.Data.function == BuildingFunction.SellPortal;
             if (!portal) StartLid(b);
-            ContainerWindow.Open(b.Data.displayName, key, portal, () => lidTarget = false);
+            GameAudio.PlayAt(portal ? SoundId.PortalOpen : SoundId.ChestOpen, b.transform.position);
+            Vector3 at = b.transform.position;
+            ContainerWindow.Open(b.Data.displayName, key, portal, () => { lidTarget = false; GameAudio.PlayAt(portal ? SoundId.UIClose : SoundId.ChestClose, at); });
         }
 
         // 뚜껑(이름에 "top"이 들어간 부분)을 플레이어 반대쪽 모서리를 축으로 열기

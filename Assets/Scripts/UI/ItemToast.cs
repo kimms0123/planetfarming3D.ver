@@ -6,6 +6,7 @@ using FarmingSystem.Core;
 using FarmingSystem.Farming;
 using FarmingSystem.Inventory;
 using FarmingSystem.Save;
+using FarmingSystem.Audio;
 
 namespace FarmingSystem.UI
 {
@@ -152,6 +153,7 @@ namespace FarmingSystem.UI
 
         private void Show(ItemData item, ItemQuality quality, int amount)
         {
+            GameAudio.Play(SoundId.ItemPickup);
             string key = Key(item, quality);
             Toast t = toasts.Find(x => x.key == key);
             if (t != null)

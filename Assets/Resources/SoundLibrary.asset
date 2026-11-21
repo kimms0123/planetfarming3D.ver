@@ -1,0 +1,381 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a5c01f5865248ad42bd8e02908d235f8, type: 3}
+  m_Name: SoundLibrary
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Audio.SoundLibrary
+  title: {fileID: 8300000, guid: ff58a013d7435374c90bb7a98abded57, type: 3}
+  intro: {fileID: 8300000, guid: 12d743dc8dd4b014a98f8a2c290f7093, type: 3}
+  day: {fileID: 8300000, guid: 7f76ddd9963bbf542b0f811d3ab6b86e, type: 3}
+  night: {fileID: 8300000, guid: 17e6f5e36d8a6854da8d9455f6c55a25, type: 3}
+  rain: {fileID: 8300000, guid: 65c54af8a1a0b0548a11086ef07ff0a7, type: 3}
+  typhoon: {fileID: 8300000, guid: 6f75fd0d3e51b5e4f9ade741e82f5ee2, type: 3}
+  bgmVolume: 0.55
+  crossfade: 2
+  birds: {fileID: 8300000, guid: 60b15f06b929abb48b1abb4702efc2d8, type: 3}
+  insects: {fileID: 8300000, guid: 9c59bea7769dfe54bb5b1269f28a54aa, type: 3}
+  leaves: {fileID: 8300000, guid: 17a6c52efc801154cb822618f84485ec, type: 3}
+  ambienceVolume: 0.5
+  sfx:
+  - label: UIClick
+    id: 0
+    clips:
+    - {fileID: 8300000, guid: 8a7ecaa8d1a3dd445bea9e2c46ef5fb7, type: 3}
+    volume: 0.45
+    pitchJitter: 0.03
+    cooldown: 0.03
+  - label: UIOpen
+    id: 1
+    clips:
+    - {fileID: 8300000, guid: f246563f14820694c87d66f748ffccf5, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: UIClose
+    id: 2
+    clips:
+    - {fileID: 8300000, guid: 4884458a6e13e0d498360972f449a32a, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: PhoneOpen
+    id: 3
+    clips:
+    - {fileID: 8300000, guid: f46350d0c4513784c89e1f4eb3b2851e, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: PhoneClose
+    id: 4
+    clips:
+    - {fileID: 8300000, guid: 2eb7322f6a590634ca4b5cf2ae33d141, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: InventoryOpen
+    id: 5
+    clips:
+    - {fileID: 8300000, guid: 603a2ff96fc0d794fbfc2c82b5886214, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: InventoryClose
+    id: 6
+    clips:
+    - {fileID: 8300000, guid: ec006a86626e4f04081bd4b1190a523b, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: ToolSwitch
+    id: 7
+    clips:
+    - {fileID: 8300000, guid: 0f16c842f29d34a469e4aeb672b32c02, type: 3}
+    volume: 0.4
+    pitchJitter: 0.05
+    cooldown: 0.03
+  - label: ItemPickup
+    id: 8
+    clips:
+    - {fileID: 8300000, guid: 50fae340a949a93489b251cf27ba00f4, type: 3}
+    volume: 0.55
+    pitchJitter: 0.08
+    cooldown: 0.08
+  - label: Coin
+    id: 9
+    clips:
+    - {fileID: 8300000, guid: 3810c1de1b029d547b3fe71f7f7eef90, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: Sell
+    id: 10
+    clips:
+    - {fileID: 8300000, guid: aeaca811ddf1d8b419402297b781f486, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: BargainAccept
+    id: 11
+    clips:
+    - {fileID: 8300000, guid: ac3a4552a632db9468140ffe2cca7e90, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: BargainReject
+    id: 12
+    clips:
+    - {fileID: 8300000, guid: c31428103a2721741a0bae8ac51745b5, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: Notice
+    id: 13
+    clips:
+    - {fileID: 8300000, guid: 611a848d438d873458d124dca323e90b, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: QuestAccept
+    id: 14
+    clips:
+    - {fileID: 8300000, guid: 93d104d6a38d40549bbfdca666348958, type: 3}
+    volume: 0.8
+    pitchJitter: 0
+    cooldown: 0.3
+  - label: QuestComplete
+    id: 15
+    clips:
+    - {fileID: 8300000, guid: 03d1c2803ed085d47ac55f7306dc9933, type: 3}
+    volume: 0.8
+    pitchJitter: 0
+    cooldown: 0.3
+  - label: CollectionNew
+    id: 16
+    clips:
+    - {fileID: 8300000, guid: 7d9b8e54ec2066a449d00144a5489219, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: DialoguePop
+    id: 17
+    clips:
+    - {fileID: 8300000, guid: b3262b685d0267f4db8475a1253e6711, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: Till
+    id: 20
+    clips:
+    - {fileID: 8300000, guid: bb6a166a015a76348b58506be1f7e6b2, type: 3}
+    - {fileID: 8300000, guid: a0e8b1179c263834fbe80cad52fe4ca8, type: 3}
+    - {fileID: 8300000, guid: 362812bdd2e46f94a899c0863c77e904, type: 3}
+    volume: 0.7
+    pitchJitter: 0.1
+    cooldown: 0.08
+  - label: Water
+    id: 21
+    clips:
+    - {fileID: 8300000, guid: 5b3966130cbab334394df3308fa73866, type: 3}
+    - {fileID: 8300000, guid: 39f19d8a82068a14a9443ddf80095100, type: 3}
+    volume: 0.7
+    pitchJitter: 0.1
+    cooldown: 0.08
+  - label: Plant
+    id: 22
+    clips:
+    - {fileID: 8300000, guid: 755f8ccfe1b91724fa762da0bf274851, type: 3}
+    volume: 0.7
+    pitchJitter: 0.1
+    cooldown: 0.08
+  - label: Fertilize
+    id: 23
+    clips:
+    - {fileID: 8300000, guid: 3095be28ad02f944ab02971cf35f7444, type: 3}
+    volume: 0.7
+    pitchJitter: 0.1
+    cooldown: 0.08
+  - label: ClearCrop
+    id: 24
+    clips:
+    - {fileID: 8300000, guid: 5501fec3850d12740b0a87c0487d73f2, type: 3}
+    volume: 0.7
+    pitchJitter: 0.1
+    cooldown: 0.08
+  - label: ToolBreak
+    id: 25
+    clips:
+    - {fileID: 8300000, guid: ff3e0cd910ae5c0459ffc219a8c17dcc, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: FootstepGrass
+    id: 30
+    clips:
+    - {fileID: 8300000, guid: ad1a3f9d5a6d85c4aa1fef5ed5503715, type: 3}
+    - {fileID: 8300000, guid: c12d32ad43d689241907e969565762ec, type: 3}
+    - {fileID: 8300000, guid: 06d4677320b2faf4f86713a47cc1a224, type: 3}
+    - {fileID: 8300000, guid: bd108ca385690d247af67fbbc85ee702, type: 3}
+    volume: 0.35
+    pitchJitter: 0.12
+    cooldown: 0.12
+  - label: FootstepSnow
+    id: 31
+    clips:
+    - {fileID: 8300000, guid: 15c11be702721074cbacb0b66237bd97, type: 3}
+    - {fileID: 8300000, guid: 7e142949216ba494e9fc6d294b035cf2, type: 3}
+    - {fileID: 8300000, guid: d7ed82126b348184d97878da0bd9bfff, type: 3}
+    - {fileID: 8300000, guid: 67a33f8d310eca948a730b49bf5b60d4, type: 3}
+    volume: 0.35
+    pitchJitter: 0.12
+    cooldown: 0.12
+  - label: FishCast
+    id: 40
+    clips:
+    - {fileID: 8300000, guid: 861f3b1add4090e4185551dbb91718bf, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: BobberPlop
+    id: 41
+    clips:
+    - {fileID: 8300000, guid: c46bec21be782f441a06eeb19125ad7f, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: FishNibble
+    id: 42
+    clips:
+    - {fileID: 8300000, guid: e416cc90636d42f43ab367f9848a2ce0, type: 3}
+    volume: 0.5
+    pitchJitter: 0.15
+    cooldown: 0.05
+  - label: FishBite
+    id: 43
+    clips:
+    - {fileID: 8300000, guid: f78f6dd7c42716249aa88e78e96dce5b, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: FishSplash
+    id: 44
+    clips:
+    - {fileID: 8300000, guid: ccc2ceb891d5c8845a68f87e3ddef670, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: FishEscape
+    id: 45
+    clips:
+    - {fileID: 8300000, guid: 605d3ae7289659944acd51f1b7745572, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: RhythmPerfect
+    id: 50
+    clips:
+    - {fileID: 8300000, guid: 981b68e10cfa37a4d8c6b3a8b022d969, type: 3}
+    volume: 0.8
+    pitchJitter: 0
+    cooldown: 0.3
+  - label: RhythmGood
+    id: 51
+    clips:
+    - {fileID: 8300000, guid: 321e29b83a6a5e747b19734e9bf42ee2, type: 3}
+    volume: 0.8
+    pitchJitter: 0
+    cooldown: 0.3
+  - label: RhythmNormal
+    id: 52
+    clips:
+    - {fileID: 8300000, guid: b84872a5464861d47905a2ed256a3978, type: 3}
+    volume: 0.8
+    pitchJitter: 0
+    cooldown: 0.3
+  - label: RhythmBad
+    id: 53
+    clips:
+    - {fileID: 8300000, guid: 9e483cb1828d56445a2373866a90d2aa, type: 3}
+    volume: 0.8
+    pitchJitter: 0
+    cooldown: 0.3
+  - label: FishResult
+    id: 54
+    clips:
+    - {fileID: 8300000, guid: 2448964fcbc66ed44b43e89f20452853, type: 3}
+    volume: 0.8
+    pitchJitter: 0
+    cooldown: 0.3
+  - label: FishResultRare
+    id: 55
+    clips:
+    - {fileID: 8300000, guid: 2ab7bd3f8fe4ead4d8cf9125c9a13879, type: 3}
+    volume: 0.8
+    pitchJitter: 0
+    cooldown: 0.3
+  - label: ChestOpen
+    id: 60
+    clips:
+    - {fileID: 8300000, guid: b75e34ef45e193f469cf24c5a0c7a6b6, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: ChestClose
+    id: 61
+    clips:
+    - {fileID: 8300000, guid: a1cbb9590c000334a9ca3f37296745a2, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: PortalOpen
+    id: 62
+    clips:
+    - {fileID: 8300000, guid: 7afa25554ee4970459905b7aed96c9ec, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: BuildPlace
+    id: 63
+    clips:
+    - {fileID: 8300000, guid: a7e25bfc275b8d742897fb142bda1a58, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: BuildComplete
+    id: 64
+    clips:
+    - {fileID: 8300000, guid: 87cbcf35cffefe544a62e582c4172e64, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: ShipEngine
+    id: 65
+    clips:
+    - {fileID: 8300000, guid: 5ad4191f44fc6e64cab82c54d4ba93d7, type: 3}
+    volume: 0.8
+    pitchJitter: 0
+    cooldown: 0.5
+  - label: ShipThud
+    id: 66
+    clips:
+    - {fileID: 8300000, guid: c3f62b05a9afb6c4c9a584bd948a4781, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: SleepJingle
+    id: 67
+    clips:
+    - {fileID: 8300000, guid: c590bc92930661e4e81cd0ccdd6ced0b, type: 3}
+    volume: 0.8
+    pitchJitter: 0
+    cooldown: 0.3
+  - label: MorningChime
+    id: 68
+    clips:
+    - {fileID: 8300000, guid: 0deb7754dc2ea27428eb122eaa292f79, type: 3}
+    volume: 0.8
+    pitchJitter: 0
+    cooldown: 0.3
+  - label: TyphoonAlert
+    id: 69
+    clips:
+    - {fileID: 8300000, guid: 66f02c7364ee1ca42a5a45b62d6710e9, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05
+  - label: Thunder
+    id: 70
+    clips:
+    - {fileID: 8300000, guid: 6977be6f594101d4f82bd5e26c3b59cf, type: 3}
+    - {fileID: 8300000, guid: 58a8a2ac8487e8646a504983e2f6f1da, type: 3}
+    - {fileID: 8300000, guid: 7fcc3caeaf95ecb4ea571d250d16092e, type: 3}
+    volume: 0.7
+    pitchJitter: 0.04
+    cooldown: 0.05

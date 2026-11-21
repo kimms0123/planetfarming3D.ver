@@ -7,6 +7,7 @@ using FarmingSystem.Core;
 using FarmingSystem.Building;
 using FarmingSystem.Economy;
 using FarmingSystem.Save;
+using FarmingSystem.Audio;
 
 namespace FarmingSystem.NPC
 {
@@ -360,6 +361,7 @@ namespace FarmingSystem.NPC
             Vector3 from = v.restPos + Vector3.up * v.flyHeight - fwd * v.flyDistance;
             v.ship.transform.SetPositionAndRotation(from, v.restRot);
             v.ship.SetActive(true);
+            GameAudio.PlayFollow(SoundId.ShipEngine, v.ship.transform);
             float time = Mathf.Max(0.1f, v.flyTime);
             for (float t = 0f; t < time; t += Time.deltaTime)
             {
@@ -368,6 +370,7 @@ namespace FarmingSystem.NPC
                 yield return null;
             }
             v.ship.transform.position = v.restPos;
+            GameAudio.PlayAt(SoundId.ShipThud, v.restPos);
             yield return new WaitForSeconds(0.8f);
 
             Vector3 door = VisitorDoor(v);
@@ -489,6 +492,7 @@ namespace FarmingSystem.NPC
         public static void Show(string text, MonoBehaviour host)
         {
             if (host == null) return;
+            GameAudio.Play(SoundId.Notice);
             if (group == null) Build();
             if (routine != null && runner != null) runner.StopCoroutine(routine);
             runner = host;

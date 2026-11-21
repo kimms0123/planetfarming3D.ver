@@ -4,6 +4,7 @@ using UnityEngine;
 using FarmingSystem.Building;
 using FarmingSystem.Player;
 using FarmingSystem.Save;
+using FarmingSystem.Audio;
 
 namespace FarmingSystem.Economy
 {
@@ -111,7 +112,7 @@ namespace FarmingSystem.Economy
                 if (shipRoot == null) { if (hideMerchantWhenAway) SetMerchantVisible(true); return; }
                 shipRoot.SetActive(true); // 꺼진 상태에선 크기를 못 재서 먼저 켬
                 PlaceShip();
-                if (withAnimation) flying = StartCoroutine(Fly(landedPos + Vector3.up * flyHeight, landedPos, true));
+                if (withAnimation) { flying = StartCoroutine(Fly(landedPos + Vector3.up * flyHeight, landedPos, true)); GameAudio.PlayFollow(SoundId.ShipEngine, shipRoot.transform); }
                 else shipRoot.transform.position = landedPos;
                 Debug.Log("[상인 우주선] 도착");
             }
@@ -121,6 +122,7 @@ namespace FarmingSystem.Economy
                 {
                     if (dust) DustBurst(touchdownBurst / 2, 0.9f); // 시동 걸 때 한 번
                     flying = StartCoroutine(Fly(shipRoot.transform.position, landedPos + Vector3.up * flyHeight, false));
+                    GameAudio.PlayFollow(SoundId.ShipEngine, shipRoot.transform);
                 }
                 else shipRoot.SetActive(false);
                 Debug.Log("[상인 우주선] 출발");
@@ -238,6 +240,7 @@ namespace FarmingSystem.Economy
             if (landing)
             {
                 if (dust) DustBurst(touchdownBurst, 1.3f); // 닿는 순간 크게 한 번
+                GameAudio.PlayAt(SoundId.ShipThud, landedPos);
                 if (blocker != null) blocker.enabled = true;
                 if (hideMerchantWhenAway) SetMerchantVisible(true); // 착륙 후 상인 등장
             }

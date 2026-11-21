@@ -8,6 +8,7 @@ using FarmingSystem.Inventory;
 using FarmingSystem.Player;
 using FarmingSystem.Save;
 using FarmingSystem.UI;
+using FarmingSystem.Audio;
 
 namespace FarmingSystem.Fishing
 {
@@ -406,8 +407,10 @@ namespace FarmingSystem.Fishing
                 yield return anim.PlayOnce(anim.equip);
                 fx.SetCastTarget(castTo + Vector3.up * 0.02f);
                 anim.Play(anim.cast);
+                GameAudio.PlayAt(SoundId.FishCast, player.transform.position);
                 float until = Time.time + anim.cast.length + fx.castFlightTime + 0.5f;
                 while (!fx.BobberInWater && Time.time < until) yield return null; // CastRelease 이벤트 → 찌가 날아가 물에 떨어짐
+                if (fx.BobberInWater) GameAudio.PlayAt(SoundId.BobberPlop, castTo);
                 while (!anim.CurrentClipDone(anim.cast)) yield return null;
                 anim.Play(anim.waitLoop);
             }
@@ -417,6 +420,7 @@ namespace FarmingSystem.Fishing
                 bobber.gameObject.SetActive(true);
                 line.enabled = true;
                 Vector3 from = RodTip();
+                GameAudio.PlayAt(SoundId.FishCast, player.transform.position);
                 for (float t = 0f; t < 0.45f; t += Time.deltaTime)
                 {
                     float k = t / 0.45f;
@@ -426,6 +430,7 @@ namespace FarmingSystem.Fishing
                     yield return null;
                 }
                 Ripple.Spawn(castTo, 0.5f);
+                GameAudio.PlayAt(SoundId.BobberPlop, castTo);
                 dip = 0f;
                 simpleBobberFloating = true;
             }
@@ -477,6 +482,7 @@ namespace FarmingSystem.Fishing
                         nibbles--;
                         hooked.Lunge();
                         if (animated) fx.Nibble(); else dip = 0.07f; // 툭
+                        GameAudio.PlayAt(SoundId.FishNibble, castTo);
                         nibbleTimer = Random.Range(0.9f, 1.8f);
                         continue;
                     }
@@ -485,6 +491,7 @@ namespace FarmingSystem.Fishing
                     hooked.Lunge();
                     if (animated) anim.Play(anim.bite); // Bite 이벤트 → 찌가 쏙 + 물보라
                     else { dip = 0.32f; Ripple.Spawn(castTo, 0.9f); }
+                    GameAudio.PlayAt(SoundId.FishBite, castTo);
                     float window = hooked.Data.biteWindow;
                     result = Outcome.Missed;
                     while (window > 0f)
@@ -506,6 +513,7 @@ namespace FarmingSystem.Fishing
                 Destroy(hooked.gameObject);
                 hooked = null;
                 SpendRod();
+                GameAudio.PlayAt(SoundId.FishSplash, castTo);
                 bool isNew = FishCollection.Register(fish);
                 int notAdded = InventoryManager.Instance != null ? InventoryManager.Instance.AddItem(fish, 1) : 1;
                 Debug.Log($"[낚시] {fish.itemName} 잡음{(notAdded > 0 ? " (가방이 가득 차서 놓아줌)" : "")}");
@@ -524,6 +532,7 @@ namespace FarmingSystem.Fishing
             else
             {
                 if (hooked != null) { hooked.Flee(); hooked = null; }
+                if (result == Outcome.Missed || result == Outcome.Early) GameAudio.PlayAt(SoundId.FishEscape, castTo);
                 if (result == Outcome.Missed) { SpendRod(); FishCatchPopup.Hint("놓쳤어요… 물고기가 도망갔어요"); }
                 else if (result == Outcome.Early) FishCatchPopup.Hint("너무 빨랐어요… 물고기가 도망갔어요");
                 if (animated && (result == Outcome.Missed || result == Outcome.Early) && anim.fail != null)

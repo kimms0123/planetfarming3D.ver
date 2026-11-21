@@ -1,5 +1,6 @@
 using UnityEngine;
 using FarmingSystem.Inventory;
+using FarmingSystem.Audio;
 
 namespace FarmingSystem.Farming
 {
@@ -66,6 +67,7 @@ namespace FarmingSystem.Farming
             FertilizerData f = Selected;
             if (inv == null || f == null || tile == null || !tile.ApplyFertilizer(f)) return false;
             inv.RemoveFromSlot(inv.SelectedHotbarIndex, 1);
+            GameAudio.PlayAt(SoundId.Fertilize, tile.transform.position);
             return true;
         }
     }

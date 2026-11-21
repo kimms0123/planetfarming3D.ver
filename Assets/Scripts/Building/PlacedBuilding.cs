@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using FarmingSystem.Audio;
 
 namespace FarmingSystem.Building
 {
@@ -58,6 +59,7 @@ namespace FarmingSystem.Building
             cells.Clear();
             cells.AddRange(footprintCells);
 
+            if (!GameAudio.IntroActive) GameAudio.PlayAt(SoundId.BuildPlace, transform.position); // 오프닝 우주선 배치는 조용히
             if (data.buildDays <= 0) Complete();
             else
             {
@@ -84,6 +86,7 @@ namespace FarmingSystem.Building
             if (site != null) Destroy(site);
             if (model != null) Destroy(model);
             State = BuildState.Complete;
+            if (!GameAudio.IntroActive) GameAudio.PlayAt(SoundId.BuildComplete, transform.position);
             model = SpawnModel();
             AddBlockCollider(model != null ? model : gameObject, 4f, true);
             Debug.Log($"[건축] {Data.displayName} 완성!");
