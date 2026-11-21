@@ -1,0 +1,448 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb884e02e99ddb846af38f945d816b6f, type: 3}
+  m_Name: Fish_Dialogue
+  m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Dialogue.DialogueSet
+  npcName: "\uBED0\uB054\uC774"
+  entries:
+  - id: "\uCCAB\uB9CC\uB0A8"
+    priority: 100
+    weight: 1
+    onceOnly: 1
+    talk: 1
+    time: 0
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uBED0\uB054! \uBED0\uB054! \uC548\uB155! \uC774 \uD589\uC131\uC5D0\uB3C4
+      \uB204\uAC00 \uC0B4\uACE0 \uC788\uC5C8\uAD6C\uB098!"
+    - "\uB098\uB294 \uBED0\uB054\uC774! \uC6B0\uC8FC\uC120\uC744 \uD0C0\uACE0 \uBCC4
+      \uBC14\uB2E4\uB97C \uC5EC\uD589\uD558\uACE0 \uC788\uC5B4\uBED0\uB054."
+    - "\uBC8C\uC368 \uD589\uC131\uC744 \uC2A4\uBB34 \uAC1C\uB3C4 \uB118\uAC8C \uB2E4\uB154\uB294\uB370,
+      \uC5EC\uAE30\uCC98\uB7FC \uBC14\uB2E4\uAC00 \uBC18\uC9DD\uC774\uB294 \uACF3\uC740
+      \uCC98\uC74C\uC774\uC57C!"
+    - "\uD55C\uB3D9\uC548 \uC5EC\uAE30 \uBA38\uBB3C\uB7EC\uB3C4 \uB420\uAE4C\uBED0\uB054?"
+    choices:
+    - text: "\uBB3C\uB860\uC774\uC9C0!"
+      reply: "\uC57C\uD638! \uC624\uB298\uBD80\uD130 \uC5EC\uAE30\uAC00 \uB0B4 \uC815\uAC70\uC7A5\uC774\uC57C\uBED0\uB054!"
+      action: 0
+    - text: "\uC5BC\uB9C8\uB098 \uC788\uC744 \uAC74\uB370?"
+      reply: "\uC74C\u2026 \uB9C8\uC74C\uC5D0 \uB4E4 \uB54C\uAE4C\uC9C0? \uADF8\uB7EC\uB2C8\uAE4C
+        \uC544\uC8FC \uC624\uB798\uBED0\uB054!"
+      action: 0
+  - id: "\uD018\uC2A4\uD2B8_\uAC74\uB124\uAE30"
+    priority: 60
+    weight: 1
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 11400000, guid: 72e2d8a0cf7efb840b24a48c1ad109e7, type: 2}
+    questState: 3
+    lines:
+    - "\uBED0\uB054?! \uADF8\uAC70 {item} \uC544\uB2C8\uC57C? {have}\uAC1C\uB098
+      \uC788\uB124!"
+    choices:
+    - text: "\uAC74\uB124\uC8FC\uAE30"
+      reply: "\uC640\uC544, \uACE0\uB9C8\uC6CC! \uC774\uAC74 \uC5EC\uD589\uD558\uBA74\uC11C
+        \uBAA8\uC740 \uAC70\uC57C. ({reward}\uBCA8)"
+      action: 2
+    - text: "\uC544\uC9C1\uC774\uC57C"
+      reply: "\uAD1C\uCC2E\uC544, \uC900\uBE44\uB418\uBA74 \uC918\uBED0\uB054!"
+      action: 0
+  - id: "\uD018\uC2A4\uD2B8_\uC81C\uC548"
+    priority: 50
+    weight: 1
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 11400000, guid: 72e2d8a0cf7efb840b24a48c1ad109e7, type: 2}
+    questState: 1
+    lines:
+    - "\uC788\uC796\uC544\u2026 \uC6B0\uC8FC\uC120 \uB0C9\uC7A5\uACE0\uAC00 \uD145
+      \uBE44\uC5C8\uC5B4."
+    - "\uD639\uC2DC {item} {amount}\uAC1C\uB9CC \uB098\uB220 \uC904 \uC218 \uC788\uC5B4\uBED0\uB054?"
+    choices:
+    - text: "\uC88B\uC544!"
+      reply: "\uACE0\uB9C8\uC6CC! \uCC9C\uCC9C\uD788 \uAC00\uC838\uC640\uB3C4 \uB3FC\uBED0\uB054!"
+      action: 1
+    - text: "\uB2E4\uC74C\uC5D0"
+      reply: "\uC751\u2026 \uBC30 \uAF2C\uB974\uB975 \uC18C\uB9AC \uB4E4\uB824\uB3C4
+        \uBAA8\uB978 \uCC99\uD574 \uC918\uBED0\uB054."
+      action: 0
+  - id: "\uD018\uC2A4\uD2B8_\uC9C4\uD589\uC911"
+    priority: 40
+    weight: 1
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 11400000, guid: 72e2d8a0cf7efb840b24a48c1ad109e7, type: 2}
+    questState: 2
+    lines:
+    - "{item} {amount}\uAC1C, \uAE30\uC5B5\uD558\uC9C0? \uC9C0\uAE08 {have}\uAC1C
+      \uC788\uB124! \uC870\uAE08\uB9CC \uB354\uBED0\uB054!"
+    choices: []
+  - id: "\uD018\uC2A4\uD2B8_\uC644\uB8CC\uD6C4"
+    priority: 0
+    weight: 2
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 11400000, guid: 72e2d8a0cf7efb840b24a48c1ad109e7, type: 2}
+    questState: 4
+    lines:
+    - "\uB124\uAC00 \uC900 {item}, \uC815\uB9D0 \uB9DB\uC788\uC5C8\uC5B4!"
+    - "\uB2E4\uC74C \uD589\uC131 \uAC00\uBA74 \uB108 \uC790\uB791\uD560 \uAC70\uC57C\uBED0\uB054!"
+    choices: []
+  - id: "\uD0DC\uD48D"
+    priority: 30
+    weight: 1
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 3
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uC6B0\uC640\uC544, \uC6B0\uC8FC \uD3ED\uD48D\uBCF4\uB2E4 \uC138\uB2E4!"
+    - "\uC6B0\uC8FC\uC120 \uB0A0\uC544\uAC08\uAE4C \uBD10 \uAF49 \uBB36\uC5B4 \uB480\uC5B4.
+      \uB108\uB3C4 \uC870\uC2EC\uD574\uBED0\uB054!"
+    choices: []
+  - id: "\uC778\uC0AC_\uC544\uCE68"
+    priority: 20
+    weight: 1
+    onceOnly: 0
+    talk: 2
+    time: 1
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uC88B\uC740 \uC544\uCE68! \uC6B0\uC8FC\uC120 \uCC3D\uBB38\uC73C\uB85C \uD574
+      \uB728\uB294 \uAC70 \uBD24\uC5B4?"
+    - "\uC774 \uD589\uC131 \uD574\uB294 \uAF2D \uB2EC\uAC40 \uB178\uB978\uC790 \uAC19\uC544\uBED0\uB054!"
+    choices: []
+  - id: "\uC778\uC0AC_\uB0AE"
+    priority: 20
+    weight: 1
+    onceOnly: 0
+    talk: 2
+    time: 2
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uC810\uC2EC\uC740 \uBA39\uC5C8\uC5B4? \uB098\uB294 \uC544\uC9C1!"
+    - "\uC5EC\uD589\uD558\uB2E4 \uBCF4\uBA74 \uBC25\uB54C\uB97C \uC790\uAFB8 \uAE4C\uBA39\uC5B4\uBED0\uB054."
+    choices: []
+  - id: "\uC778\uC0AC_\uC800\uB141"
+    priority: 20
+    weight: 1
+    onceOnly: 0
+    talk: 2
+    time: 3
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uC800\uB141 \uD558\uB298\uC5D0 \uBCC4\uC774 \uD558\uB098\uC529 \uCF1C\uC9C0\uACE0
+      \uC788\uC5B4!"
+    - "\uC800 \uC911\uC5D0 \uB0B4\uAC00 \uAC14\uB358 \uBCC4\uB3C4 \uC788\uC744\uAC78\uBED0\uB054?"
+    choices: []
+  - id: "\uC778\uC0AC_\uBC24"
+    priority: 20
+    weight: 1
+    onceOnly: 0
+    talk: 2
+    time: 4
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uBC24\uC5D4 \uC6B0\uC8FC\uC120 \uC9C0\uBD95\uC5D0 \uB204\uC6CC\uC11C \uBCC4\uC744
+      \uC138."
+    - "\uB108\uB3C4 \uBCC4 \uC138\uB294 \uAC70 \uC88B\uC544\uD574\uBED0\uB054?"
+    choices:
+    - text: "\uC88B\uC544\uD574"
+      reply: "\uADF8\uB7FC \uB2E4\uC74C\uC5D0 \uAC19\uC774 \uC138\uC790! \uB0B4\uAC00
+        \uBCC4 \uC774\uB984 \uB2E4 \uC54C\uB824 \uC904\uAC8C\uBED0\uB054!"
+      action: 0
+    - text: "\uAE08\uBC29 \uC878\uB824"
+      reply: "\uD5E4\uD5E4, \uB098\uB3C4 \uBC31 \uAC1C\uCBE4 \uC138\uBA74 \uC7A0\uB4E4\uC5B4\uBED0\uB054."
+      action: 0
+  - id: "\uB610\uC634"
+    priority: 10
+    weight: 1
+    onceOnly: 0
+    talk: 3
+    time: 0
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uB610 \uC654\uB124! \uD560 \uC598\uAE30\uAC00 \uC544\uC9C1 \uC0B0\uB354\uBBF8\uC57C\uBED0\uB054!"
+    choices: []
+  - id: "\uB610\uC6342"
+    priority: 10
+    weight: 1
+    onceOnly: 0
+    talk: 3
+    time: 0
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uBED0\uB054! \uD639\uC2DC \uB0B4 \uC5EC\uD589 \uC598\uAE30 \uB610 \uB4E3\uACE0
+      \uC2F6\uC5B4\uC11C \uC654\uC5B4?"
+    choices: []
+  - id: "\uC7A1\uB2F4_\uC824\uB9AC\uBCC4"
+    priority: 0
+    weight: 1
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uC804\uC5D0 \uAC14\uB358 \uD589\uC131\uC740 \uBC14\uB2E4\uAC00 \uC804\uBD80
+      \uC824\uB9AC\uC600\uC5B4!"
+    - "\uD5E4\uC5C4\uCE58\uB2E4\uAC00 \uADF8\uB300\uB85C \uAD73\uC5B4 \uBC84\uB9B4
+      \uBED4\uD588\uC9C0\uBED0\uB054."
+    choices: []
+  - id: "\uC7A1\uB2F4_\uC0C1\uC5B4"
+    priority: 0
+    weight: 1
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uC800\uAE30 \uC0C1\uC5B4 \uC544\uC800\uC528, \uBB34\uC12D\uAC8C \uC0DD\uACBC\uC9C0?"
+    - "\uADFC\uB370 \uC5B4\uC81C \uB098 \uC6B0\uC8FC\uC120 \uACE0\uCE58\uB294 \uAC70
+      \uBAB0\uB798 \uB3C4\uC640\uC92C\uC5B4. \uBE44\uBC00\uC774\uC57C\uBED0\uB054!"
+    choices: []
+  - id: "\uC7A1\uB2F4_\uC6B0\uC8FC\uC120"
+    priority: 0
+    weight: 1
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uB0B4 \uC6B0\uC8FC\uC120 \uC774\uB984\uC740 '\uBF40\uAE00\uD638'\uC57C."
+    - "\uC5D4\uC9C4\uC5D0\uC11C \uAC70\uD488\uC774 \uBF40\uAE00\uBF40\uAE00 \uB098\uC640\uC11C
+      \uADF8\uB807\uAC8C \uC9C0\uC5C8\uC5B4\uBED0\uB054!"
+    choices: []
+  - id: "\uC9C8\uBB38_\uC5EC\uD589"
+    priority: 0
+    weight: 1.5
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uB108\uB3C4 \uC5B8\uC820\uAC00 \uB2E4\uB978 \uD589\uC131\uC5D0 \uAC00 \uBCF4\uACE0
+      \uC2F6\uC5B4?"
+    choices:
+    - text: "\uAC00 \uBCF4\uACE0 \uC2F6\uC5B4!"
+      reply: "\uADF8\uB7FC \uADF8\uB54C \uB0B4 \uC6B0\uC8FC\uC120 \uD0DC\uC6CC \uC904\uAC8C!
+        \uCC3D\uAC00 \uC790\uB9AC\uB85C\uBED0\uB054!"
+      action: 0
+    - text: "\uC5EC\uAE30\uAC00 \uC88B\uC544"
+      reply: "\uD5E4\uD5E4, \uADF8 \uB9C8\uC74C \uC54C \uAC83 \uAC19\uC544. \uC5EC\uAE30
+        \uC9C4\uC9DC \uC88B\uC740 \uACF3\uC774\uC57C\uBED0\uB054."
+      action: 0
+  - id: "\uC9C8\uBB38_\uAE30\uB150\uD488"
+    priority: 0
+    weight: 1.5
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 0
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uB2E4\uC74C \uD589\uC131 \uAC00\uBA74 \uAE30\uB150\uD488 \uC0AC \uC62C\uAC8C!
+      \uBB50\uAC00 \uC88B\uC544?"
+    choices:
+    - text: "\uBC18\uC9DD\uC774\uB294 \uB3CC"
+      reply: "\uC88B\uC544! \uC81C\uC77C \uBC18\uC9DD\uC774\uB294 \uAC78\uB85C \uACE8\uB77C
+        \uC62C\uAC8C\uBED0\uB054!"
+      action: 0
+    - text: "\uB9DB\uC788\uB294 \uAC70"
+      reply: "\uC5ED\uC2DC! \uB098\uB791 \uC0DD\uAC01\uC774 \uB611\uAC19\uC544\uBED0\uB054!"
+      action: 0
+  - id: "\uBE44"
+    priority: 0
+    weight: 3
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 2
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uBE44\uB2E4! \uC9C0\uB290\uB7EC\uBBF8\uAC00 \uCD09\uCD09\uD574\uC11C \uAE30\uBD84
+      \uCD5C\uACE0\uC57C!"
+    - "\uBB3C\uACE0\uAE30\uD55C\uD14C \uBE44\uB294 \uACF5\uC9DC \uC0E4\uC6CC\uC57C\uBED0\uB054!"
+    choices: []
+  - id: "\uB9D1\uC74C"
+    priority: 0
+    weight: 1
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 1
+    season: 0
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uB0A0\uC528 \uC88B\uB2E4! \uC6B0\uC8FC\uC120 \uBE68\uB798 \uB110\uAE30 \uB531
+      \uC88B\uC740 \uB0A0\uC774\uC57C."
+    - "\u2026\uBB3C\uACE0\uAE30\uB3C4 \uBE68\uB798 \uD55C\uB2E4\uACE0\uBED0\uB054."
+    choices: []
+  - id: "\uBD04"
+    priority: 0
+    weight: 1.5
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 0
+    season: 1
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uBD04\uBC14\uB78C\uC5D0\uC11C \uAF43 \uB0C4\uC0C8\uAC00 \uB098!"
+    - "\uC774 \uD589\uC131\uC740 \uACC4\uC808\uC774 \uC788\uC5B4\uC11C \uC88B\uC544\uBED0\uB054."
+    choices: []
+  - id: "\uC5EC\uB984"
+    priority: 0
+    weight: 1.5
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 0
+    season: 2
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uC5EC\uB984 \uBC14\uB2E4\uB294 \uB530\uB73B\uD574\uC11C \uD5E4\uC5C4\uCE58\uAE30
+      \uB531\uC774\uC57C!"
+    - "\uC0C1\uC5B4 \uC544\uC800\uC528\uB3C4 \uC624\uB298\uC740 \uAE30\uBD84 \uC88B\uC544
+      \uBCF4\uC774\uB354\uB77C\uBED0\uB054."
+    choices: []
+  - id: "\uAC00\uC744"
+    priority: 0
+    weight: 1.5
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 0
+    season: 3
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uAC00\uC744\uC5D4 \uBC2D\uC774 \uC54C\uB85D\uB2EC\uB85D\uD574\uC9C0\uB124!"
+    - "\uC6B0\uC8FC\uC5D0\uC11C \uBCF4\uBA74 \uC774 \uD589\uC131 \uAF2D \uC0AC\uD0D5
+      \uAC19\uC744 \uAC70\uC57C\uBED0\uB054."
+    choices: []
+  - id: "\uACA8\uC6B8"
+    priority: 0
+    weight: 1.5
+    onceOnly: 0
+    talk: 0
+    time: 0
+    weather: 0
+    season: 4
+    minDay: 0
+    maxDay: 0
+    quest: {fileID: 0}
+    questState: 0
+    lines:
+    - "\uCD94\uC6CC! \uC6B0\uC8FC\uC120 \uB09C\uB85C \uC55E\uC5D0\uC11C \uC548 \uB098\uC624\uACE0
+      \uC2F6\uC5B4."
+    - "\uADF8\uB798\uB3C4 \uB208 \uB0B4\uB9AC\uB294 \uBC14\uB2E4\uB294 \uAF2D \uBD10\uC57C
+      \uD574. \uC9C4\uC9DC \uC608\uBED0\uBED0\uB054."
+    choices: []

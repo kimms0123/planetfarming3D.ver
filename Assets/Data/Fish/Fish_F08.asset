@@ -12,17 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 66d2402d63bd9c546a62b18ad8400b6c, type: 3}
   m_Name: Fish_F08
   m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Fishing.FishData
-  itemName: "\uC6B0\uC8FC\uBA54\uAE30"
+  itemName: "\uBE14\uB799\uD640\uC544\uADC0"
   category: 5
-  icon: {fileID: 0}
+  icon: {fileID: -654319494, guid: 13939742740585044bd368e32d3a6091, type: 3}
   maxStack: 99
-  description: "\uAE34 \uC218\uC5FC\uC73C\uB85C \uC5B4\uB460 \uC18D \uC9C4\uB3D9\uC744
-    \uB290\uB080\uB2E4. \uBC24\uC5D0\uB9CC \uC6C0\uC9C1\uC778\uB2E4."
-  habitat: 1
-  seasons: 0100000002000000
-  startHour: 19
+  description: "\uBA38\uB9AC \uC704 \uBD88\uBE5B\uC73C\uB85C \uB2E4\uB978 \uBB3C\uACE0\uAE30\uB97C
+    \uB04C\uC5B4\uB2F9\uAE34\uB2E4. \uC785\uC774 \uC544\uC8FC \uD06C\uB2E4."
+  habitat: 0
+  seasons: 0200000003000000
+  startHour: 21
   endHour: 4
-  shadowSize: 4
-  rarity: 1
-  basePrice: 180
-  biteWindow: 0.7
+  shadowSize: 5
+  rarity: 2
+  basePrice: 650
+  biteWindow: 0.5

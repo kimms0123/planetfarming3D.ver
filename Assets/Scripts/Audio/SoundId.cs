@@ -35,6 +35,8 @@ namespace FarmingSystem.Audio
         // 발걸음
         FootstepGrass = 30,   // 봄·여름·가을
         FootstepSnow = 31,    // 겨울
+        FootstepWetGrass = 32, // 비·태풍 오는 날 (봄·여름·가을) - 젖은 풀밭
+        FootstepGravel = 33,  // 돌길·다리·산의 돌 블록 (밭이 될 수 없는 땅)
 
         // 낚시
         FishCast = 40,        // 던지기 (휙)

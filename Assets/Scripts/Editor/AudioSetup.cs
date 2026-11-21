@@ -157,6 +157,8 @@ namespace FarmingSystem.EditorTools
             switch (e.id)
             {
                 case SoundId.FootstepGrass:
+                case SoundId.FootstepWetGrass:
+                case SoundId.FootstepGravel:
                 case SoundId.FootstepSnow: e.volume = 0.35f; e.pitchJitter = 0.12f; e.cooldown = 0.12f; break;
                 case SoundId.UIClick: e.volume = 0.45f; e.pitchJitter = 0.03f; e.cooldown = 0.03f; break;
                 case SoundId.ToolSwitch: e.volume = 0.4f; e.cooldown = 0.03f; break;

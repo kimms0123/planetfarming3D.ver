@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Farming.CropData
   itemName: "\uB3CC\uB3CC\uB9AC\uBCF8"
   category: 1
-  icon: {fileID: -1663030870, guid: e4d41c806aeea3b4287bc2841603304e, type: 3}
+  icon: {fileID: -618855343, guid: 829bccdf86e2ee44e8eea625c01e915f, type: 3}
   maxStack: 99
   description: "\uB2E4 \uC790\uB77C\uBA74 \uC2A4\uC2A4\uB85C \uB3CC\uB3CC \uB9D0\uB824
     \uC218\uD655\uC744 \uAE30\uB2E4\uB9B0\uB2E4.\n\uC9C8\uAE34 \uC12C\uC720\uB294

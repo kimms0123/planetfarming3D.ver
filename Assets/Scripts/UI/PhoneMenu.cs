@@ -237,11 +237,13 @@ namespace FarmingSystem.UI
             float top = float.MinValue, bottom = float.MaxValue;
             foreach (Renderer r in p.GetComponentsInChildren<Renderer>())
             {
-                if (r is ParticleSystemRenderer || r.transform.IsChildOf(worldScreen.transform)) continue;
+                // 캐릭터 몸(메쉬)만 잼 - 낚싯줄(LineRenderer)·물뿌리개 효과 등은 몸 밖으로 멀리 뻗어 있어서 키가 엉뚱하게 잡힘
+                if (!r.enabled || !(r is SkinnedMeshRenderer || r is MeshRenderer) || r.transform.IsChildOf(worldScreen.transform)) continue;
                 top = Mathf.Max(top, r.bounds.max.y);
                 bottom = Mathf.Min(bottom, r.bounds.min.y);
             }
             float height = top > bottom ? top - bottom : 1.6f;
+            if (height < 0.5f || height > 4f) { height = 1.6f; top = bottom = 0f; } // 그래도 이상하면 보통 키로
             if (top <= bottom) bottom = p.position.y;
             worldPx = height * worldScreenSize.x / WorldW;
             Transform t = worldScreen.transform;
