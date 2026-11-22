@@ -827,6 +827,10 @@ namespace FarmingSystem.Rhythm
             int baseYield = context != null && context.Crop != null ? context.Crop.expectedYield : 0;
             int finalYield = baseYield > 0 ? result.GetYield(baseYield) : 0;
             float pP = result.Perfect / (float)n, pG = result.Good / (float)n, pM = result.Miss / (float)n;
+            // 반올림하면 합이 101%가 될 수 있어서 (예: 63% + 38%) Good은 나머지로 → 합계 항상 100%
+            pP = Mathf.Round(pP * 100f) / 100f;
+            pM = Mathf.Round(pM * 100f) / 100f;
+            if (result.Good > 0) pG = Mathf.Max(0f, 1f - pP - pM);
             Color gradeColor = result.Tier == 3 ? Gold : result.Tier == 2 ? goodColor : result.Tier == 1 ? Brown : new Color(0.5f, 0.5f, 0.5f);
 
             resultTitle.text = result.AllPerfect ? "ALL PERFECT!" : "수확 완료!";
@@ -841,10 +845,29 @@ namespace FarmingSystem.Rhythm
 
             hudRoot.SetActive(false);
             resultPanel.SetActive(true);
+            PlaceResultStars(); // 별을 작물 이름과 등급 줄 사이 빈칸에 맞춤 (글자가 별에 겹치지 않게)
             GameAudio.PlayJingle(result.AllPerfect || result.Tier >= 3 ? SoundId.RhythmPerfect
                                : result.Tier == 2 ? SoundId.RhythmGood : result.Tier == 1 ? SoundId.RhythmNormal : SoundId.RhythmBad); // 따단
             phase = Phase.Result;
             phaseTimer = resultShowSeconds;
+        }
+
+        // 결과창 별 위치: 결과 글자의 2·3번째 줄(빈 줄) 가운데에 맞춤
+        // 결과 글자는 줄 수에 따라 위아래 가운데 정렬이 바뀌어서, 별 위치를 고정해 두면 작물 이름과 겹칠 수 있음
+        private void PlaceResultStars()
+        {
+            if (resultBody == null) return;
+            resultBody.ForceMeshUpdate(true, true);
+            TMP_TextInfo info = resultBody.textInfo;
+            if (info == null || info.lineCount < 4) return;
+            float yLocal = (info.lineInfo[1].ascender + info.lineInfo[2].descender) * 0.5f; // 빈 줄 두 개의 가운데
+            float yWorld = resultBody.rectTransform.TransformPoint(new Vector3(0f, yLocal, 0f)).y;
+            foreach (Image star in resultStars)
+            {
+                if (star == null) continue;
+                Vector3 pos = star.rectTransform.position;
+                star.rectTransform.position = new Vector3(pos.x, yWorld, pos.z);
+            }
         }
 
         private void Finish(bool cancelled, bool invokeCallback)
