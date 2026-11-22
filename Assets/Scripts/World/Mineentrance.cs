@@ -3,6 +3,7 @@ using UnityEngine.Events;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using FarmingSystem.Core;
+using FarmingSystem.NPC;
 using FarmingSystem.Player;
 
 namespace FarmingSystem.World
@@ -12,7 +13,8 @@ namespace FarmingSystem.World
     // - 스토리 이벤트(상인의 광산 해제 등)에서 MineEntrance.UnlockMine()을 부르면 표지판이 사라지고 열림
     // - 열린 뒤 입구를 보고 E를 누르면 onEnter 이벤트 실행 + 씬 이름이 있으면 그 씬(광산 내부)으로 이동
     // IslandMapGenerator가 맵을 만들 때 자동으로 붙이고 설정한다
-    public class MineEntrance : MonoBehaviour
+    // - 입구 근처에서 바라보면 다른 NPC처럼 "E 조사하기"(열린 뒤엔 "E 들어가기") 안내가 뜨고, 잠긴 입구를 조사하면 화면 위에 안내 문구
+    public class MineEntrance : MonoBehaviour, TalkMarkers.IPromptSource
     {
         public static MineEntrance Instance { get; private set; }
 
@@ -30,6 +32,8 @@ namespace FarmingSystem.World
         [SerializeField] private float maxLookAngle = 50f;
         [Tooltip("켜면 게임 시작부터 열려 있음 (테스트용)")]
         [SerializeField] private bool startUnlocked = false;
+        [Tooltip("잠긴 입구를 조사했을 때 화면 위에 Locked Message를 띄움 (주민 도착 알림과 같은 칸)")]
+        [SerializeField] private bool showLockedNotice = true;
 
         [Header("이벤트 (대사 UI·효과음·씬 이동 등을 연결)")]
         public UnityEvent<string> onLockedInteract = new UnityEvent<string>(); // 잠긴 입구를 조사했을 때 (안내 문구 전달)
@@ -58,6 +62,17 @@ namespace FarmingSystem.World
         {
             if (Instance != null) Instance.Unlock();
             else Debug.LogWarning("[광산] 씬에 광산 입구가 없음 (맵 생성기의 Build Mine Entrance 확인)");
+        }
+
+        private void OnEnable() => TalkMarkers.Register(this);
+        private void OnDisable() => TalkMarkers.Unregister(this);
+
+        // "E 조사하기 / E 들어가기" 안내 (TalkMarkers가 그려 줌)
+        public bool TryGetPrompt(out string label, out Vector3 worldPos)
+        {
+            label = IsUnlocked ? "들어가기" : "조사하기";
+            worldPos = entrancePoint != null ? entrancePoint.position + Vector3.up * 1.6f : transform.position;
+            return CanInteract;
         }
 
         private void Awake()
@@ -103,6 +118,7 @@ namespace FarmingSystem.World
             if (!IsUnlocked)
             {
                 Debug.Log($"[광산] {lockedMessage}");
+                if (showLockedNotice && !string.IsNullOrEmpty(lockedMessage)) IslandNotice.Show(lockedMessage, this);
                 onLockedInteract?.Invoke(lockedMessage);
                 return;
             }

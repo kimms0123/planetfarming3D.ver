@@ -751758,6 +751758,7 @@ MonoBehaviour:
   interactRange: 3.5
   maxLookAngle: 50
   startUnlocked: 0
+  showLockedNotice: 1
   onLockedInteract:
     m_PersistentCalls:
       m_Calls: []
@@ -996321,7 +996322,7 @@ MonoBehaviour:
   minGroundClearance: 1.2
   liftRamp: 12
   avoidTrees: 1
-  fitToVoice: 1
+  fitToVoice: 0
   voiceClip: {fileID: 8300000, guid: 12d743dc8dd4b014a98f8a2c290f7093, type: 3}
   voiceTail: 0.3
   onStart:
@@ -1119146,6 +1119147,10 @@ MonoBehaviour:
     \uD328\uD0A4\uC9C0 \uD50C\uB79C] \uD568\uC120\uC740\n\uACE7 \uBAA9\uC801\uC9C0\uC5D0
     \uB3C4\uCC29\uD569\uB2C8\uB2E4."
   captionSeconds: 3.5
+  captionSecondsPerLine:
+  - 4.2
+  - 6.5
+  captionGap: 0
   openingLetterbox: 1
   skipInEditor: 0
   editorSlot: 1

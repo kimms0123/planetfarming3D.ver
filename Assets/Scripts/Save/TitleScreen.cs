@@ -97,8 +97,16 @@ namespace FarmingSystem.Save
             "no.{번호}님께 알립니다.",
             "우주개발인사본부 [행성 이주 패키지 플랜] 함선은\n곧 목적지에 도착합니다.",
         };
-        [Tooltip("문구 한 줄이 떠 있는 시간 (초)")]
+        [Tooltip("문구 한 줄이 떠 있는 시간 (초). 아래 줄별 시간을 비워 둔 줄에 씀")]
         [SerializeField] private float captionSeconds = 3.5f;
+        [Tooltip("줄마다 떠 있는 시간 (초). Element 0 = 첫 줄, 1 = 둘째 줄 ... 안내음성이 그 줄을 읽는 길이에 맞추기\n" +
+                 "비워 두거나 0이면 위 Caption Seconds")]
+        [SerializeField] private float[] captionSecondsPerLine = new float[0];
+        [Tooltip("문구 사이 빈 검은 화면 시간 (초). 안내음성 문장 사이 쉬는 틈에 맞추기")]
+        [SerializeField] private float captionGap = 0f;
+
+        /// <summary>새 게임 오프닝 소리(안내음성)가 시작된 시각. 오프닝 카메라가 남은 음성 길이에 맞출 때 씀 (-1 = 오프닝 아님)</summary>
+        public static float IntroVoiceStartTime = -1f;
         [Tooltip("오프닝 동안 위아래 검은 띠 (영화처럼). 끝나면 띠가 빠지며 게임 화면으로")]
         [SerializeField] private bool openingLetterbox = true;
 
@@ -498,6 +506,7 @@ namespace FarmingSystem.Save
         {
             state = State.Starting;
             FarmingSystem.Audio.GameAudio.SetIntro(true); // 오프닝 배경음
+            IntroVoiceStartTime = Time.unscaledTime;
             uiRoot.blocksRaycasts = false;
             fade.raycastTarget = true;
             for (float t = 0f; t < 0.8f; t += Time.unscaledDeltaTime)
@@ -538,6 +547,7 @@ namespace FarmingSystem.Save
                     yield return null;
                 }
             FarmingSystem.Audio.GameAudio.SetIntro(false); // → 평소 배경음으로 넘어감
+            IntroVoiceStartTime = -1f;
             ExitTitle(); // 카메라는 오프닝이 평소 카메라로 넘겨줌
         }
 
@@ -571,16 +581,21 @@ namespace FarmingSystem.Save
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
             rt.anchoredPosition = new Vector2(0f, BarHeight + 140f);
             yield return Wait(0.8f);
-            foreach (string line in openingCaptions)
+            for (int i = 0; i < openingCaptions.Length; i++)
             {
+                string line = openingCaptions[i];
                 if (string.IsNullOrWhiteSpace(line)) continue;
+                float seconds = captionSecondsPerLine != null && i < captionSecondsPerLine.Length && captionSecondsPerLine[i] > 0f
+                    ? captionSecondsPerLine[i] : captionSeconds;
                 t.text = line.Replace("{번호}", id).Replace("\\n", "\n");
-                for (float s = 0f; s < captionSeconds; s += Time.unscaledDeltaTime)
+                for (float s = 0f; s < seconds; s += Time.unscaledDeltaTime)
                 {
-                    float a = Mathf.Min(Smooth(s / 0.5f), Smooth((captionSeconds - s) / 0.5f));
+                    float a = Mathf.Min(Smooth(s / 0.5f), Smooth((seconds - s) / 0.5f));
                     t.color = new Color(1f, 1f, 1f, a);
                     yield return null;
                 }
+                t.color = new Color(1f, 1f, 1f, 0f);
+                if (captionGap > 0f && i < openingCaptions.Length - 1) yield return Wait(captionGap);
             }
             Destroy(t.gameObject);
             yield return Wait(0.6f);

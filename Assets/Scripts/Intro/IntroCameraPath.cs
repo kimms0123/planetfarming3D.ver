@@ -124,10 +124,17 @@ namespace FarmingSystem.Intro
             if (clip == null) return 1f;
             float total = 0f;
             for (int i = 0; i < pts.Count; i++) total += (i == 0 ? 0f : pts[i].moveTime) + pts[i].holdTime;
-            float target = clip.length + voiceTail;
-            if (total <= 0.01f || target <= 0.5f) return 1f;
+            // 검은 화면 문구가 먼저 지나간 만큼은 빼고, 남은 음성 길이에 맞춤
+            float elapsed = FarmingSystem.Save.TitleScreen.IntroVoiceStartTime >= 0f
+                ? Time.unscaledTime - FarmingSystem.Save.TitleScreen.IntroVoiceStartTime : 0f;
+            float target = clip.length - elapsed + voiceTail;
+            if (total <= 0.01f || target <= 0.5f)
+            {
+                Debug.Log($"[인트로] 안내음성 '{clip.name}' {clip.length:0.0}초가 검은 화면 문구({elapsed:0.0}초) 동안 거의 다 끝나서 카메라는 원래 속도로 재생");
+                return 1f;
+            }
             float p = Mathf.Clamp(total / target, 0.4f, 2.5f);
-            Debug.Log($"[인트로] 카메라 {total:0.0}초 → 안내음성 '{clip.name}' {clip.length:0.0}초에 맞춰 {1f / p:0.00}배 길이로 재생");
+            Debug.Log($"[인트로] 안내음성 '{clip.name}' {clip.length:0.0}초 중 검은 화면 문구 {elapsed:0.0}초 → 남은 {target:0.0}초에 카메라 {total:0.0}초를 맞춰 {1f / p:0.00}배 길이로 재생");
             return p;
         }
 
