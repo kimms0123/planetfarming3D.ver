@@ -38,6 +38,12 @@ namespace FarmingSystem.Farming
         [Tooltip("간 밭 모델 위치 보정 (맵 생성기가 모델 바닥 높이를 재서 자동으로 채움)")]
         [SerializeField] private Vector3 tilledVisualOffset = Vector3.zero;
 
+        [Header("방치된 밭")]
+        [Tooltip("씨앗도 안 심고 물도 안 준 갈린 밭이 하루가 지나면 기본 땅으로 돌아갈 확률 (1 = 항상, 0 = 안 돌아감)")]
+        [SerializeField, Range(0f, 1f)] private float untendedRevertChance = 1f;
+        [Tooltip("비료를 뿌려 둔 밭은 씨앗이 없어도 갈린 채로 둠 (산 비료가 날아가지 않게)")]
+        [SerializeField] private bool keepFertilizedSoil = true;
+
         private GameObject currentVisualObject;
         private bool isInitialized = false;
         private bool isSubscribedToClock = false;
@@ -512,6 +518,16 @@ namespace FarmingSystem.Farming
                 {
                     Debug.Log($"[성장 없음] {name} - 오늘 물을 안 줘서 성장하지 않음");
                 }
+            }
+
+            // 방치된 밭: 씨앗도 없고 어제 물도 안 줬으면 기본 땅으로 돌아감 (비 온 날은 비가 물을 줬으니 그대로)
+            if (state == TileState.Tilled && CurrentCrop == null && !isWatered
+                && !(keepFertilizedSoil && Fertilizer != null)
+                && UnityEngine.Random.value < untendedRevertChance)
+            {
+                state = TileState.Natural;
+                ClearFertilizer();
+                Debug.Log($"[방치된 밭] {name} (좌표 {GridPosition}) - 씨앗도 물도 없어서 기본 땅으로 돌아갔어요");
             }
 
             isWatered = false;

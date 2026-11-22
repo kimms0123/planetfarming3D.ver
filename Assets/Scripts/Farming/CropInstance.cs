@@ -138,34 +138,85 @@ namespace FarmingSystem.Farming
         // ───────── 흙에 묻히는 깊이 자동 맞춤 ─────────
         // 작물·단계마다 모델 크기가 제각각이라, 프리팹에 정해 둔 묻는 깊이(모든 작물 같은 깊이)로는 작은 씨앗이 흙에 다 파묻혀 안 보임
         // → 심은 모델의 실제 크기를 재서, 모델 키에 비해 너무 많이 묻혔으면 그만큼 올려 줌 (덜 묻힌 건 그대로 둠)
-        //   씨앗(첫 단계) = 키의 최대 45%까지만 묻힘 (절반쯤 빼꼼) / 중간 단계 = 15% / 다 자람·시듦 = 8%
+        //   씨앗(첫 단계) = 키의 최대 25%까지만 묻힘 / 중간 단계 = 10% / 다 자람·시듦 = 6%
         //   그리고 어떤 경우든 흙 위로 최소 MinVisibleMeters는 보이게
-        private const float SeedMaxSink = 0.45f, MidMaxSink = 0.15f, MatureMaxSink = 0.08f;
-        private const float MinVisibleMeters = 0.05f;
+        // 흙 높이 = 작물을 놓은 자리와, 작물 발밑을 위에서 레이저로 쏴서 맞은 땅(밭 블록·갈린 흙) 중 더 높은 쪽
+        //   (갈린 흙 모델·블록 모양에 따라 작물 기준점보다 실제 흙이 더 높이 올라와 있어서 묻혀 보이던 경우까지 잡음)
+        private const float SeedMaxSink = 0.25f, MidMaxSink = 0.10f, MatureMaxSink = 0.06f;
+        private const float MinVisibleMeters = 0.08f;
+        // 씨앗(첫 단계) 최소 키: 작물 배율 1일 때 기준 (m). 작물 크기 배율(Crop Scale)을 키우면 같이 커짐
+        //   옥수수·꼬불금귤·플레어꽃·해왕열매·배추·뭉게나무·빙하별꽃 씨앗 모델은 납작해서(모델 키 2~5cm) 갈린 흙 골에 가려 안 보임
+        //   → 이보다 납작한 씨앗은 비율 그대로 키워 줌 (최대 MaxSeedBoost배)
+        private const float MinSeedHeight = 0.06f;
+        private const float MaxSeedBoost = 2.5f;
+        // true = 심을 때·자랄 때 높이 계산 결과를 Console에 찍음 (묻히는 작물 찾기용). 다 확인하면 false로
+        private static readonly bool LogSoilFit = true;
+        private static readonly RaycastHit[] soilHits = new RaycastHit[16];
 
         private void FitIntoSoil(GameObject model, int stage, int stageCount)
         {
             if (model == null) return;
+            if (!MeasureModel(model, out Bounds b)) return;
+
+            // 납작한 씨앗은 최소 키까지 키움 (모양 비율은 그대로)
+            float boost = 1f;
+            float minSeed = MinSeedHeight * Mathf.Abs(transform.lossyScale.y);
+            if (stage == 0 && b.size.y < minSeed)
+            {
+                boost = Mathf.Min(MaxSeedBoost, minSeed / b.size.y);
+                model.transform.localScale *= boost;
+                if (!MeasureModel(model, out b)) return;
+            }
+
+            float soil = Mathf.Max(transform.position.y, GroundTopUnder(b));
+            float height = b.size.y;
+            float sink = soil - b.min.y;                     // 지금 흙 아래로 들어간 깊이
+            float ratio = stage == 0 ? SeedMaxSink : stage >= stageCount - 1 ? MatureMaxSink : MidMaxSink;
+            float allowed = Mathf.Min(height * ratio, Mathf.Max(0f, height - MinVisibleMeters)); // 최소 이만큼은 보이게
+            float raise = sink - allowed;
+            if (raise > 0f) model.transform.position += Vector3.up * raise;
+
+            if (LogSoilFit)
+                Debug.Log($"[작물 높이] {(Data != null ? Data.cropName : name)} {stage + 1}단계 - 모델 키 {height:0.000}m{(boost > 1f ? $" (납작해서 {boost:0.00}배 키움)" : "")}, 흙 높이 {soil:0.000} " +
+                          $"(놓은 자리 {transform.position.y:0.000}), 묻힌 깊이 {sink:0.000}m → {(raise > 0f ? $"{raise:0.000}m 올림" : "그대로")}");
+        }
+
+        private static bool MeasureModel(GameObject model, out Bounds b)
+        {
+            b = default;
             bool found = false;
-            Bounds b = default;
             foreach (Renderer r in model.GetComponentsInChildren<Renderer>())
             {
                 if (r is ParticleSystemRenderer || !r.enabled) continue;
                 if (!found) { b = r.bounds; found = true; }
                 else b.Encapsulate(r.bounds);
             }
-            if (!found || b.size.y < 0.001f) return;
+            return found && b.size.y >= 0.001f;
+        }
 
-            float soil = transform.position.y;               // 흙 표면 (FarmTile이 작물을 여기에 놓음)
-            float height = b.size.y;
-            float sink = soil - b.min.y;                     // 지금 흙 아래로 들어간 깊이
-            if (sink <= 0f) return;                          // 이미 흙 위에 서 있음
-
-            float ratio = stage == 0 ? SeedMaxSink : stage >= stageCount - 1 ? MatureMaxSink : MidMaxSink;
-            float allowed = height * ratio;
-            allowed = Mathf.Min(allowed, Mathf.Max(0f, height - MinVisibleMeters)); // 최소 이만큼은 보이게
-            float raise = sink - allowed;
-            if (raise > 0f) model.transform.position += Vector3.up * raise;
+        // 작물 발밑 다섯 군데(가운데 + 둘레)를 위에서 아래로 쏴서, 작물 자신이 아닌 가장 높은 땅 높이
+        private float GroundTopUnder(Bounds b)
+        {
+            float best = float.MinValue;
+            float r = Mathf.Clamp(Mathf.Min(b.extents.x, b.extents.z) * 0.6f, 0.02f, 0.2f);
+            Vector3 c = new Vector3(b.center.x, b.max.y + 2f, b.center.z);
+            Vector3[] offsets = { Vector3.zero, new Vector3(r, 0f, 0f), new Vector3(-r, 0f, 0f), new Vector3(0f, 0f, r), new Vector3(0f, 0f, -r) };
+            foreach (Vector3 o in offsets)
+            {
+                int n = Physics.RaycastNonAlloc(c + o, Vector3.down, soilHits, b.size.y + 4f, ~0, QueryTriggerInteraction.Ignore);
+                float top = float.MinValue;
+                for (int k = 0; k < n; k++)
+                {
+                    Transform t = soilHits[k].transform;
+                    if (t == transform || t.IsChildOf(transform)) continue;                 // 작물 자신
+                    if (t.GetComponentInParent<CropInstance>() != null) continue;          // 다른 작물
+                    if (soilHits[k].point.y > b.max.y + 0.5f) continue;                    // 머리 위 지붕·나뭇가지 등
+                    top = Mathf.Max(top, soilHits[k].point.y);
+                }
+                // 너무 높은 곳(옆 칸 벽 등)은 빼고, 놓은 자리 근처(±0.3m)만 흙으로 인정
+                if (top > float.MinValue && Mathf.Abs(top - transform.position.y) <= 0.3f) best = Mathf.Max(best, top);
+            }
+            return best;
         }
 
         private void RefreshVisual()

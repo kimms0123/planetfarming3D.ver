@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 87944e27539aaf4499e0037d176fa40f, type: 3}
   m_Name: Crop_old_B
   m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Farming.CropData
-  itemName: "\uB2EC\uC308\uC78E"
+  itemName: "\uBCC4\uC774\uB07C"
   category: 1
   icon: {fileID: -778388114, guid: 25b2f9728bdf05748851597c693f17b7, type: 3}
   maxStack: 99

@@ -35,6 +35,12 @@ namespace FarmingSystem.UI
         [Tooltip("분을 몇 분 단위로 보여줄지 (1 = 매분, 10 = 스타듀처럼 10분 단위)")]
         [SerializeField, Range(1, 30)] private int minuteStep = 1;
 
+        [Header("년차 표시 (시간 왼쪽에 작게: 2년차 오전 6:48)")]
+        [Tooltip("몇 년차부터 보일지 (1 = 처음부터 항상, 2 = 1년이 지나고 2년차부터)")]
+        [SerializeField, Range(1, 10)] private int showYearFrom = 1;
+        [Tooltip("년차 글자 크기 (시간 글자 대비 %)")]
+        [SerializeField, Range(30, 100)] private int yearSizePercent = 55;
+
         [Header("계절 글자색 (봄 / 여름 / 가을 / 겨울)")]
         [SerializeField] private Color springColor = new Color32(0xFF, 0x9E, 0xC4, 0xFF);
         [SerializeField] private Color summerColor = new Color32(0x8F, 0xE0, 0x7A, 0xFF);
@@ -101,7 +107,7 @@ namespace FarmingSystem.UI
             bool dayChanged = lastDay != -1 && day != lastDay;
             lastHour = hour; lastMinute = minute; lastDay = day; lastSeason = season;
 
-            if (timeText != null) timeText.text = FormatTime(hour, minute);
+            if (timeText != null) timeText.text = YearPrefix(clock.CurrentYear) + FormatTime(hour, minute);
             if (dayText != null) dayText.text = clock.DayOfSeason.ToString();
             if (weekdayText != null)
             {
@@ -130,6 +136,14 @@ namespace FarmingSystem.UI
             return language == Language.Korean
                 ? $"{(pm ? "오후" : "오전")} {h12}:{minute:00}"
                 : $"{h12}:{minute:00} {(pm ? "PM" : "AM")}";
+        }
+
+        // 시간 앞에 붙일 년차 (작은 글씨). 아직 표시할 년차가 아니면 빈 문자열
+        private string YearPrefix(int year)
+        {
+            if (year < showYearFrom) return "";
+            string label = language == Language.Korean ? $"{year}년차" : $"YEAR {year}";
+            return $"<size={yearSizePercent}%>{label}</size>  ";
         }
 
         private Color SeasonColor(Season s)

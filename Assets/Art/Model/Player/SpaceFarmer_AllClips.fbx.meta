@@ -7,6 +7,11 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: FishingRod_Mat
+    second: {fileID: 2100000, guid: 4332a2a7f9798ea4095139230724f748, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: Hoe_Mat
     second: {fileID: 2100000, guid: 2453c42ae31b1b243a19f368eb8fb02a, type: 2}
   - first:

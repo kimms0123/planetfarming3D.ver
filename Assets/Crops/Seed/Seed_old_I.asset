@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5479c011c2dfc8b4abd9e38b9063db59, type: 3}
   m_Name: Seed_old_I
   m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Farming.SeedData
-  itemName: "\uC655\uAD00\uD0D1\uBB34 \uC528\uC557"
+  itemName: "\uB178\uC744\uBAA9\uC774 \uC528\uC557"
   category: 0
   icon: {fileID: 2062359483, guid: 25b2f9728bdf05748851597c693f17b7, type: 3}
   maxStack: 99
