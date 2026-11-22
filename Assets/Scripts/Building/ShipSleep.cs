@@ -21,7 +21,7 @@ namespace FarmingSystem.Building
     {
         private const string ShipName = "player_spaceship"; // 건물 데이터 이름에 이게 들어가면 내 우주선
         private const int MorningHour = 6;
-        private const float InteractRange = 2.2f;   // 우주선 가장자리까지 거리 (m)
+        private const float InteractRange = 3.5f;   // 우주선 가장자리까지 거리 (m). 예전 2.2 → 조금 떨어져도 "잠자기"가 뜨게 늘림
         private const float MaxLookAngle = 75f;     // 우주선 쪽을 이 각도 안으로 바라봐야 함
 
         private static ShipSleep instance;

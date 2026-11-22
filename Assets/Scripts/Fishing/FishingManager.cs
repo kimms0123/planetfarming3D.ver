@@ -23,6 +23,8 @@ namespace FarmingSystem.Fishing
     //  (FishingController의 [F] 테스트 흐름은 꺼지고 이 스크립트가 진행)
     //  없으면 동작 없이 간단한 찌·줄로 진행
     // 설치: Tools → 행성농사일지 → 물고기 → 낚시 준비하기. 씬에 없으면 게임이 시작될 때 기본 설정으로 저절로 생김
+    // 농사 행동(FarmActionController)보다 먼저 실행 → 낚싯대를 들고 클릭하면 낚시가 먼저 처리되고, 그 프레임엔 농사 행동이 안 일어남
+    [DefaultExecutionOrder(-100)]
     public class FishingManager : MonoBehaviour
     {
         public static FishingManager Instance { get; private set; }
@@ -52,6 +54,8 @@ namespace FarmingSystem.Fishing
         [Header("던지기")]
         [SerializeField] private float minCast = 1.5f;
         [SerializeField] private float maxCast = 7f;
+        [Tooltip("낚싯대를 들고 클릭했는데 안 던져지면 Console에 이유를 출력 (테스트용)")]
+        [SerializeField] private bool logWhyNotCasting = true;
         [Tooltip("찌 근처 이 거리 안의 물고기가 다가옴 (m)")]
         [SerializeField] private float noticeRange = 4f;
 
@@ -341,21 +345,54 @@ namespace FarmingSystem.Fishing
 
         // ───────────────────────── 낚시 시작 ─────────────────────────
 
-        private bool CanStart()
+        private bool CanStart() => CastBlockReason() == null;
+
+        // 지금 던질 수 없는 이유 (던질 수 있으면 null). 조건은 예전 CanStart와 똑같음
+        private string CastBlockReason()
         {
             InventoryManager inv = InventoryManager.Instance;
-            if (inv == null || inv.CurrentTool != ToolType.FishingRod) return false;
-            if (UIInputBlocker.IsBlocked || PhoneMenu.IsOpen || inv.IsInventoryOpen || ContainerWindow.IsOpen || BuildingPlacer.BlocksFarming) return false;
-            if (!player.enabled || player.IsBusy) return false;
-            if (farmActions != null && farmActions.HoveredAction != FarmActionType.None) return false; // 수확 등 농사 행동이 먼저
-            return true;
+            if (inv == null) return "InventoryManager 없음";
+            if (inv.CurrentTool != ToolType.FishingRod) return $"낚싯대를 안 들고 있음 (지금 도구: {inv.CurrentTool})";
+            if (UIInputBlocker.IsBlocked) return "다른 UI가 입력을 막고 있음 (UIInputBlocker)";
+            if (PhoneMenu.IsOpen) return "폰 메뉴가 열려 있음";
+            if (inv.IsInventoryOpen) return "인벤토리가 열려 있음";
+            if (ContainerWindow.IsOpen) return "상자 창이 열려 있음";
+            if (BuildingPlacer.BlocksFarming) return "건축 모드 중";
+            if (!player.enabled) return "플레이어 조작이 꺼져 있음 (연출·대화 중?)";
+            if (player.IsBusy) return "플레이어가 다른 행동 중 (IsBusy)";
+            // 낚싯대를 들고 있을 때는 낚시가 우선 (예전엔 칸을 가리키면 농사 행동이 먼저라 낚시가 안 던져졌음)
+            // 수확은 E키로 그대로 가능
+            return null;
         }
 
         private void TryStart()
         {
-            if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame || !CanStart()) return;
-            if (!FindCastPoint(out Vector3 target)) { FishCatchPopup.Hint("물가를 바라보고 던져 주세요"); return; }
+            if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame) return;
+            string reason = CastBlockReason();
+            if (reason != null)
+            {
+                if (logWhyNotCasting && InventoryManager.Instance != null && InventoryManager.Instance.CurrentTool == ToolType.FishingRod)
+                    Debug.Log($"[낚시] 클릭했지만 안 던짐 - 이유: {reason}");
+                return;
+            }
+            if (!FindCastPoint(out Vector3 target))
+            {
+                if (logWhyNotCasting) Debug.Log($"[낚시] 클릭했지만 안 던짐 - 이유: {minCast}~{maxCast}m 안에 물을 못 찾음 (물 높이 {waterY:0.00}, 물 감지 {(waterReady ? "됨" : "안 됨")})");
+                FishCatchPopup.Hint("물가를 바라보고 던져 주세요");
+                return;
+            }
+            // 이번 클릭으로 농사 행동(잡초 뽑기·수확 등)이 같이 실행되지 않게 이 프레임만 입력을 막음
+            UIInputBlocker.Block(this);
+            StartCoroutine(UnblockAtEndOfFrame());
             flow = StartCoroutine(Flow(target));
+        }
+
+        private void OnDisable() => UIInputBlocker.Unblock(this); // 꺼질 때 막아 둔 입력이 남지 않게
+
+        private IEnumerator UnblockAtEndOfFrame()
+        {
+            yield return new WaitForEndOfFrame();
+            UIInputBlocker.Unblock(this);
         }
 
         // 십자선(또는 마우스)이 가리키는 물. 너무 멀거나 땅이면 바라보는 쪽 물을 찾음

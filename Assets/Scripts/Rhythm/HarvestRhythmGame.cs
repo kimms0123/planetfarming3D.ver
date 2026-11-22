@@ -155,6 +155,10 @@ namespace FarmingSystem.Rhythm
         [SerializeField] private bool hidePlayerDuringShot = true;
 
         [Header("노트(판정 원) 위치")]
+        [Tooltip("켜면 판정 원을 항상 화면 가운데 가로줄에 둠 (작물 위치를 따라가지 않음). 세로 위치는 아래 Center Judge Height")]
+        [SerializeField] private bool judgeAtScreenCenter = true;
+        [Tooltip("화면 가운데 고정일 때 판정 원 높이 (1920x1080 기준, 0 = 정가운데, + = 위)")]
+        [SerializeField] private float centerJudgeHeight = 40f;
         [Tooltip("판정 원을 작물 꼭대기에서 이만큼 위에 띄움 (m). 0이면 작물 가운데에 겹침")]
         [SerializeField] private float noteAboveCrop = 0.45f;
         [Tooltip("화면에서 판정 원을 추가로 옮기기 (픽셀, 1920x1080 기준). 예: (0, 40) = 조금 더 위")]
@@ -531,7 +535,7 @@ namespace FarmingSystem.Rhythm
             cropCenterPoint = GetCropCenter(crop, worldAnchor);
             judgeWorldPoint = GetNoteAnchor(crop, cropCenterPoint);
             cornerAnim = 0f;
-            judgeRoot.anchoredPosition = ProjectToCanvas(judgeWorldPoint);
+            judgeRoot.anchoredPosition = JudgePosition();
 
             // 카메라가 작물 쪽으로 살짝 다가감 (게임 시간이 멈춰도 카메라는 실제 시간으로 움직임)
             focusedRig = focusCamera ? ThirdPersonCameraRig.Instance : null;
@@ -596,7 +600,7 @@ namespace FarmingSystem.Rhythm
             UpdateEffects(dt);
 
             // 카메라가 움직이는 동안에도 판정 원이 작물 위에 붙어 있도록 매 프레임 다시 계산
-            if (phase != Phase.Result) judgeRoot.anchoredPosition = ProjectToCanvas(judgeWorldPoint);
+            if (phase != Phase.Result) judgeRoot.anchoredPosition = JudgePosition();
             UpdateFocusCorners(dt);
 
             switch (phase)
@@ -1247,6 +1251,13 @@ namespace FarmingSystem.Rhythm
                 else b.Encapsulate(r.bounds);
             }
             return found ? b.center : crop.position;
+        }
+
+        // 판정 원 자리: 화면 가운데 고정 또는 작물 위를 따라감
+        private Vector2 JudgePosition()
+        {
+            if (judgeAtScreenCenter) return new Vector2(0f, centerJudgeHeight) + noteScreenOffset;
+            return ProjectToCanvas(judgeWorldPoint);
         }
 
         // 월드 위치 → 캔버스 위치. 화면 밖으로 넘치지 않게 안쪽으로 당김 (위쪽 HUD·아래쪽 방향키 자리 피함)

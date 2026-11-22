@@ -12,6 +12,9 @@ namespace FarmingSystem.UI
         [Tooltip("씬에 미리 배치한 10개의 슬롯 UI를 순서대로(1~9, 0) 연결")]
         [SerializeField] private ItemSlotUI[] slots = new ItemSlotUI[10];
 
+        [Tooltip("상급·최상급 작물 별 그림 (UI_Blue 시트의 Icon_Star). 비워 두면 코드로 그린 별을 씀")]
+        [SerializeField] private Sprite qualityStarSprite;
+
         private bool isSubscribed = false;
 
         private void OnEnable()
@@ -74,6 +77,7 @@ namespace FarmingSystem.UI
                 int quantity = slotData != null ? slotData.quantity : 0;
 
                 slots[i].SetItem(icon, quantity);
+                slots[i].SetQuality(slotData != null ? slotData.quality : ItemQuality.Normal, icon != null, qualityStarSprite);
                 slots[i].SetSelected(i == InventoryManager.Instance.SelectedHotbarIndex);
             }
 

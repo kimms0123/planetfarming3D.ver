@@ -19,6 +19,6 @@ MonoBehaviour:
   item: {fileID: 11400000, guid: 1c46efc24261b5a468453f780d61fcfb, type: 2}
   amount: 3
   rewardBells: 500
-  rewardItem: {fileID: 0}
+  rewardItem: {fileID: 11400000, guid: 76f0c2316a4cca3418185b1eafcd0888, type: 2}
   rewardItemAmount: 1
   requires: {fileID: 0}

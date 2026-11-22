@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Inventory.ToolData
   itemName: "\uAC15\uD654\uB41C \uC218\uD655\uC7A5\uAC11"
   category: 2
-  icon: {fileID: 1542500000, guid: 134971964101066478534a7eecd7cb3f, type: 3}
+  icon: {fileID: 21300000, guid: 7e51c696b8a19224a84a09dde19b272c, type: 3}
   maxStack: 1
   description: "\uB4E4\uACE0 \uC218\uD655\uD558\uBA74 \uC8FC\uBCC0 9\uCE78\uC758
     \uAC19\uC740 \uC791\uBB3C\uC744 \uD55C \uBC88\uC5D0 \uAC70\uB454\uB2E4."
