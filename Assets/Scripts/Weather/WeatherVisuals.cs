@@ -43,6 +43,12 @@ namespace FarmingSystem.Weather
         [SerializeField] private float rainHeight = 14f;
         [Tooltip("태풍 때 빗방울이 옆으로 날리는 속도 (m/s)")]
         [SerializeField] private float typhoonSlant = 9f;
+        [Tooltip("비가 내리는 넓이 (가로·세로 m). 카메라를 따라다니는 이 네모 안에만 빗줄기가 그려짐\n" +
+                 "넓혀도 빗줄기 굵기(밀도)는 그대로 - 위 Rain Rate·Typhoon Rate는 '40 x 40m에 내리는 양' 기준이라 넓이만큼 자동으로 늘어남\n" +
+                 "빌드가 버벅이면 60 정도로 줄이기")]
+        [SerializeField, Range(40f, 120f)] private float rainArea = 80f;
+        [Tooltip("비 내리는 네모를 카메라가 보는 쪽으로 이만큼(m) 옮김 → 카메라 뒤(안 보이는 곳)에 낭비하지 않고 화면 앞쪽 멀리까지 비가 보임")]
+        [SerializeField] private float rainAhead = 25f;
 
         [Header("눈 (겨울엔 비 대신)")]
         [Tooltip("겨울에 비 대신 눈 내리기")]
@@ -164,7 +170,15 @@ namespace FarmingSystem.Weather
         {
             // 빗방울은 카메라를 따라다님 (떨어지는 건 월드 기준이라 걸어도 자연스러움)
             Transform cam = followCamera != null ? followCamera : (Camera.main != null ? Camera.main.transform : null);
-            if (rain != null && cam != null) rain.transform.position = cam.position + Vector3.up * rainHeight;
+            if (rain != null && cam != null)
+            {
+                // 카메라가 보는 쪽(수평)으로 네모를 옮김 → 화면 앞쪽 멀리까지 비가 보임
+                Vector3 fwd = cam.forward;
+                fwd.y = 0f;
+                fwd = fwd.sqrMagnitude > 0.001f ? fwd.normalized : Vector3.zero;
+                float ahead = Mathf.Min(rainAhead, rainArea * 0.4f); // 카메라 바로 위가 빠지지 않게
+                rain.transform.position = cam.position + fwd * ahead + Vector3.up * rainHeight;
+            }
             if (snow != null && cam != null) snow.transform.position = cam.position + Vector3.up * snowHeight;
             // 잎·파편은 바람이 불어오는 쪽(카메라 뒤 바람 위쪽)에서 생겨서 화면을 가로질러 날아감
             if (debris != null && cam != null)
@@ -180,6 +194,14 @@ namespace FarmingSystem.Weather
             var emission = rain.emission;
             float rate = Mathf.Lerp(0f, rainRate, Mathf.Clamp01(rainAmount / 0.6f)) + (typhoonRate - rainRate) * storm;
             rate *= 1f - snowMix; // 겨울엔 비 대신 눈
+            // 넓이: 40 x 40m 기준 양 → 넓힌 만큼 빗방울도 늘려서 굵기(밀도)는 그대로
+            float areaScale = (rainArea * rainArea) / (40f * 40f);
+            rate *= areaScale;
+            var shape = rain.shape;
+            if (!Mathf.Approximately(shape.scale.x, rainArea)) shape.scale = new Vector3(rainArea, rainArea, 0.1f);
+            var main = rain.main;
+            int need = Mathf.CeilToInt(typhoonRate * areaScale * 1.6f); // 한 번에 떠 있을 수 있는 빗방울 수 (수명 1.3초 + 여유)
+            if (main.maxParticles < need) main.maxParticles = need;
             emission.rateOverTime = Mathf.Max(0f, rate);
 
             // 태풍일수록 바람 방향으로 비스듬히

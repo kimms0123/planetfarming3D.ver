@@ -168,8 +168,13 @@ namespace FarmingSystem.Rhythm
         [Tooltip("카메라를 플레이어 옆쪽으로 돌리는 각도 (도). 플레이어 몸이 작물을 가리지 않게 비스듬히 봄. 0 = 플레이어 바로 뒤, 90 = 완전히 옆, 음수 = 돌리지 않음")]
         [SerializeField, Range(-1f, 90f)] private float focusSideAngle = 60f;
 
+        [Header("화살표 방향")]
+        [Tooltip("켜면 방향 화살표를 코드가 직접 그린 화살표로 씀 → 그림 파일(Rhythm_Arrow.png)이나 아래 Arrow 칸 그림의 방향과 상관없이 항상 정확한 방향\n" +
+                 "디자이너 화살표 4개(Arrow Up/Down/Left/Right)를 쓰고 싶으면 끄기 (그때는 칸마다 그림 방향이 맞는지 꼭 확인)")]
+        [SerializeField] private bool codeDrawnArrows = true;
+
         [Header("디자이너 UI 이미지 (비우면 코드가 그린 기본 모양을 씀)")]
-        [Tooltip("방향키 아이콘 (Arrow_Up / Down / Left / Right). 4개 다 넣어야 적용")]
+        [Tooltip("방향키 아이콘 (Arrow_Up / Down / Left / Right). 4개 다 넣고 위의 Code Drawn Arrows를 꺼야 적용")]
         [SerializeField] private Sprite arrowUpSprite;
         [SerializeField] private Sprite arrowDownSprite;
         [SerializeField] private Sprite arrowLeftSprite;
@@ -287,7 +292,8 @@ namespace FarmingSystem.Rhythm
         private readonly Image[] keyShadows = new Image[4];
         private readonly Image[] focusCorners = new Image[4];
         private float cornerAnim;              // 모서리가 바깥에서 안으로 모여드는 연출 (0 → 1)
-        private bool CustomArrows => arrowUpSprite != null && arrowDownSprite != null && arrowLeftSprite != null && arrowRightSprite != null;
+        private bool CustomArrows => !codeDrawnArrows && arrowUpSprite != null && arrowDownSprite != null && arrowLeftSprite != null && arrowRightSprite != null;
+        private Sprite codeArrowSprite; // 코드가 그린 위쪽(↑) 화살표 - 돌려서 4방향 (그림 파일 방향과 상관없이 정확)
         private GameObject hudRoot, resultPanel;
         private TextMeshProUGUI resultTitle, resultBody;
         private readonly Image[] resultStars = new Image[3];
@@ -316,7 +322,28 @@ namespace FarmingSystem.Rhythm
             if (sceneUI != null && sceneUI.canvas != null) LoadSceneUI(sceneUI);
             else BuildUI();
             EnsureStarOutlines();
+            FixArrows();
             canvas.gameObject.SetActive(false);
+        }
+
+        // 화살표 방향 바로잡기: 판정 원 화살표·그림자·방향키 패드 화살표를 지금 설정 기준으로 다시 그림
+        //  (씬 UI는 만들 때의 그림·회전값이 그대로 저장돼 있어서, 그림 파일이 바뀌면 방향이 틀어져 보일 수 있음)
+        private void FixArrows()
+        {
+            if (codeDrawnArrows && codeArrowSprite == null) codeArrowSprite = MakeArrowSprite(128);
+            Sprite basic = codeDrawnArrows ? codeArrowSprite : arrowSprite;
+            if (arrowShadow != null && !CustomArrows) arrowShadow.sprite = basic;
+            for (int k = 0; k < keyArrows.Length; k++)
+                if (keyArrows[k] != null) SetArrow(keyArrows[k], (ArrowDirection)k); // 0 위, 1 아래, 2 왼쪽, 3 오른쪽
+
+            // 화살표가 들어 있는 UI가 뒤집혀(Scale -1) 있으면 방향이 반대로 보임 → 알려 줌
+            foreach (Image img in new[] { arrowImage, keyArrows[0] })
+            {
+                if (img == null) continue;
+                Vector3 s = img.rectTransform.lossyScale;
+                if (s.x < 0f || s.y < 0f)
+                    Debug.LogWarning($"[HarvestRhythmGame] '{img.name}' 또는 그 부모 UI의 Scale이 음수(-)라서 화살표가 뒤집혀 보여요 → Hierarchy에서 Scale을 1로 바꿔 주세요");
+            }
         }
 
         // 폰트 정하기: Font 칸이 비어 있으면 씬에서 이미 쓰는 TMP 폰트(한글 폰트)를 찾아 씀
@@ -1624,7 +1651,8 @@ namespace FarmingSystem.Rhythm
             }
             else
             {
-                img.sprite = arrowSprite;
+                img.sprite = codeDrawnArrows && codeArrowSprite != null ? codeArrowSprite : arrowSprite; // 위쪽(↑) 그림을 돌려서
+                img.preserveAspect = true;
                 img.rectTransform.localEulerAngles = new Vector3(0f, 0f, DirToAngle(dir));
             }
         }

@@ -366,9 +366,9 @@ namespace FarmingSystem.Economy
         {
             foreach (ShopItemEntry e in buyCatalog)
                 if (e != null && e.item == seed && e.price > 0)
-                    return Mathf.Max(1f, e.price * seedSellRatio);
+                    return WholeBells(e.price * seedSellRatio);
             float basePrice = seed.resultCrop != null ? seed.resultCrop.basePrice : 1f;
-            return Mathf.Max(1f, basePrice * seedFallbackRatio);
+            return WholeBells(basePrice * seedFallbackRatio);
         }
 
         public bool IsTodaysSpecial(ItemData item)
@@ -376,7 +376,10 @@ namespace FarmingSystem.Economy
             return item != null && item == todaysSpecialCrop;
         }
 
-        /// <summary>개당 판매가(소수 포함) = basePrice x 등급 배율 x (오늘의 특별 상품이면 보너스)</summary>
+        /// <summary>벨은 항상 정수: 배율(등급 x1.3·x1.6, 특별 상품 x1.5, 씨앗 되팔기 x0.5)로 생긴 소수는 반올림(0.5는 올림), 최소 1벨</summary>
+        private static float WholeBells(float v) => Mathf.Max(1, Mathf.FloorToInt(v + 0.5f));
+
+        /// <summary>개당 판매가 (정수 벨) = basePrice x 등급 배율 x (오늘의 특별 상품이면 보너스) → 반올림</summary>
         public float GetSellUnitPrice(InventorySlotData slot)
         {
             if (!IsSellable(slot)) return 0f;
@@ -388,7 +391,7 @@ namespace FarmingSystem.Economy
             if (ItemQualityUtility.IsFixedPrice(slot.quality)) return ItemQualityUtility.TrashUnitPrice;
             float price = crop.basePrice * ItemQualityUtility.GetPriceMultiplier(slot.quality);
             if (todaysSpecialCrop == crop) price *= specialSellBonusMultiplier;
-            return price;
+            return WholeBells(price); // 화면에 보이는 단가 x 수량 = 실제로 받는 돈 (소수점 없음)
         }
 
         /// <summary>
