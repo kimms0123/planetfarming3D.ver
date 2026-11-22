@@ -84,6 +84,7 @@ namespace FarmingSystem.Farming
                 if (currentStageObject != null) Destroy(currentStageObject);
                 currentStageObject = Instantiate(Data.witheredPrefab, transform.position, transform.rotation, transform);
                 currentStageObject.transform.localScale = Vector3.one;
+                FitIntoSoil(currentStageObject, int.MaxValue, 1);
             }
             else if (currentStageObject != null)
             {
@@ -134,6 +135,39 @@ namespace FarmingSystem.Farming
         [ContextMenu("디버그: 지금 시들게 하기")]
         private void DebugWither() => Wither();
 
+        // ───────── 흙에 묻히는 깊이 자동 맞춤 ─────────
+        // 작물·단계마다 모델 크기가 제각각이라, 프리팹에 정해 둔 묻는 깊이(모든 작물 같은 깊이)로는 작은 씨앗이 흙에 다 파묻혀 안 보임
+        // → 심은 모델의 실제 크기를 재서, 모델 키에 비해 너무 많이 묻혔으면 그만큼 올려 줌 (덜 묻힌 건 그대로 둠)
+        //   씨앗(첫 단계) = 키의 최대 45%까지만 묻힘 (절반쯤 빼꼼) / 중간 단계 = 15% / 다 자람·시듦 = 8%
+        //   그리고 어떤 경우든 흙 위로 최소 MinVisibleMeters는 보이게
+        private const float SeedMaxSink = 0.45f, MidMaxSink = 0.15f, MatureMaxSink = 0.08f;
+        private const float MinVisibleMeters = 0.05f;
+
+        private void FitIntoSoil(GameObject model, int stage, int stageCount)
+        {
+            if (model == null) return;
+            bool found = false;
+            Bounds b = default;
+            foreach (Renderer r in model.GetComponentsInChildren<Renderer>())
+            {
+                if (r is ParticleSystemRenderer || !r.enabled) continue;
+                if (!found) { b = r.bounds; found = true; }
+                else b.Encapsulate(r.bounds);
+            }
+            if (!found || b.size.y < 0.001f) return;
+
+            float soil = transform.position.y;               // 흙 표면 (FarmTile이 작물을 여기에 놓음)
+            float height = b.size.y;
+            float sink = soil - b.min.y;                     // 지금 흙 아래로 들어간 깊이
+            if (sink <= 0f) return;                          // 이미 흙 위에 서 있음
+
+            float ratio = stage == 0 ? SeedMaxSink : stage >= stageCount - 1 ? MatureMaxSink : MidMaxSink;
+            float allowed = height * ratio;
+            allowed = Mathf.Min(allowed, Mathf.Max(0f, height - MinVisibleMeters)); // 최소 이만큼은 보이게
+            float raise = sink - allowed;
+            if (raise > 0f) model.transform.position += Vector3.up * raise;
+        }
+
         private void RefreshVisual()
         {
             if (IsWithered) return;
@@ -160,6 +194,7 @@ namespace FarmingSystem.Farming
             {
                 currentStageObject = Instantiate(prefab, transform.position, transform.rotation, transform);
                 currentStageObject.transform.localScale = Vector3.one; // 부모(작물 오브젝트)의 스케일을 그대로 상속받도록 로컬 스케일은 1 유지
+                FitIntoSoil(currentStageObject, stage, Data.growthStagePrefabs.Length);
             }
             currentStageIndex = stage;
             if (IsStormDamaged) TintCurrent(StormDamagedTint); // 자라서 모델이 바뀌어도 피해 색 유지

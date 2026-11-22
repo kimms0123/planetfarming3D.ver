@@ -336,6 +336,8 @@ namespace FarmingSystem.Fishing
         }
 
         public float WaterY => waterY;
+        /// <summary>물고기가 찌를 문 순간 (지금 클릭하면 잡힘). 캐릭터 머리 위 "!" 표시(FishBiteMark)가 읽음</summary>
+        public bool IsBiting { get; private set; }
 
         // ───────────────────────── 낚시 시작 ─────────────────────────
 
@@ -494,6 +496,7 @@ namespace FarmingSystem.Fishing
                     GameAudio.PlayAt(SoundId.FishBite, castTo);
                     float window = hooked.Data.biteWindow;
                     result = Outcome.Missed;
+                    IsBiting = true; // 머리 위 "!"
                     while (window > 0f)
                     {
                         yield return null;
@@ -501,6 +504,7 @@ namespace FarmingSystem.Fishing
                         if (CancelPressed()) break;
                         window -= Time.deltaTime;
                     }
+                    IsBiting = false;
                     break;
                 }
             }

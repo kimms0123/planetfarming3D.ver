@@ -53,7 +53,6 @@ namespace FarmingSystem.Farming
         /// <summary>비료를 뿌릴 수 있는 밭인지 (갈아 놓았고, 작물이 없고, 아직 비료가 없음)</summary>
         public bool CanFertilize => state == TileState.Tilled && CurrentCrop == null && Fertilizer == null;
         private GameObject fertilizerMark;
-        private static readonly Dictionary<Color, Material> pelletMaterials = new Dictionary<Color, Material>();
 
         /// <summary>비료 뿌리기 (갈아 놓은 빈 밭에만)</summary>
         public bool ApplyFertilizer(FertilizerData data)
@@ -65,6 +64,7 @@ namespace FarmingSystem.Farming
             }
             Fertilizer = data;
             RefreshFertilizerMark();
+            SpawnSprinkle(data.pelletColor); // 뿌리는 순간 알갱이가 촤르르
             Debug.Log($"[비료] {name} (좌표 {GridPosition}) - {data.itemName}을(를) 뿌렸습니다.");
             return true;
         }
@@ -74,40 +74,114 @@ namespace FarmingSystem.Farming
             Fertilizer = null;
             RefreshFertilizerMark();
         }
-
-        // 뿌린 밭에 작은 알갱이 몇 개 (비료 색)
+        // 뿌린 밭: 흙 위에 비료 색 작은 알갱이가 점점이 (스타듀밸리처럼 납작한 점무늬 한 장)
+        private static readonly Dictionary<Color, Material[]> speckleMaterials = new Dictionary<Color, Material[]>();
         private void RefreshFertilizerMark()
         {
             if (fertilizerMark != null) { Destroy(fertilizerMark); fertilizerMark = null; }
             if (Fertilizer == null || state != TileState.Tilled) return;
 
-            if (!pelletMaterials.TryGetValue(Fertilizer.pelletColor, out Material mat) || mat == null)
-            {
-                Shader sh = Shader.Find("Universal Render Pipeline/Lit");
-                mat = new Material(sh != null ? sh : Shader.Find("Standard"));
-                mat.color = Fertilizer.pelletColor;
-                if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Fertilizer.pelletColor);
-                pelletMaterials[Fertilizer.pelletColor] = mat;
-            }
-
             Bounds b = GetGroundBounds();
             Vector3 top = GetSurfacePosition();
-            fertilizerMark = new GameObject("FertilizerMark");
+            int seed = GridPosition.x * 73856093 ^ GridPosition.y * 19349663; // 칸마다 늘 같은 무늬
+            var rng = new System.Random(seed);
+
+            fertilizerMark = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            fertilizerMark.name = "FertilizerMark";
+            Collider col = fertilizerMark.GetComponent<Collider>();
+            if (col != null) Destroy(col); // 클릭·밭갈기에 걸리지 않게
             fertilizerMark.transform.SetParent(transform, true);
-            var rng = new System.Random(GridPosition.x * 73856093 ^ GridPosition.y * 19349663); // 칸마다 늘 같은 자리
-            float half = Mathf.Min(b.extents.x, b.extents.z) * 0.7f, size = Mathf.Min(b.size.x, b.size.z) * 0.07f;
-            for (int i = 0; i < 9; i++)
-            {
-                GameObject p = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                Collider col = p.GetComponent<Collider>();
-                if (col != null) Destroy(col); // 클릭·걷기에 걸리지 않게
-                p.transform.SetParent(fertilizerMark.transform, true);
-                float x = ((float)rng.NextDouble() * 2f - 1f) * half, z = ((float)rng.NextDouble() * 2f - 1f) * half;
-                p.transform.position = new Vector3(top.x + x, top.y + size * 0.2f, top.z + z);
-                p.transform.localScale = Vector3.one * size * (0.7f + (float)rng.NextDouble() * 0.6f);
-                p.GetComponent<Renderer>().sharedMaterial = mat;
-            }
+            fertilizerMark.transform.position = new Vector3(top.x, top.y + 0.012f, top.z); // 흙 바로 위 (깜빡임 방지로 살짝)
+            fertilizerMark.transform.rotation = Quaternion.Euler(90f, rng.Next(4) * 90f, 0f); // 바닥에 눕히고, 칸마다 방향을 돌려 무늬가 달라 보이게
+            float side = Mathf.Min(b.size.x, b.size.z) * 0.92f;
+            Vector3 ls = fertilizerMark.transform.lossyScale, cur = fertilizerMark.transform.localScale;
+            fertilizerMark.transform.localScale = new Vector3(cur.x * side / Mathf.Max(0.0001f, ls.x), cur.y * side / Mathf.Max(0.0001f, ls.y), cur.z);
+            var r = fertilizerMark.GetComponent<Renderer>();
+            r.sharedMaterial = SpeckleMaterial(Fertilizer.pelletColor, rng.Next(3));
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
+
+        // 비료 색 점무늬 재질 (색마다 무늬 3가지를 만들어 돌려 씀)
+        private static Material SpeckleMaterial(Color color, int variant)
+        {
+            if (!speckleMaterials.TryGetValue(color, out Material[] set) || set == null || set[0] == null)
+            {
+                set = new Material[3];
+                // Sprites/Default: 항상 빌드에 들어가는 셰이더라 빌드본에서도 확실히 투명하게 나옴 (점 바깥은 투명)
+                Shader sh = Shader.Find("Sprites/Default");
+                if (sh == null) sh = Shader.Find("Universal Render Pipeline/Unlit");
+                for (int v = 0; v < 3; v++)
+                {
+                    var m = new Material(sh) { name = "FertilizerSpeckles (generated)" };
+                    Texture2D tex = MakeSpeckles(color, 1000 + v * 7919);
+                    m.mainTexture = tex;
+                    if (m.HasProperty("_BaseMap")) m.SetTexture("_BaseMap", tex);
+                    m.color = new Color(0.92f, 0.92f, 0.92f, 1f); // 조명을 안 받는 셰이더라 살짝 어둡게 해서 흙과 어울리게
+                    set[v] = m;
+                }
+                speckleMaterials[color] = set;
+            }
+            return set[Mathf.Clamp(variant, 0, 2)];
+        }
+
+        // 64x64 투명 그림에 1~2픽셀짜리 알갱이 약 40개 (밝은 알·어두운 알 섞어서 입체감)
+        private static Texture2D MakeSpeckles(Color color, int seed)
+        {
+            const int N = 64;
+            var rng = new System.Random(seed);
+            var tex = new Texture2D(N, N, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            var px = new Color32[N * N];
+            Color light = Color.Lerp(color, Color.white, 0.35f), dark = color * 0.7f;
+            for (int i = 0; i < 40; i++)
+            {
+                int x = 3 + rng.Next(N - 6), y = 3 + rng.Next(N - 6);
+                bool big = rng.NextDouble() < 0.5;
+                Color c = rng.NextDouble() < 0.3 ? light : color;
+                c.a = 1f;
+                Color d = dark;
+                d.a = 1f;
+                px[y * N + x] = c;
+                if (big) { px[y * N + x + 1] = c; px[(y - 1) * N + x] = d; px[(y - 1) * N + x + 1] = d; } // 2x2: 위는 밝게, 아래는 그림자
+                else px[(y - 1) * N + x] = d; // 1픽셀 알 + 아래 그림자 한 칸
+            }
+            tex.SetPixels32(px);
+            tex.Apply();
+            return tex;
+        }
+
+        // 뿌리는 순간: 비료 알갱이가 위에서 흙 위로 촤르르 떨어짐 (끝나면 스스로 지워짐)
+        private void SpawnSprinkle(Color color)
+        {
+            Bounds b = GetGroundBounds();
+            Vector3 top = GetSurfacePosition();
+            var go = new GameObject("FertilizerSprinkle");
+            go.transform.position = top + Vector3.up * 0.55f;
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.duration = 0.3f;
+            main.loop = false;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.32f, 0.45f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.2f, 0.8f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.035f, 0.065f);
+            main.startColor = new ParticleSystem.MinMaxGradient(color, Color.Lerp(color, Color.white, 0.35f));
+            main.gravityModifier = 1.6f;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.stopAction = ParticleSystemStopAction.Destroy;
+            var emission = ps.emission;
+            emission.rateOverTime = 0f;
+            emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 18), new ParticleSystem.Burst(0.08f, 14) });
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            float side = Mathf.Min(b.size.x, b.size.z) * 0.75f;
+            shape.scale = new Vector3(side, 0.05f, side);
+            var rend = go.GetComponent<ParticleSystemRenderer>();
+            Shader sh = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+            if (sprinkleMaterial == null) sprinkleMaterial = new Material(sh != null ? sh : Shader.Find("Sprites/Default")) { name = "FertilizerSprinkle (generated)" };
+            rend.sharedMaterial = sprinkleMaterial;
+            ps.Play();
+        }
+        private static Material sprinkleMaterial;
 
         private void OnEnable()
         {
