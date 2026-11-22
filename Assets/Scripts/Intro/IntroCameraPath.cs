@@ -30,6 +30,16 @@ namespace FarmingSystem.Intro
         [Tooltip("나무도 피해서 넘어감 (끄면 땅·산만 피하고 나무는 그냥 통과 → 높이 변화가 가장 적음)")]
         [SerializeField] private bool avoidTrees = true;
 
+        [Header("안내음성에 길이 맞추기")]
+        [Tooltip("켜면 카메라 이동·멈춤 시간을 같은 비율로 늘리거나 줄여서, 인트로가 안내음성(오프닝 소리)과 같이 끝나게 함\n" +
+                 "각 점의 Move Time·Hold Time 비율(어느 장면이 길고 짧은지)은 그대로")]
+        [SerializeField] private bool fitToVoice = true;
+        [Tooltip("맞출 소리. 비우면 소리 설정(SoundLibrary)의 Intro 소리(BGM_Intro)")]
+        [SerializeField] private AudioClip voiceClip;
+        [Tooltip("소리가 끝난 뒤 카메라가 조금 더 머무는 시간 (초). 음성 끝에 여운을 주고 싶으면 늘리기, 소리보다 먼저 끝내려면 음수")]
+        [SerializeField] private float voiceTail = 0.3f;
+        private float pace = 1f; // 1보다 작으면 천천히 (음성이 더 길 때)
+
         [Header("이벤트")]
         public UnityEvent onStart = new UnityEvent();
         public UnityEvent onFinish = new UnityEvent();
@@ -101,6 +111,26 @@ namespace FarmingSystem.Intro
             ExternalShake = 0f;
         }
 
+        // 안내음성 길이 ÷ 카메라 전체 시간 → 재생 속도 (예: 음성 15초, 카메라 12.3초 → 0.82배속으로 천천히)
+        private float FitPace(List<IntroCamPoint> pts)
+        {
+            if (!fitToVoice) return 1f;
+            AudioClip clip = voiceClip;
+            if (clip == null)
+            {
+                var lib = Resources.Load<FarmingSystem.Audio.SoundLibrary>("SoundLibrary");
+                if (lib != null) clip = lib.intro;
+            }
+            if (clip == null) return 1f;
+            float total = 0f;
+            for (int i = 0; i < pts.Count; i++) total += (i == 0 ? 0f : pts[i].moveTime) + pts[i].holdTime;
+            float target = clip.length + voiceTail;
+            if (total <= 0.01f || target <= 0.5f) return 1f;
+            float p = Mathf.Clamp(total / target, 0.4f, 2.5f);
+            Debug.Log($"[인트로] 카메라 {total:0.0}초 → 안내음성 '{clip.name}' {clip.length:0.0}초에 맞춰 {1f / p:0.00}배 길이로 재생");
+            return p;
+        }
+
         /// <summary>카메라 점을 차례로 지나감 (끝나면 평소 카메라로 넘겨줌)</summary>
         public IEnumerator Run()
         {
@@ -114,6 +144,7 @@ namespace FarmingSystem.Intro
             Vector3 prevPos = ct.position;
             Quaternion prevRot = ct.rotation;
             float prevFov = cam.fieldOfView;
+            pace = FitPace(pts);
 
             for (int i = 0; i < pts.Count; i++)
             {
@@ -129,7 +160,7 @@ namespace FarmingSystem.Intro
                 float[] lift = move > 0f ? BuildLift(p0, a, b, p3) : null; // 이 구간을 미리 훑어서 땅·나무를 부드럽게 넘는 높이
                 while (t < move)
                 {
-                    t += Dt;
+                    t += Dt * pace;
                     float k = Ease(Mathf.Clamp01(t / move), p.ease);
                     Vector3 pos = PathPos(p0, a, b, p3, k);
                     pos.y += SampleLift(lift, k);
@@ -147,7 +178,7 @@ namespace FarmingSystem.Intro
                 t = 0f;
                 while (t < p.holdTime)
                 {
-                    t += Dt;
+                    t += Dt * pace;
                     ct.position = p.transform.position + Shake(p.shake);
                     yield return null;
                 }
