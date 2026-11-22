@@ -983547,6 +983547,9 @@ MonoBehaviour:
   minGroundClearance: 1.2
   liftRamp: 12
   avoidTrees: 1
+  fitToVoice: 1
+  voiceClip: {fileID: 0}
+  voiceTail: 0.3
   onStart:
     m_PersistentCalls:
       m_Calls: []
@@ -1131656,7 +1131659,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 0, y: 0.5}
-  m_AnchoredPosition: {x: -40.000244, y: 0}
+  m_AnchoredPosition: {x: -40.000122, y: 0}
   m_SizeDelta: {x: 1767, y: 1174}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!114 &2018223403
