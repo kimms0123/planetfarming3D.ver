@@ -346415,7 +346415,7 @@ MonoBehaviour:
   doubleFromDifficulty: 0.25
   holdRate: 0.3
   doubleRate: 0.22
-  doubleWindow: 0.12
+  chordWindow: 0.2
   holdColor: {r: 0.55, g: 1, b: 0.6, a: 1}
   goldenColor: {r: 1, g: 0.78, b: 0.15, a: 1}
   perfectPoints: 100
@@ -346488,7 +346488,7 @@ MonoBehaviour:
   starOutlineColor: {r: 0.36, g: 0.25, b: 0.18, a: 0.9}
   sceneUI: {fileID: 1535463756}
   logInput: 1
-  debugHotkey: 102
+  testPlayKey: 0
   debugDifficulty: 0.4
 --- !u!4 &639671315
 Transform:

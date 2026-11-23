@@ -99,8 +99,8 @@ namespace FarmingSystem.Rhythm
         [SerializeField, Range(0f, 0.5f)] private float holdRate = 0.3f;
         [Tooltip("노트마다 동시 누르기가 될 확률 (등장 난이도에서 이 값의 절반 → 가장 어려울 때 이 값)")]
         [SerializeField, Range(0f, 0.5f)] private float doubleRate = 0.22f;
-        [Tooltip("동시 누르기에서 두 키 사이 허용 시간 (초)")]
-        [SerializeField] private float doubleWindow = 0.12f;
+        [Tooltip("동시 누르기에서 두 키 사이 허용 시간 (초). 한 키를 먼저 누르고 있다가 다른 키를 눌러도 됨")]
+        [SerializeField] private float chordWindow = 0.2f;
         [SerializeField] private Color holdColor = new Color(0.55f, 1f, 0.6f, 1f);
         [SerializeField] private Color goldenColor = new Color(1f, 0.78f, 0.15f, 1f);
 
@@ -244,8 +244,8 @@ namespace FarmingSystem.Rhythm
         [Header("디버그")]
         [Tooltip("키를 누를 때마다 콘솔에 판정 이유를 출력 (어떤 키 → 몇 번 노트 → 오차 몇 초 → 판정)")]
         [SerializeField] private bool logInput = true;
-        [Tooltip("플레이 중 이 키를 누르면 테스트 플레이 시작 (게임 창에 포커스가 있어서 바로 키 입력 가능)")]
-        [SerializeField] private Key debugHotkey = Key.F9;
+        [Tooltip("플레이 중 이 키를 누르면 테스트 플레이 시작. 기본 None (F9는 상인 AI 창이 쓰므로 겹치지 않게)")]
+        [SerializeField] private Key testPlayKey = Key.None;
         [SerializeField, Range(0f, 1f)] private float debugDifficulty = 0.4f;
 
         public bool IsPlaying { get; private set; }
@@ -267,6 +267,9 @@ namespace FarmingSystem.Rhythm
         private double doubleFirstTime, doubleFirstOffset;
         private int autoPressedIndex = -1;    // 자동 플레이: 이미 누른 노트
         private Image arrow2, holdFill;       // 동시 노트 두 번째 화살표 / 길게 누르기 남은 시간 원
+        private Image nextArrow2;             // 다음 노트 미리보기가 동시 노트일 때 두 번째 화살표
+        private Vector2 nextBasePos;
+        private Vector3 nextBaseScale = Vector3.one;
         private TextMeshProUGUI kindLabel;    // 판정 원 아래 "길게 누르기 / 동시에 누르기 / 황금 노트"
         private Vector2 arrowBasePos;
         private Vector3 arrowBaseScale = Vector3.one;
@@ -643,7 +646,7 @@ namespace FarmingSystem.Rhythm
             if (!IsPlaying)
             {
                 // 플레이 중 F9 = 테스트 플레이 (게임 창에 포커스가 있는 상태라 바로 키 입력 가능)
-                if (debugHotkey != Key.None && Keyboard.current != null && Keyboard.current[debugHotkey].wasPressedThisFrame)
+                if (testPlayKey != Key.None && testPlayKey != Key.F9 && Keyboard.current != null && Keyboard.current[testPlayKey].wasPressedThisFrame)
                     DebugPlay();
                 return;
             }
@@ -782,6 +785,14 @@ namespace FarmingSystem.Rhythm
                     if (pressed != note.Direction && pressed != note.Direction2) { Judge(currentIndex, 2, "방향 틀림"); return; }
                     if (doubleIndex != currentIndex)
                     {
+                        // 다른 키를 이미 누르고 있으면 (조금 일찍 눌러서 무시됐던 경우 포함) 바로 완성
+                        ArrowDirection other = pressed == note.Direction ? note.Direction2 : note.Direction;
+                        if (IsHeld(other))
+                        {
+                            if (logInput) Debug.Log($"[리듬 입력] {note.Number}번 동시 노트 - {Arrow(other)}를 누른 채 {Arrow(pressed)} → 오차 {offset:+0.000;-0.000}초");
+                            Judge(currentIndex, j, reason);
+                            return;
+                        }
                         // 첫 키: 두 번째 키를 기다림
                         doubleIndex = currentIndex;
                         doubleFirstDir = pressed;
@@ -790,10 +801,10 @@ namespace FarmingSystem.Rhythm
                         return;
                     }
                     if (pressed == doubleFirstDir) return; // 같은 키를 또 누름 - 무시
-                    if (songTime - doubleFirstTime > doubleWindow) { Judge(currentIndex, 2, "동시에 눌러야 해요"); return; }
-                    double worst = Math.Abs(doubleFirstOffset) > Math.Abs(offset) ? doubleFirstOffset : offset; // 늦게 누른 쪽 기준
-                    j = TimingJudge(worst, out reason);
-                    if (logInput) Debug.Log($"[리듬 입력] {note.Number}번 동시 노트({Arrow(note.Direction)}{Arrow(note.Direction2)}) 오차 {worst:+0.000;-0.000}초 → {(j == 0 ? "PERFECT" : j == 1 ? "GOOD" : "MISS")}");
+                    if (songTime - doubleFirstTime > chordWindow) { Judge(currentIndex, 2, "동시에 눌러야 해요"); return; }
+                    double avg = (doubleFirstOffset + offset) * 0.5; // 두 키의 가운데 시점으로 판정 (사람은 두 키를 완전히 동시에 못 누름)
+                    j = TimingJudge(avg, out reason);
+                    if (logInput) Debug.Log($"[리듬 입력] {note.Number}번 동시 노트({Arrow(note.Direction)}{Arrow(note.Direction2)}) 두 키 간격 {songTime - doubleFirstTime:0.000}초, 오차 {avg:+0.000;-0.000}초 → {(j == 0 ? "PERFECT" : j == 1 ? "GOOD" : "MISS")}");
                     Judge(currentIndex, j, reason);
                     return;
 
@@ -888,13 +899,13 @@ namespace FarmingSystem.Rhythm
         private void CheckLateMisses()
         {
             // 동시 노트: 첫 키만 누르고 두 번째 키가 안 옴
-            if (doubleIndex >= 0 && doubleIndex == currentIndex && currentIndex < judged.Length && !judged[currentIndex] && songTime - doubleFirstTime > doubleWindow)
+            if (doubleIndex >= 0 && doubleIndex == currentIndex && currentIndex < judged.Length && !judged[currentIndex] && songTime - doubleFirstTime > chordWindow)
                 Judge(currentIndex, 2, "동시에 눌러야 해요");
 
             while (currentIndex < pattern.Notes.Count && songTime - pattern.Notes[currentIndex].Time > pattern.GoodWindow)
             {
                 if (holdingIndex == currentIndex) break; // 길게 누르는 중
-                if (doubleIndex == currentIndex && songTime - doubleFirstTime <= doubleWindow) break; // 두 번째 키를 기다리는 중
+                if (doubleIndex == currentIndex && songTime - doubleFirstTime <= chordWindow) break; // 두 번째 키를 기다리는 중
                 if (logInput) Debug.Log($"[리듬 입력] {pattern.Notes[currentIndex].Number}번 노트({Arrow(pattern.Notes[currentIndex].Direction)}) 놓침 - 판정 시간 안에 키 입력 없음");
                 Judge(currentIndex, 2, "놓침");
             }
@@ -1138,6 +1149,22 @@ namespace FarmingSystem.Rhythm
             bool hasNext = hasCurrent && next < pattern.Notes.Count && pattern.Notes[next].Time - songTime <= approach * 1.5f;
             nextArrow.enabled = hasNext;
             if (hasNext) SetArrow(nextArrow, pattern.Notes[next].Direction);
+            // 다음 노트가 동시 노트면 미리보기도 화살표 2개 나란히
+            bool nextDouble = hasNext && pattern.Notes[next].Kind == NoteKind.Double && nextArrow2 != null;
+            if (nextArrow2 != null)
+            {
+                float gap = nextArrow.rectTransform.rect.width * 0.42f;
+                nextArrow.rectTransform.anchoredPosition = nextBasePos + (nextDouble ? new Vector2(-gap, 0f) : Vector2.zero);
+                nextArrow.rectTransform.localScale = nextBaseScale * (nextDouble ? 0.8f : 1f);
+                nextArrow2.enabled = nextDouble;
+                if (nextDouble)
+                {
+                    SetArrow(nextArrow2, pattern.Notes[next].Direction2);
+                    nextArrow2.rectTransform.anchoredPosition = nextBasePos + new Vector2(gap, 0f);
+                    nextArrow2.rectTransform.localScale = nextBaseScale * 0.8f;
+                    nextArrow2.color = nextArrow.color;
+                }
+            }
 
             // 방향키 패드: 눌러야 할 키를 주황색으로
             for (int k = 0; k < 4; k++)
@@ -1878,6 +1905,12 @@ namespace FarmingSystem.Rhythm
             arrow2.name = "Arrow2 (동시 노트)";
             arrow2.enabled = false;
 
+            nextBasePos = nextArrow.rectTransform.anchoredPosition;
+            nextBaseScale = nextArrow.rectTransform.localScale;
+            nextArrow2 = Instantiate(nextArrow, nextArrow.transform.parent);
+            nextArrow2.name = "NextArrow2 (동시 노트 미리보기)";
+            nextArrow2.enabled = false;
+
             var go = new GameObject("HoldFill (길게 누르기)", typeof(RectTransform), typeof(Image));
             go.transform.SetParent(judgeRoot, false);
             go.transform.SetSiblingIndex(judgeRing.transform.GetSiblingIndex() + 1);
@@ -1907,6 +1940,7 @@ namespace FarmingSystem.Rhythm
         private void HideNoteKindUI()
         {
             if (arrow2 != null) arrow2.enabled = false;
+            if (nextArrow2 != null) nextArrow2.enabled = false;
             if (holdFill != null) holdFill.enabled = false;
             if (kindLabel != null) kindLabel.text = "";
             if (arrowImage != null) { arrowImage.rectTransform.anchoredPosition = arrowBasePos; arrowImage.rectTransform.localScale = arrowBaseScale; arrowImage.color = Color.white; }

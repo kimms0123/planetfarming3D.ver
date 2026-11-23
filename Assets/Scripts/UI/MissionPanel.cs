@@ -44,11 +44,11 @@ namespace FarmingSystem.UI
             new Mission { id = "till",         text = "괭이로 밭 갈기" },
             new Mission { id = "plant",        text = "갈린 밭에 씨앗 심기" },
             new Mission { id = "water",        text = "물뿌리개로 물 주기" },
+            new Mission { id = "sleep",        text = "우주선에서 자고 일어나기" },   // 자야 작물이 자람
             new Mission { id = "harvest",      text = "작물 1개 길러서 수확하기" },
             new Mission { id = "harvest_good", text = "수확 리듬게임에서 상급 이상 받기" },
             new Mission { id = "bargain",      text = "상인과 흥정해서 판매하기" },
             new Mission { id = "fish",         text = "낚시로 물고기 잡기" },
-            new Mission { id = "sleep",        text = "우주선에서 자고 하루 마치기" },
         };
 
         private class QuestRow
@@ -291,7 +291,13 @@ namespace FarmingSystem.UI
             QuestManager qm = QuestManager.Instance;
             if (qm == null) return;
             if (allQuests == null || allQuests.Count == 0)
-                allQuests = new List<QuestData>(Resources.FindObjectsOfTypeAll<QuestData>()); // QuestManager가 들고 있는 퀘스트들
+            {
+                // QuestManager가 들고 있는 퀘스트들. 진행 상태는 이름으로 기억하므로 같은 이름은 하나만 (복사본·중복 에셋이 두 줄로 뜨지 않게)
+                allQuests = new List<QuestData>();
+                var names = new HashSet<string>();
+                foreach (QuestData q in Resources.FindObjectsOfTypeAll<QuestData>())
+                    if (q != null && names.Add(q.name)) allQuests.Add(q);
+            }
             foreach (QuestData q in allQuests)
             {
                 if (q == null) continue;
