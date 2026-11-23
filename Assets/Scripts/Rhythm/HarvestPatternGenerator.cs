@@ -4,12 +4,23 @@ using UnityEngine;
 namespace FarmingSystem.Rhythm
 {
     // 노트 1개: 언제(곡 시작 후 몇 초) 어떤 방향키를 눌러야 하는지
+    // 노트 종류
+    //  Tap    = 보통 (한 번 누르기)
+    //  Hold   = 길게 누르기 (박자에 누르고 원이 다 비워질 때까지 계속 누르고 있기)
+    //  Double = 동시에 누르기 (방향 2개를 거의 동시에)
+    //  Golden = 황금 노트 (보통처럼 누르되, PERFECT면 수확량 +1 보너스)
+    public enum NoteKind { Tap, Hold, Double, Golden }
+
     public struct HarvestNote
     {
         public double Time;
         public float Beat;
         public ArrowDirection Direction;
         public int Number;
+        public NoteKind Kind;
+        public ArrowDirection Direction2; // 동시 노트의 두 번째 방향
+        public float HoldBeats;           // 길게 누르기 길이 (박자)
+        public double EndTime;            // 길게 누르기가 끝나는 시간 (보통 노트는 Time과 같음)
     }
 
     // 한 번의 수확 리듬게임에 쓰일 전체 패턴
@@ -26,13 +37,14 @@ namespace FarmingSystem.Rhythm
         public readonly List<HarvestNote> Notes = new List<HarvestNote>();
 
         public double FirstNoteTime => Notes.Count > 0 ? Notes[0].Time : 0;
-        public double LastNoteTime => Notes.Count > 0 ? Notes[Notes.Count - 1].Time : 0;
+        public double LastNoteTime => Notes.Count > 0 ? Notes[Notes.Count - 1].EndTime : 0; // 길게 누르기면 끝나는 시간
     }
 
     // 난이도 → 실제 노트 패턴을 만드는 생성기 (기획서 18~19장 기준)
     // 난이도가 오를수록: 노트 수 6 → 16개, 접근 원이 빨리 줄어듦, 판정 범위 좁아짐, 템포 빨라짐, 반박자 노트 등장
     // 방향: 작물에 패턴이 있으면 그 순서를 반복, 없으면 랜덤 (같은 방향 3연속은 피함)
     // 같은 seed면 항상 같은 패턴 (같은 날 같은 작물은 같은 곡)
+    // 노트 종류: 난이도가 Hold Start 이상이면 길게 누르기, Double Start 이상이면 동시 누르기가 섞이고, 노트가 8개 이상이면 황금 노트 1개
     public static class HarvestPatternGenerator
     {
         public struct Settings
@@ -45,6 +57,10 @@ namespace FarmingSystem.Rhythm
             public float Tempo;                 // 작물 템포 배율
             public ArrowDirection[] CropPattern; // 작물 고유 방향 패턴 (없으면 null)
             public int LeadInBeats;
+            // 노트 종류
+            public bool Holds, Doubles, Golden;
+            public float HoldStart, DoubleStart;   // 이 난이도부터 등장
+            public float HoldChance, DoubleChance; // 가장 어려울 때 노트마다 나올 확률
 
             public static Settings Default => new Settings
             {
@@ -59,7 +75,14 @@ namespace FarmingSystem.Rhythm
                 EasyGood = 0.18f,
                 HardGood = 0.12f,
                 Tempo = 1f,
-                LeadInBeats = 4
+                LeadInBeats = 4,
+                Holds = true,
+                Doubles = true,
+                Golden = false,
+                HoldStart = 0.1f,
+                DoubleStart = 0.25f,
+                HoldChance = 0.3f,
+                DoubleChance = 0.22f
             };
         }
 
@@ -87,6 +110,11 @@ namespace FarmingSystem.Rhythm
             bool hasPattern = s.CropPattern != null && s.CropPattern.Length > 0;
             float beat = p.LeadInBeats;
             bool lastWasHalf = false;
+            bool lastWasSpecial = false;
+            // 등장 난이도를 넘으면 바로 절반 확률부터 시작해서, 가장 어려울 때 최대 확률
+            float holdP = s.Holds && d >= s.HoldStart ? s.HoldChance * Mathf.Lerp(0.5f, 1f, Mathf.InverseLerp(s.HoldStart, 1f, d)) : 0f;
+            float doubleP = s.Doubles && d >= s.DoubleStart ? s.DoubleChance * Mathf.Lerp(0.5f, 1f, Mathf.InverseLerp(s.DoubleStart, 1f, d)) : 0f;
+            int specials = 0;
 
             for (int i = 0; i < noteCount; i++)
             {
@@ -94,7 +122,7 @@ namespace FarmingSystem.Rhythm
                 {
                     double r = rng.NextDouble();
                     float gap;
-                    if (!lastWasHalf && r < halfBeatChance) gap = 0.5f;
+                    if (!lastWasHalf && !lastWasSpecial && r < halfBeatChance) gap = 0.5f;
                     else if (r < halfBeatChance + restChance) gap = 2f;
                     else gap = 1f;
                     lastWasHalf = gap < 1f;
@@ -103,17 +131,67 @@ namespace FarmingSystem.Rhythm
 
                 ArrowDirection dir = hasPattern ? s.CropPattern[i % s.CropPattern.Length] : RandomDirection(rng, p.Notes);
 
+                // 노트 종류 (첫 노트는 항상 보통, 특수 노트끼리 바로 붙지 않게, 반박자 바로 뒤엔 동시 노트 안 나옴)
+                NoteKind kind = NoteKind.Tap;
+                float holdBeats = 0f;
+                ArrowDirection dir2 = dir;
+                double k = rng.NextDouble();
+                // 등장 난이도를 넘었는데 곡 절반까지 특수 노트가 하나도 없으면 하나는 꼭 나오게
+                if (i == noteCount / 2 && specials == 0 && (holdP > 0f || doubleP > 0f))
+                    k = doubleP > 0f && rng.NextDouble() < 0.5 ? holdP + doubleP * 0.5 : holdP * 0.5;
+                if (i > 0 && i < noteCount - 1 && !lastWasSpecial)
+                {
+                    if (k < holdP)
+                    {
+                        kind = NoteKind.Hold;
+                        holdBeats = d > 0.7f && rng.NextDouble() < 0.5 ? 2f : 1f;
+                    }
+                    else if (k < holdP + doubleP && !lastWasHalf)
+                    {
+                        kind = NoteKind.Double;
+                        dir2 = OtherDirection(rng, dir);
+                    }
+                }
+                lastWasSpecial = kind != NoteKind.Tap;
+                if (lastWasSpecial) specials++;
+
                 p.Notes.Add(new HarvestNote
                 {
                     Beat = beat,
                     Time = beat * p.BeatLength,
                     Direction = dir,
-                    Number = i + 1
+                    Number = i + 1,
+                    Kind = kind,
+                    Direction2 = dir2,
+                    HoldBeats = holdBeats,
+                    EndTime = (beat + holdBeats) * p.BeatLength
                 });
+                beat += holdBeats; // 길게 누르는 동안엔 다음 노트가 오지 않음
+            }
+
+            // 황금 노트: 노트가 8개 이상이면 가운데쯤 보통 노트 하나를 황금으로
+            if (s.Golden && p.Notes.Count >= 8)
+            {
+                for (int tries = 0; tries < 12; tries++)
+                {
+                    int idx = rng.Next(2, p.Notes.Count - 1);
+                    if (p.Notes[idx].Kind != NoteKind.Tap) continue;
+                    HarvestNote g = p.Notes[idx];
+                    g.Kind = NoteKind.Golden;
+                    p.Notes[idx] = g;
+                    break;
+                }
             }
 
             p.TotalBeats = Mathf.CeilToInt(beat) + 2;
             return p;
+        }
+
+        // 동시 노트의 두 번째 방향: 첫 방향과 다른 것
+        private static ArrowDirection OtherDirection(System.Random rng, ArrowDirection first)
+        {
+            int o = rng.Next(1, 4);
+            return (ArrowDirection)(((int)first + o) % 4);
         }
 
         // 같은 방향이 3번 연속 나오지 않게 고름

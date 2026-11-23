@@ -24,9 +24,11 @@ namespace FarmingSystem.Rhythm
         public bool AllPerfect;
         public float YieldMultiplier = 1f; // 기대 수확량에 곱할 배율 (등급별)
         public bool Cancelled;
+        public int GoldenHits;             // 황금 노트를 PERFECT로 친 수
+        public int BonusYield;             // 황금 노트 보너스로 더 받는 개수
 
-        // 기대 수확량에 배율을 곱한 실제 수확량 (최소 1개)
-        public int GetYield(int expectedYield) => Mathf.Max(1, Mathf.RoundToInt(expectedYield * YieldMultiplier));
+        // 기대 수확량에 배율을 곱한 실제 수확량 (최소 1개) + 황금 노트 보너스
+        public int GetYield(int expectedYield) => Mathf.Max(1, Mathf.RoundToInt(expectedYield * YieldMultiplier)) + BonusYield;
 
         // 이전 버전 호환용 이름
         public float Accuracy => ScoreRatio;
@@ -35,6 +37,9 @@ namespace FarmingSystem.Rhythm
     // 리듬 수확 시스템 (기획서 "리듬 수확 시스템" 기준)
     // - 작물 위에 판정 원이 고정되고, 큰 접근 원이 줄어들어 판정 원과 겹치는 순간 원 안의 방향키(↑↓←→)를 입력
     // - 판정: PERFECT / GOOD / MISS. 방향이 틀리면 MISS. 너무 일찍 누른 건 무시
+    // - 노트 종류: 보통 / 길게 누르기(원이 다 비워질 때까지 누르고 있기) / 동시 누르기(방향 2개)
+    //   어려운 작물일수록 길게·동시 노트가 많이 나옴 (아래 "노트 종류" 칸에서 켜고 끄기·확률 조절)
+    // - 최상급(별 3개)은 ALL PERFECT일 때만. 품질 비료로도 최상급까지는 못 올림
     // - 판정마다 실제 3D 작물이 좌우로 흔들리고(CropReactionController), 마지막에 뽑히는 연출 후 결과창
     // - 결과: ALL PERFECT = 최상급, 그 외 점수 비율(Perfect 100점, Good 60점)로 상급 / 기본 / 쓰레기
     // - 위쪽 점수 게이지: 맞힐 때마다 점수만큼 차오르고, 등급 기준선에 별 3개 (기본 ★ / 상급 ★★ / 최상급 ★★★)
@@ -66,10 +71,12 @@ namespace FarmingSystem.Rhythm
         [SerializeField] private float hardApproachTime = 0.8f;
 
         [Header("판정 범위 (±초, 쉬움 → 어려움)")]
-        [SerializeField] private float easyPerfectWindow = 0.08f;
-        [SerializeField] private float hardPerfectWindow = 0.06f;
-        [SerializeField] private float easyGoodWindow = 0.18f;
-        [SerializeField] private float hardGoodWindow = 0.12f;
+        [Tooltip("PERFECT 범위 (쉬운 작물). 좁을수록 최상급(ALL PERFECT)이 어려움")]
+        [SerializeField] private float perfectWindowEasy = 0.055f;
+        [SerializeField] private float perfectWindowHard = 0.04f;
+        [Tooltip("GOOD 범위 (쉬운 작물). 이 밖이면 MISS")]
+        [SerializeField] private float goodWindowEasy = 0.13f;
+        [SerializeField] private float goodWindowHard = 0.095f;
         [Tooltip("이보다 더 일찍 누르면 무시 (벌점 없음)")]
         [SerializeField] private float earlyIgnoreWindow = 0.3f;
         [Tooltip("소리와 화면이 어긋나게 느껴지면 조절 (+면 판정이 늦어짐, 블루투스 이어폰이면 0.1~0.2)")]
@@ -78,6 +85,24 @@ namespace FarmingSystem.Rhythm
         [Header("입력")]
         [Tooltip("방향키 외에 WASD로도 입력 가능")]
         [SerializeField] private bool allowWASD = true;
+
+        [Header("노트 종류")]
+        [Tooltip("길게 누르기 노트: 박자에 눌러서 원이 다 비워질 때까지 계속 누르고 있기")]
+        [SerializeField] private bool enableHoldNotes = true;
+        [Tooltip("동시 누르기 노트: 화살표 2개를 거의 동시에")]
+        [SerializeField] private bool enableDoubleNotes = true;
+        [Tooltip("이 난이도(0~1)부터 길게 누르기가 나옴 (수확 난이도는 보통 0.2~0.5)")]
+        [SerializeField, Range(0f, 1f)] private float holdFromDifficulty = 0.1f;
+        [Tooltip("이 난이도(0~1)부터 동시 누르기가 나옴")]
+        [SerializeField, Range(0f, 1f)] private float doubleFromDifficulty = 0.25f;
+        [Tooltip("노트마다 길게 누르기가 될 확률 (등장 난이도에서 이 값의 절반 → 가장 어려울 때 이 값)")]
+        [SerializeField, Range(0f, 0.5f)] private float holdRate = 0.3f;
+        [Tooltip("노트마다 동시 누르기가 될 확률 (등장 난이도에서 이 값의 절반 → 가장 어려울 때 이 값)")]
+        [SerializeField, Range(0f, 0.5f)] private float doubleRate = 0.22f;
+        [Tooltip("동시 누르기에서 두 키 사이 허용 시간 (초)")]
+        [SerializeField] private float doubleWindow = 0.12f;
+        [SerializeField] private Color holdColor = new Color(0.55f, 1f, 0.6f, 1f);
+        [SerializeField] private Color goldenColor = new Color(1f, 0.78f, 0.15f, 1f);
 
         [Header("결과 → 작물 등급 (최상급 / 상급 / 기본 / 쓰레기)")]
         [SerializeField] private int perfectPoints = 100;
@@ -232,6 +257,20 @@ namespace FarmingSystem.Rhythm
         private readonly List<float> hiddenAlphas = new List<float>();
         private GameObject debugCrop;          // 테스트 플레이용 임시 작물
         private int keyPressCount;            // 이번 판에 들어온 방향키 입력 수 (진단용)
+
+        // 특수 노트 진행 상태
+        private int holdingIndex = -1;        // 길게 누르는 중인 노트
+        private int holdHeadJudge;            // 처음 눌렀을 때 판정 (끝까지 누르면 이 판정)
+        private ArrowDirection holdDir;
+        private int doubleIndex = -1;         // 동시 노트에서 첫 키를 누른 노트
+        private ArrowDirection doubleFirstDir;
+        private double doubleFirstTime, doubleFirstOffset;
+        private int autoPressedIndex = -1;    // 자동 플레이: 이미 누른 노트
+        private Image arrow2, holdFill;       // 동시 노트 두 번째 화살표 / 길게 누르기 남은 시간 원
+        private TextMeshProUGUI kindLabel;    // 판정 원 아래 "길게 누르기 / 동시에 누르기 / 황금 노트"
+        private Vector2 arrowBasePos;
+        private Vector3 arrowBaseScale = Vector3.one;
+        private readonly List<ArrowDirection> pressBuffer = new List<ArrowDirection>();
         private bool pausedWorldThisSession;  // 이번 판에 실제로 시간을 멈췄는지
         // 가장 잘했을 때의 수확량 배율 (가방 공간 미리 확인용)
         public float MaxYieldMultiplier => Mathf.Max(Mathf.Max(topGradeYield, highGradeYield), Mathf.Max(normalGradeYield, trashGradeYield))
@@ -502,15 +541,25 @@ namespace FarmingSystem.Rhythm
                 MaxNotes = maxNotes,
                 EasyApproach = easyApproachTime,
                 HardApproach = hardApproachTime,
-                EasyPerfect = easyPerfectWindow,
-                HardPerfect = hardPerfectWindow,
-                EasyGood = easyGoodWindow,
-                HardGood = hardGoodWindow,
+                EasyPerfect = perfectWindowEasy,
+                HardPerfect = perfectWindowHard,
+                EasyGood = goodWindowEasy,
+                HardGood = goodWindowHard,
                 Tempo = ctx.Crop != null ? ctx.Crop.harvestTempo : 1f,
                 CropPattern = ctx.Crop != null ? ctx.Crop.harvestPattern : null,
-                LeadInBeats = 4
+                LeadInBeats = 4,
+                Holds = enableHoldNotes,
+                Doubles = enableDoubleNotes,
+                Golden = false, // 황금 노트는 안 씀
+                HoldStart = holdFromDifficulty,
+                DoubleStart = doubleFromDifficulty,
+                HoldChance = holdRate,
+                DoubleChance = doubleRate
             };
             pattern = HarvestPatternGenerator.Generate(difficulty, ctx.Seed, settings);
+            int holds = 0, doubles = 0;
+            foreach (HarvestNote n in pattern.Notes) { if (n.Kind == NoteKind.Hold) holds++; else if (n.Kind == NoteKind.Double) doubles++; }
+            Debug.Log($"[수확 리듬게임] 노트 {pattern.Notes.Count}개 (길게 누르기 {holds} · 동시 누르기 {doubles}) · 판정 Perfect ±{pattern.PerfectWindow:0.000}초 / Good ±{pattern.GoodWindow:0.000}초");
             context = ctx;
             onFinished = finished;
             result = new HarvestResult { Difficulty = difficulty, NoteCount = pattern.Notes.Count };
@@ -521,6 +570,9 @@ namespace FarmingSystem.Rhythm
             popupLife = 0f;
             judgePulse = 0f;
             keyFlash = 0f;
+            holdingIndex = -1;
+            doubleIndex = -1;
+            autoPressedIndex = -1;
 
             cropTransform = crop;
             reaction = crop != null ? CropReactionController.Attach(crop.gameObject, ctx.Crop != null ? ctx.Crop.harvestShakeScale : 1f) : null;
@@ -531,6 +583,7 @@ namespace FarmingSystem.Rhythm
             countdownText.text = "";
             popupText.text = "";
             Canvas.ForceUpdateCanvases();
+            EnsureNoteKindUI();
 
             cropCenterPoint = GetCropCenter(crop, worldAnchor);
             judgeWorldPoint = GetNoteAnchor(crop, cropCenterPoint);
@@ -687,19 +740,32 @@ namespace FarmingSystem.Rhythm
 
         private void HandleInput()
         {
-            ArrowDirection pressed;
+            if (holdingIndex >= 0) UpdateHold();
+
+            pressBuffer.Clear();
             if (AutoPlay)
             {
-                // 다음 노트 시간이 되면 그 방향을 정확히 누름
-                if (currentIndex >= pattern.Notes.Count || songTime < pattern.Notes[currentIndex].Time) return;
-                pressed = pattern.Notes[currentIndex].Direction;
+                // 다음 노트 시간이 되면 그 방향을 정확히 누름 (동시 노트는 두 방향 다)
+                if (holdingIndex < 0 && currentIndex < pattern.Notes.Count && currentIndex != autoPressedIndex && songTime >= pattern.Notes[currentIndex].Time)
+                {
+                    HarvestNote n = pattern.Notes[currentIndex];
+                    autoPressedIndex = currentIndex;
+                    pressBuffer.Add(n.Direction);
+                    if (n.Kind == NoteKind.Double) pressBuffer.Add(n.Direction2);
+                }
             }
-            else if (!TryReadDirection(out pressed)) return;
+            else ReadPressedDirections(pressBuffer);
 
+            foreach (ArrowDirection pressed in pressBuffer) ProcessPress(pressed);
+        }
+
+        private void ProcessPress(ArrowDirection pressed)
+        {
             keyFlash = 0.15f;
             keyFlashDir = pressed;
             keyPressCount++;
 
+            if (holdingIndex >= 0) return; // 길게 누르는 중엔 다른 키 무시
             if (currentIndex >= pattern.Notes.Count) return;
             HarvestNote note = pattern.Notes[currentIndex];
             double offset = songTime - note.Time;
@@ -709,18 +775,101 @@ namespace FarmingSystem.Rhythm
                 return;
             }
 
-            double abs = Math.Abs(offset);
-            int j;
-            string reason;
-            if (pressed != note.Direction) { j = 2; reason = "방향 틀림"; }
-            else if (abs <= pattern.PerfectWindow) { j = 0; reason = ""; }
-            else if (abs <= pattern.GoodWindow) { j = 1; reason = ""; }
-            else { j = 2; reason = offset < 0 ? "빠름" : "늦음"; }
+            int j = TimingJudge(offset, out string reason);
+            switch (note.Kind)
+            {
+                case NoteKind.Double:
+                    if (pressed != note.Direction && pressed != note.Direction2) { Judge(currentIndex, 2, "방향 틀림"); return; }
+                    if (doubleIndex != currentIndex)
+                    {
+                        // 첫 키: 두 번째 키를 기다림
+                        doubleIndex = currentIndex;
+                        doubleFirstDir = pressed;
+                        doubleFirstTime = songTime;
+                        doubleFirstOffset = offset;
+                        return;
+                    }
+                    if (pressed == doubleFirstDir) return; // 같은 키를 또 누름 - 무시
+                    if (songTime - doubleFirstTime > doubleWindow) { Judge(currentIndex, 2, "동시에 눌러야 해요"); return; }
+                    double worst = Math.Abs(doubleFirstOffset) > Math.Abs(offset) ? doubleFirstOffset : offset; // 늦게 누른 쪽 기준
+                    j = TimingJudge(worst, out reason);
+                    if (logInput) Debug.Log($"[리듬 입력] {note.Number}번 동시 노트({Arrow(note.Direction)}{Arrow(note.Direction2)}) 오차 {worst:+0.000;-0.000}초 → {(j == 0 ? "PERFECT" : j == 1 ? "GOOD" : "MISS")}");
+                    Judge(currentIndex, j, reason);
+                    return;
 
-            if (logInput)
-                Debug.Log($"[리듬 입력] {Arrow(pressed)} 누름 → {note.Number}번 노트({Arrow(note.Direction)}), 오차 {offset:+0.000;-0.000}초 " +
-                          $"(Perfect ±{pattern.PerfectWindow:0.00} / Good ±{pattern.GoodWindow:0.00}) → {(j == 0 ? "PERFECT" : j == 1 ? "GOOD" : "MISS")} {reason}");
-            Judge(currentIndex, j, reason);
+                case NoteKind.Hold:
+                    if (pressed != note.Direction) { Judge(currentIndex, 2, "방향 틀림"); return; }
+                    if (j == 2) { Judge(currentIndex, 2, reason); return; }
+                    // 길게 누르기 시작: 끝까지 누르고 있으면 이 판정
+                    holdingIndex = currentIndex;
+                    holdHeadJudge = j;
+                    holdDir = pressed;
+                    judgePulse = 0.4f;
+                    if (logInput) Debug.Log($"[리듬 입력] {note.Number}번 길게 누르기 시작 ({(j == 0 ? "PERFECT" : "GOOD")}) - {note.HoldBeats}박 동안 누르고 있기");
+                    return;
+
+                default: // 보통 · 황금
+                    if (pressed != note.Direction) { j = 2; reason = "방향 틀림"; }
+                    if (logInput)
+                        Debug.Log($"[리듬 입력] {Arrow(pressed)} 누름 → {note.Number}번 노트({Arrow(note.Direction)}), 오차 {offset:+0.000;-0.000}초 " +
+                                  $"(Perfect ±{pattern.PerfectWindow:0.00} / Good ±{pattern.GoodWindow:0.00}) → {(j == 0 ? "PERFECT" : j == 1 ? "GOOD" : "MISS")} {reason}");
+                    Judge(currentIndex, j, reason);
+                    return;
+            }
+        }
+
+        // 오차 → 0 Perfect / 1 Good / 2 Miss
+        private int TimingJudge(double offset, out string reason)
+        {
+            double abs = Math.Abs(offset);
+            reason = "";
+            if (abs <= pattern.PerfectWindow) return 0;
+            if (abs <= pattern.GoodWindow) return 1;
+            reason = offset < 0 ? "빠름" : "늦음";
+            return 2;
+        }
+
+        // 길게 누르기: 끝까지 누르고 있으면 처음 판정, 일찍 떼면 MISS (끝나기 직전에 뗀 건 GOOD으로 봐줌)
+        private void UpdateHold()
+        {
+            HarvestNote note = pattern.Notes[holdingIndex];
+            if (songTime >= note.EndTime - pattern.PerfectWindow)
+            {
+                int i = holdingIndex;
+                holdingIndex = -1;
+                Judge(i, holdHeadJudge);
+                return;
+            }
+            bool held = AutoPlay || IsHeld(holdDir);
+            if (held) return;
+            int idx = holdingIndex;
+            holdingIndex = -1;
+            if (note.EndTime - songTime <= pattern.GoodWindow) Judge(idx, Mathf.Max(1, holdHeadJudge));
+            else Judge(idx, 2, "일찍 뗌");
+        }
+
+        // 이번 프레임에 누른 방향 전부 (동시 누르기 때문에 여러 개일 수 있음)
+        private void ReadPressedDirections(List<ArrowDirection> list)
+        {
+            Keyboard kb = Keyboard.current;
+            if (kb == null) return;
+            if (kb.upArrowKey.wasPressedThisFrame || (allowWASD && kb.wKey.wasPressedThisFrame)) list.Add(ArrowDirection.Up);
+            if (kb.downArrowKey.wasPressedThisFrame || (allowWASD && kb.sKey.wasPressedThisFrame)) list.Add(ArrowDirection.Down);
+            if (kb.leftArrowKey.wasPressedThisFrame || (allowWASD && kb.aKey.wasPressedThisFrame)) list.Add(ArrowDirection.Left);
+            if (kb.rightArrowKey.wasPressedThisFrame || (allowWASD && kb.dKey.wasPressedThisFrame)) list.Add(ArrowDirection.Right);
+        }
+
+        private bool IsHeld(ArrowDirection d)
+        {
+            Keyboard kb = Keyboard.current;
+            if (kb == null) return false;
+            switch (d)
+            {
+                case ArrowDirection.Up: return kb.upArrowKey.isPressed || (allowWASD && kb.wKey.isPressed);
+                case ArrowDirection.Down: return kb.downArrowKey.isPressed || (allowWASD && kb.sKey.isPressed);
+                case ArrowDirection.Left: return kb.leftArrowKey.isPressed || (allowWASD && kb.aKey.isPressed);
+                default: return kb.rightArrowKey.isPressed || (allowWASD && kb.dKey.isPressed);
+            }
         }
 
         private bool TryReadDirection(out ArrowDirection dir)
@@ -738,8 +887,14 @@ namespace FarmingSystem.Rhythm
         // 판정 범위를 지나도록 안 누르면 Miss
         private void CheckLateMisses()
         {
+            // 동시 노트: 첫 키만 누르고 두 번째 키가 안 옴
+            if (doubleIndex >= 0 && doubleIndex == currentIndex && currentIndex < judged.Length && !judged[currentIndex] && songTime - doubleFirstTime > doubleWindow)
+                Judge(currentIndex, 2, "동시에 눌러야 해요");
+
             while (currentIndex < pattern.Notes.Count && songTime - pattern.Notes[currentIndex].Time > pattern.GoodWindow)
             {
+                if (holdingIndex == currentIndex) break; // 길게 누르는 중
+                if (doubleIndex == currentIndex && songTime - doubleFirstTime <= doubleWindow) break; // 두 번째 키를 기다리는 중
                 if (logInput) Debug.Log($"[리듬 입력] {pattern.Notes[currentIndex].Number}번 노트({Arrow(pattern.Notes[currentIndex].Direction)}) 놓침 - 판정 시간 안에 키 입력 없음");
                 Judge(currentIndex, 2, "놓침");
             }
@@ -764,13 +919,16 @@ namespace FarmingSystem.Rhythm
 
             // 연출: 판정 원 확대(Perfect 크게), 판정 문구, 효과음, 작물 흔들림
             judgePulse = j == 0 ? 1f : j == 1 ? 0.5f : 0f;
-            popupText.text = j == 0 ? "PERFECT!" : j == 1 ? "GOOD"
+            bool golden = pattern.Notes[index].Kind == NoteKind.Golden && j == 0;
+            if (golden) result.GoldenHits++;
+            popupText.text = golden ? "GOLDEN!\n<size=45%>수확량 +1</size>" : j == 0 ? "PERFECT!" : j == 1 ? "GOOD"
                            : string.IsNullOrEmpty(reason) ? "MISS" : $"MISS\n<size=45%>{reason}</size>";
-            popupText.color = j == 0 ? perfectColor : j == 1 ? goodColor : missColor;
+            popupText.color = golden ? goldenColor : j == 0 ? perfectColor : j == 1 ? goodColor : missColor;
             popupLife = 0.6f;
             sfxSource.PlayOneShot(j == 0 ? Pick(perfectClip, genPerfect) : j == 1 ? Pick(goodClip, genGood) : Pick(missClip, genMiss), sfxVolume * GameAudio.SfxVolume);
             if (reaction != null) reaction.React(j, pattern.Notes[index].Direction); // 노트 방향을 따라 작물이 움직임
             if (j == 0) FarmFX.Perfect(cropCenterPoint + Vector3.up * 0.2f); // PERFECT 반짝이
+            if (golden) { FarmFX.Perfect(cropCenterPoint + Vector3.up * 0.5f); judgePulse = 1.3f; }
 
             RefreshHud();
         }
@@ -784,6 +942,7 @@ namespace FarmingSystem.Rhythm
             foreach (AudioSource s in tickSources) s.Stop();
             foreach (Ring r in rings) r.Image.gameObject.SetActive(false);
             arrowImage.enabled = arrowShadow.enabled = nextArrow.enabled = false;
+            HideNoteKindUI();
             countdownText.text = "";
 
             if (reaction != null)
@@ -808,14 +967,17 @@ namespace FarmingSystem.Rhythm
             result.Quality = ItemQualityUtility.FromRank(result.Tier);
             result.YieldMultiplier = result.Tier == 3 ? topGradeYield : result.Tier == 2 ? highGradeYield
                                    : result.Tier == 1 ? normalGradeYield : trashGradeYield;
+            result.BonusYield = result.GoldenHits; // 황금 노트 PERFECT 1개당 +1개
 
             // 비료 효과: 품질 비료 = 등급 올림 (수확량 배율은 원래 등급 그대로) / 수확량 비료 = 개수 늘림
             string fertNote = "";
             FarmingSystem.Farming.CropInstance grown = cropTransform != null ? cropTransform.GetComponent<FarmingSystem.Farming.CropInstance>() : null;
             FarmingSystem.Farming.FertilizerData fert = grown != null ? grown.Fertilizer : null;
-            if (fert != null && fert.type == FarmingSystem.Farming.FertilizerType.Quality && result.Tier < 3)
+            // 최상급은 ALL PERFECT로만 → 품질 비료는 상급까지만 올려 줌
+            int fertCap = result.AllPerfect ? 3 : 2;
+            if (fert != null && fert.type == FarmingSystem.Farming.FertilizerType.Quality && result.Tier < fertCap)
             {
-                result.Tier = Mathf.Min(3, result.Tier + fert.qualitySteps);
+                result.Tier = Mathf.Min(fertCap, result.Tier + fert.qualitySteps);
                 result.Quality = ItemQualityUtility.FromRank(result.Tier);
                 fertNote = " <size=75%><color=#5E8A4A>(비료 효과)</color></size>";
             }
@@ -828,6 +990,13 @@ namespace FarmingSystem.Rhythm
             for (int i = 0; i < resultStars.Length; i++)
                 resultStars[i].color = i < result.Tier ? StarLitColor(i) : ResultStarOff; // 별 개수 = 등급 (쓰레기 0개)
 
+            // 황금 보너스는 가방에 자리가 있을 때만 (넘쳐서 사라지지 않게)
+            if (result.BonusYield > 0 && context != null && context.Crop != null && InventoryManager.Instance != null)
+            {
+                int need = Mathf.Max(1, Mathf.RoundToInt(context.Crop.expectedYield * result.YieldMultiplier));
+                int room = InventoryManager.Instance.GetAddableAmount(context.Crop, result.Quality);
+                result.BonusYield = Mathf.Clamp(room - need, 0, result.BonusYield);
+            }
             int baseYield = context != null && context.Crop != null ? context.Crop.expectedYield : 0;
             int finalYield = baseYield > 0 ? result.GetYield(baseYield) : 0;
             float pP = result.Perfect / (float)n, pG = result.Good / (float)n, pM = result.Miss / (float)n;
@@ -845,7 +1014,8 @@ namespace FarmingSystem.Rhythm
                 $"<color=#{ColorUtility.ToHtmlStringRGB(perfectColor * 0.85f)}>Perfect {pP * 100f:0}%</color>   " +
                 $"<color=#{ColorUtility.ToHtmlStringRGB(goodColor * 0.8f)}>Good {pG * 100f:0}%</color>   " +
                 $"<color=#{ColorUtility.ToHtmlStringRGB(missColor * 0.9f)}>Miss {pM * 100f:0}%</color>\n" +
-                $"최대 콤보 {result.MaxCombo}   ·   점수 {result.ScoreRatio * 100f:0}%";
+                $"최대 콤보 {result.MaxCombo}   ·   점수 {result.ScoreRatio * 100f:0}%" +
+                (result.BonusYield > 0 ? $"   ·   <color=#{ColorUtility.ToHtmlStringRGB(goldenColor * 0.85f)}>황금 노트 +{result.BonusYield}개</color>" : "");
 
             hudRoot.SetActive(false);
             resultPanel.SetActive(true);
@@ -925,7 +1095,7 @@ namespace FarmingSystem.Rhythm
         {
             float approach = pattern.ApproachTime;
             if (!oneRingAtATime || i <= 0) return approach;
-            float gap = (float)(pattern.Notes[i].Time - pattern.Notes[i - 1].Time);
+            float gap = (float)(pattern.Notes[i].Time - pattern.Notes[i - 1].EndTime); // 길게 누르기가 끝난 뒤부터
             return Mathf.Clamp(gap, Mathf.Min(minRingTime, approach), approach);
         }
 
@@ -936,6 +1106,7 @@ namespace FarmingSystem.Rhythm
             for (int i = currentIndex; i < pattern.Notes.Count && ringIdx < rings.Count; i++)
             {
                 if (judged[i]) continue;
+                if (i == holdingIndex) continue; // 길게 누르는 중엔 접근 원 대신 남은 시간 원
                 // 원 하나만 모드: 지금 노트(아직 안 친 첫 노트)만 표시
                 if (oneRingAtATime && i != currentIndex) break;
 
@@ -949,7 +1120,8 @@ namespace FarmingSystem.Rhythm
                 float appear = Mathf.Clamp01((float)((a - t) / (a * 0.15f)));
                 r.Image.gameObject.SetActive(true);
                 r.Image.rectTransform.localScale = Vector3.one * Mathf.Lerp(1f, approachStartScale, progress);
-                Color c = approachColor;
+                NoteKind kind = pattern.Notes[i].Kind;
+                Color c = kind == NoteKind.Golden ? goldenColor : kind == NoteKind.Hold ? holdColor : approachColor;
                 c.a *= appear * (i == currentIndex ? 1f : 0.4f);
                 r.Image.color = c;
             }
@@ -961,6 +1133,7 @@ namespace FarmingSystem.Rhythm
             arrowShadow.enabled = hasCurrent && !CustomArrows; // 디자이너 화살표는 자체 테두리·빛이 있어서 그림자 안 씀
             if (hasCurrent) SetArrow(arrowImage, pattern.Notes[currentIndex].Direction);
             if (hasCurrent && !CustomArrows) arrowShadow.rectTransform.localEulerAngles = arrowImage.rectTransform.localEulerAngles;
+            UpdateNoteKindVisuals(hasCurrent);
             int next = currentIndex + 1;
             bool hasNext = hasCurrent && next < pattern.Notes.Count && pattern.Notes[next].Time - songTime <= approach * 1.5f;
             nextArrow.enabled = hasNext;
@@ -969,7 +1142,8 @@ namespace FarmingSystem.Rhythm
             // 방향키 패드: 눌러야 할 키를 주황색으로
             for (int k = 0; k < 4; k++)
             {
-                bool expected = hasCurrent && (int)pattern.Notes[currentIndex].Direction == k;
+                bool expected = hasCurrent && ((int)pattern.Notes[currentIndex].Direction == k
+                                || (pattern.Notes[currentIndex].Kind == NoteKind.Double && (int)pattern.Notes[currentIndex].Direction2 == k));
                 bool flashing = keyFlash > 0f && (int)keyFlashDir == k;
                 if (keySprite != null)
                 {
@@ -1689,6 +1863,94 @@ namespace FarmingSystem.Rhythm
                 img.preserveAspect = true;
                 img.rectTransform.localEulerAngles = new Vector3(0f, 0f, DirToAngle(dir));
             }
+        }
+
+        // ---------- 특수 노트 화면 ----------
+
+        // 동시 노트 두 번째 화살표, 길게 누르기 원, 노트 종류 안내 글자 (씬 UI든 코드 UI든 처음 한 번 만듦)
+        private void EnsureNoteKindUI()
+        {
+            if (arrow2 != null) return;
+            arrowBasePos = arrowImage.rectTransform.anchoredPosition;
+            arrowBaseScale = arrowImage.rectTransform.localScale;
+
+            arrow2 = Instantiate(arrowImage, arrowImage.transform.parent);
+            arrow2.name = "Arrow2 (동시 노트)";
+            arrow2.enabled = false;
+
+            var go = new GameObject("HoldFill (길게 누르기)", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(judgeRoot, false);
+            go.transform.SetSiblingIndex(judgeRing.transform.GetSiblingIndex() + 1);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = judgeRing.rectTransform.anchoredPosition;
+            Vector2 ringSize = judgeRing.rectTransform.rect.size;
+            if (ringSize.x < 1f) ringSize = Vector2.one * judgeRadius * 2f;
+            rt.sizeDelta = ringSize * 1.18f;
+            holdFill = go.GetComponent<Image>();
+            holdFill.sprite = thickRingSprite != null ? thickRingSprite : judgeRing.sprite;
+            holdFill.type = Image.Type.Filled;
+            holdFill.fillMethod = Image.FillMethod.Radial360;
+            holdFill.fillOrigin = (int)Image.Origin360.Top;
+            holdFill.fillClockwise = true;
+            holdFill.raycastTarget = false;
+            holdFill.enabled = false;
+
+            kindLabel = Instantiate(popupText, judgeRoot);
+            kindLabel.name = "NoteKindLabel";
+            kindLabel.text = "";
+            kindLabel.fontSize = popupText.fontSize * 0.55f;
+            kindLabel.rectTransform.anchoredPosition = new Vector2(0f, -(ringSize.y * 0.5f + 34f));
+            kindLabel.rectTransform.localScale = Vector3.one;
+        }
+
+        private void HideNoteKindUI()
+        {
+            if (arrow2 != null) arrow2.enabled = false;
+            if (holdFill != null) holdFill.enabled = false;
+            if (kindLabel != null) kindLabel.text = "";
+            if (arrowImage != null) { arrowImage.rectTransform.anchoredPosition = arrowBasePos; arrowImage.rectTransform.localScale = arrowBaseScale; arrowImage.color = Color.white; }
+        }
+
+        // 지금 노트 종류에 맞게: 동시 = 화살표 2개 나란히 / 길게 = 남은 시간 원 / 황금 = 금색 화살표
+        private void UpdateNoteKindVisuals(bool hasCurrent)
+        {
+            if (arrow2 == null) return;
+            if (!hasCurrent) { HideNoteKindUI(); return; }
+            HarvestNote n = pattern.Notes[currentIndex];
+            bool isDouble = n.Kind == NoteKind.Double, isHold = n.Kind == NoteKind.Hold, isGolden = n.Kind == NoteKind.Golden;
+
+            // 화살표
+            float side = judgeRing.rectTransform.rect.width * 0.2f;
+            if (side < 1f) side = judgeRadius * 0.4f;
+            arrowImage.rectTransform.anchoredPosition = arrowBasePos + (isDouble ? new Vector2(-side, 0f) : Vector2.zero);
+            arrowImage.rectTransform.localScale = arrowBaseScale * (isDouble ? 0.62f : 1f);
+            arrowImage.color = isGolden ? goldenColor : Color.white;
+            if (isDouble) arrowShadow.enabled = false;
+            arrow2.enabled = isDouble;
+            if (isDouble)
+            {
+                SetArrow(arrow2, n.Direction2);
+                arrow2.rectTransform.anchoredPosition = arrowBasePos + new Vector2(side, 0f);
+                arrow2.rectTransform.localScale = arrowBaseScale * 0.62f;
+                arrow2.color = Color.white;
+            }
+
+            // 길게 누르기 원: 누르기 전엔 흐리게 꽉 찬 원, 누르는 동안 남은 시간만큼 줄어듦
+            holdFill.enabled = isHold;
+            bool holding = isHold && holdingIndex == currentIndex;
+            if (isHold)
+            {
+                float len = (float)Math.Max(0.01, n.EndTime - n.Time);
+                float left = holding ? Mathf.Clamp01((float)((n.EndTime - songTime) / len)) : 1f;
+                holdFill.fillAmount = left;
+                Color hc = holdColor;
+                hc.a = holding ? 1f : 0.35f;
+                holdFill.color = hc;
+            }
+
+            kindLabel.text = isHold ? (holding ? "계속 누르고 있기!" : "길게 누르기") : isDouble ? "동시에 누르기!" : isGolden ? "황금 노트!" : "";
+            kindLabel.color = isHold ? holdColor : isDouble ? approachColor : goldenColor;
         }
 
         // 강조 모서리: 시작할 때 바깥에서 판정 원 쪽으로 모여들고, 숨쉬듯 살짝 움직임

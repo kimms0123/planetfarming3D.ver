@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using TMPro;
 using FarmingSystem.Building;
@@ -93,6 +94,16 @@ namespace FarmingSystem.UI
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoCreate()
+        {
+            Create();
+            // 메인 화면으로 돌아가면 씬을 다시 불러옴 → 그때도 메뉴를 다시 만듦
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+
+        private static void OnSceneLoaded(Scene s, LoadSceneMode m) => Create();
+
+        private static void Create()
         {
             if (FindAnyObjectByType<PhoneMenu>() != null) return;
             new GameObject("PhoneMenu").AddComponent<PhoneMenu>();
@@ -339,7 +350,14 @@ namespace FarmingSystem.UI
             if (esc) { ShowPage(Page.Home); return; }
             if (Left() || Up()) quitIndex = 0;
             else if (Right() || Down()) quitIndex = 1;
-            else if (Confirm()) { if (quitIndex == 0) QuitGame(); else ShowPage(Page.Home); }
+            else if (Confirm()) { if (quitIndex == 0) GoToTitle(); else QuitGame(); }
+        }
+
+        // 저장하고 메인(시작) 화면으로 - 씬을 다시 불러와서 시작 화면이 다시 뜸
+        private static void GoToTitle()
+        {
+            if (SaveManager.Instance != null && SaveManager.Instance.IsPlaying) SaveManager.Instance.ReturnToTitle();
+            else SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
 
         private static void QuitGame()
@@ -418,7 +436,7 @@ namespace FarmingSystem.UI
             }
             title.text = p == Page.Home ? apps[appIndex].name : p == Page.Settings ? "설정" : p == Page.Controls ? "조작법" : "게임 끄기";
             if (p == Page.Settings) { rowIndex = 0; foreach (Row r in rows) r.refresh?.Invoke(); }
-            if (p == Page.Quit) quitIndex = 1; // 실수로 끄지 않게 '취소'가 먼저
+            if (p == Page.Quit) quitIndex = 0; // 실수로 끄지 않게 '메인 화면으로'가 먼저
         }
 
         // ───────────────────────── 애니메이션 ─────────────────────────
@@ -645,7 +663,7 @@ namespace FarmingSystem.UI
             {
                 { "W A S D", "이동" }, { "Shift", "달리기" }, { "마우스", "카메라 돌리기" }, { "Alt", "마우스 커서 보이기" },
                 { "왼쪽 클릭", "밭 갈기 · 씨앗 심기 · 물 주기 · 수확" }, { "E", "말 걸기 · 수확 · 잠자기" }, { "Tab", "가방" },
-                { "1 ~ 0", "핫바 고르기" }, { "마우스 휠", "도구 바꾸기" }, { "Esc", "메뉴 열기 · 닫기" },
+                { "1 ~ 0", "핫바 고르기" }, { "마우스 휠", "도구 바꾸기" }, { "J", "임무창 접기 · 펼치기" }, { "Esc", "메뉴 열기 · 닫기" },
             };
             float y = 200f;
             for (int i = 0; i < keys.GetLength(0); i++, y -= 50f)
@@ -660,17 +678,17 @@ namespace FarmingSystem.UI
         private void BuildQuit()
         {
             CanvasGroup g = NewPage(Page.Quit);
-            Text(g.transform, "저장하고 게임을 끌까요?", 30f, new Vector2(0f, 70f), new Vector2(460f, 60f), TextAlignmentOptions.Center);
-            Text(g.transform, "지금까지 한 것은 자동으로 저장돼요", 21f, new Vector2(0f, 20f), new Vector2(460f, 40f), TextAlignmentOptions.Center).alpha = 0.7f;
+            Text(g.transform, "어디로 갈까요?", 30f, new Vector2(0f, 110f), new Vector2(460f, 60f), TextAlignmentOptions.Center);
+            Text(g.transform, "지금까지 한 것은 저장돼요", 21f, new Vector2(0f, 62f), new Vector2(460f, 40f), TextAlignmentOptions.Center).alpha = 0.7f;
             quitButtons = new RectTransform[2];
-            string[] labels = { "끄기", "취소" };
+            string[] labels = { "메인 화면으로", "게임 종료" };
             for (int i = 0; i < 2; i++)
             {
                 int index = i;
-                var b = Rect(labels[i], g.transform, new Vector2(0.5f, 0.5f), new Vector2(i == 0 ? -100f : 100f, -80f), new Vector2(170f, 64f));
-                Img(b, rounded, i == 0 ? new Color(1f, 0.5f, 0.55f, 0.45f) : new Color(1f, 1f, 1f, 0.15f));
+                var b = Rect(labels[i], g.transform, new Vector2(0.5f, 0.5f), new Vector2(0f, i == 0 ? -20f : -110f), new Vector2(320f, 70f));
+                Img(b, rounded, i == 0 ? new Color(1f, 1f, 1f, 0.18f) : new Color(1f, 0.5f, 0.55f, 0.45f));
                 Text(b, labels[i], 28f, Vector2.zero, b.sizeDelta, TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
-                Hover(b.gameObject, () => quitIndex = index, () => { if (index == 0) QuitGame(); else ShowPage(Page.Home); });
+                Hover(b.gameObject, () => quitIndex = index, () => { if (index == 0) GoToTitle(); else QuitGame(); });
                 quitButtons[i] = b;
             }
         }

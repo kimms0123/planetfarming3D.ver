@@ -56,10 +56,12 @@ namespace FarmingSystem.Fishing
         [SerializeField] private float maxCast = 7f;
         [Tooltip("낚싯대를 들고 클릭했는데 안 던져지면 Console에 이유를 출력 (테스트용)")]
         [SerializeField] private bool logWhyNotCasting = true;
+        [Tooltip("찌를 물고 클릭한 뒤 릴 감기 미니게임 (반원 게이지의 초록 칸에서 클릭). 끄면 예전처럼 바로 잡힘")]
+        [SerializeField] private bool reelMinigame = true;
         [Tooltip("찌 근처 이 거리 안의 물고기가 다가옴 (m)")]
         [SerializeField] private float noticeRange = 4f;
 
-        private enum Outcome { Cancel, Early, Missed, Caught }
+        private enum Outcome { Cancel, Early, Missed, Caught, Escaped }
 
         private float waterY;
         private bool waterReady;
@@ -542,6 +544,20 @@ namespace FarmingSystem.Fishing
                         window -= Time.deltaTime;
                     }
                     IsBiting = false;
+
+                    // 릴 감기 미니게임: 성공해야 잡힘
+                    if (result == Outcome.Caught && reelMinigame && hooked != null)
+                    {
+                        FishShadow h = hooked;
+                        bool anim2 = animated;
+                        yield return FishReelGame.Run(h.Data, player.transform, ok =>
+                        {
+                            if (h != null) h.Lunge();
+                            Ripple.Spawn(castTo, ok ? 0.75f : 0.45f);
+                            if (ok) { if (anim2) fx.Nibble(); else dip = 0.12f; }
+                        });
+                        if (!FishReelGame.LastSuccess) result = Outcome.Escaped;
+                    }
                     break;
                 }
             }
@@ -573,12 +589,13 @@ namespace FarmingSystem.Fishing
             else
             {
                 if (hooked != null) { hooked.Flee(); hooked = null; }
-                if (result == Outcome.Missed || result == Outcome.Early) GameAudio.PlayAt(SoundId.FishEscape, castTo);
+                if (result == Outcome.Missed || result == Outcome.Early || result == Outcome.Escaped) GameAudio.PlayAt(SoundId.FishEscape, castTo);
                 if (result == Outcome.Missed) { SpendRod(); FishCatchPopup.Hint("놓쳤어요… 물고기가 도망갔어요"); }
+                else if (result == Outcome.Escaped) { SpendRod(); FishCatchPopup.Hint("줄이 풀렸어요… 물고기가 도망갔어요"); }
                 else if (result == Outcome.Early) FishCatchPopup.Hint("너무 빨랐어요… 물고기가 도망갔어요");
-                if (animated && (result == Outcome.Missed || result == Outcome.Early) && anim.fail != null)
+                if (animated && (result == Outcome.Missed || result == Outcome.Early || result == Outcome.Escaped) && anim.fail != null)
                 {
-                    if (result == Outcome.Missed) while (!anim.CurrentClipDone(anim.bite)) yield return null;
+                    if (result == Outcome.Missed || result == Outcome.Escaped) while (!anim.CurrentClipDone(anim.bite)) yield return null;
                     yield return anim.PlayOnce(anim.fail); // LineSlack → 줄이 풀리며 찌가 돌아옴
                 }
             }
