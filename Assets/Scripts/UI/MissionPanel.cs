@@ -20,7 +20,7 @@ using FarmingSystem.Weather;
 namespace FarmingSystem.UI
 {
     // 튜토리얼 임무창 (화면 오른쪽, 폰 메뉴와 같은 홀로그램 패널)
-    // - 게임을 시작하면 자동으로 생김 (씬에 놓을 필요 없음). J = 접기/펼치기
+    // - 게임을 시작하면 자동으로 생김 (씬에 놓을 필요 없음). Q = 접기/펼치기
     // - 접으면 화면 오른쪽에 동그란 "!" 배지만 남음 (할 게 남아 있으면 살짝 두근거림)
     //   임무를 끝내거나 새 부탁을 받으면 잠깐 저절로 펼쳐서 보여 주고 다시 접힘. 새 게임은 처음 8초 펼쳐 둠
     // - 다른 스크립트는 건드리지 않고, 게임 상태 변화를 지켜보다가 완료 처리
@@ -135,7 +135,7 @@ namespace FarmingSystem.UI
             if (slot != activeSlot) Activate(slot);
             if (activeSlot < 0) { SetVisible(false); return; }
 
-            if (Keyboard.current != null && Keyboard.current.jKey.wasPressedThisFrame && !UIInputBlocker.IsBlocked) { peekUntil = -1f; SetExpanded(!expanded); }
+            if (Keyboard.current != null && Keyboard.current.qKey.wasPressedThisFrame && !UIInputBlocker.IsBlocked) { peekUntil = -1f; SetExpanded(!expanded); }
             if (peekUntil > 0f && Time.unscaledTime > peekUntil) { peekUntil = -1f; SetExpanded(false); }
             AnimateExpand();
 
@@ -424,7 +424,7 @@ namespace FarmingSystem.UI
             badgeMark.text = "!";
             Fill(badgeMark.rectTransform, 0f);
             var key = Text(badge, font, 18f, TextAlignmentOptions.Center);
-            key.text = "J";
+            key.text = "Q";
             key.alpha = 0.6f;
             key.rectTransform.anchorMin = key.rectTransform.anchorMax = new Vector2(0.5f, 0f);
             key.rectTransform.anchoredPosition = new Vector2(0f, -16f);
@@ -500,7 +500,7 @@ namespace FarmingSystem.UI
             if (canvas == null) return;
             int quests = VisibleQuests().Count;
             header.text = AllDone() ? (quests > 0 ? $"임무  부탁 {quests}" : "임무 완료!") : $"임무  {DoneCount()}/{missions.Count}";
-            hint.text = expanded ? "J 접기" : "J 펼치기";
+            hint.text = expanded ? "Q 접기" : "Q 펼치기";
             tutorialTitle.text = AllDone() ? "튜토리얼 완료!" : $"튜토리얼  {DoneCount()}/{missions.Count}";
             foreach (Mission m in missions)
             {

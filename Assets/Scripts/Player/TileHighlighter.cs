@@ -144,6 +144,11 @@ namespace FarmingSystem.Player
         {
             if (!actionController.HoveredInRange) return outOfRangeColor;
 
+            // 언덕은 괭이로 갈 수 없으니 '할 수 있는 행동 없음' 색으로
+            if (actionController.HoveredAction == FarmActionType.Till && actionController.HoveredTile != null
+                && !FarmTile.HillsTillable && actionController.HoveredTile.IsHill)
+                return noActionColor;
+
             switch (actionController.HoveredAction)
             {
                 case FarmActionType.Harvest: return harvestColor;

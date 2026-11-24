@@ -50,6 +50,16 @@ namespace FarmingSystem.Weather
         [Tooltip("비 내리는 네모를 카메라가 보는 쪽으로 이만큼(m) 옮김 → 카메라 뒤(안 보이는 곳)에 낭비하지 않고 화면 앞쪽 멀리까지 비가 보임")]
         [SerializeField] private float rainAhead = 25f;
 
+        [Header("최적화 (비·눈이 버벅일 때)")]
+        [Tooltip("빗방울·눈송이 양 배율. 1 = 예전 그대로, 0.45 = 절반 이하 (빗줄기를 살짝 길고 진하게 그려서 덜 비어 보이게 함)")]
+        [SerializeField, Range(0.15f, 1f)] private float weatherDensity = 0.45f;
+        [Tooltip("빗방울이 한 번에 떠 있을 수 있는 최대 개수 (태풍 때 이 이상 안 늘어남)")]
+        [SerializeField] private int maxRainParticles = 6000;
+        [Tooltip("눈송이가 한 번에 떠 있을 수 있는 최대 개수")]
+        [SerializeField] private int maxSnowParticles = 4000;
+        [Tooltip("FPS가 이 아래로 떨어지면 비·눈 양을 자동으로 더 줄임 (0 = 끔)")]
+        [SerializeField] private float autoReduceBelowFps = 45f;
+
         [Header("눈 (겨울엔 비 대신)")]
         [Tooltip("겨울에 비 대신 눈 내리기")]
         [SerializeField] private bool snowInWinter = true;
@@ -118,6 +128,12 @@ namespace FarmingSystem.Weather
         private Coroutine lightningRoutine;
         private WeatherCameraShake shake;
 
+        // 최적화: 자동 줄이기 상태
+        private float adaptiveScale = 1f;
+        private float smoothDt = 1f / 60f;
+        private bool rainTuned, snowTuned;
+        private float lastPerfLog = -999f;
+
         private static readonly int WindParamsId = Shader.PropertyToID("_WindParams");
 
         private void OnDisable()
@@ -158,6 +174,7 @@ namespace FarmingSystem.Weather
             Storm = storm;
             WindDirection = WindDir();
 
+            UpdateAdaptive();
             UpdateRain();
             UpdateSnow();
             UpdateDebris();
@@ -197,12 +214,15 @@ namespace FarmingSystem.Weather
             // 넓이: 40 x 40m 기준 양 → 넓힌 만큼 빗방울도 늘려서 굵기(밀도)는 그대로
             float areaScale = (rainArea * rainArea) / (40f * 40f);
             rate *= areaScale;
+            rate *= weatherDensity * adaptiveScale; // 최적화: 양 줄이기
             var shape = rain.shape;
             if (!Mathf.Approximately(shape.scale.x, rainArea)) shape.scale = new Vector3(rainArea, rainArea, 0.1f);
             var main = rain.main;
-            int need = Mathf.CeilToInt(typhoonRate * areaScale * 1.6f); // 한 번에 떠 있을 수 있는 빗방울 수 (수명 1.3초 + 여유)
-            if (main.maxParticles < need) main.maxParticles = need;
+            int need = Mathf.CeilToInt(typhoonRate * areaScale * weatherDensity * 1.6f); // 한 번에 떠 있을 수 있는 빗방울 수 (수명 1.3초 + 여유)
+            need = Mathf.Clamp(need, 500, Mathf.Max(500, maxRainParticles));
+            if (main.maxParticles != need) main.maxParticles = need;
             emission.rateOverTime = Mathf.Max(0f, rate);
+            if (!rainTuned) TuneRainOnce(main);
 
             // 태풍일수록 바람 방향으로 비스듬히
             var vel = rain.velocityOverLifetime;
@@ -215,6 +235,55 @@ namespace FarmingSystem.Weather
 
             if (rate > 1f && !rain.isPlaying) rain.Play();
             else if (rate <= 1f && rain.isPlaying && rain.particleCount == 0) rain.Stop();
+        }
+
+        // 빗방울 파티클을 처음 한 번 가볍게 손봄: 그림자·정렬·충돌 끄기 + 양 줄인 만큼 빗줄기를 살짝 길고 진하게
+        private void TuneRainOnce(ParticleSystem.MainModule main)
+        {
+            rainTuned = true;
+            var col = rain.collision;
+            if (col.enabled) { col.enabled = false; Debug.Log("[날씨] 빗방울 충돌(Collision)을 껐어요 - 무거워서"); }
+            var sub = rain.subEmitters;
+            if (sub.enabled) { sub.enabled = false; Debug.Log("[날씨] 빗방울 Sub Emitters를 껐어요 - 무거워서"); }
+            var lights = rain.lights;
+            if (lights.enabled) lights.enabled = false;
+            var trails = rain.trails;
+            if (trails.enabled) trails.enabled = false;
+
+            var r = rain.GetComponent<ParticleSystemRenderer>();
+            if (r != null)
+            {
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                r.receiveShadows = false;
+                r.sortMode = ParticleSystemSortMode.None; // 반투명 정렬 계산 생략 (빗줄기는 순서 상관없음)
+                r.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+                r.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+                if (r.renderMode == ParticleSystemRenderMode.Stretch)
+                    r.lengthScale *= Mathf.Lerp(1.3f, 1f, weatherDensity); // 양이 줄어든 만큼 길게
+            }
+            // 양이 줄어든 만큼 살짝 진하게
+            if (main.startColor.mode == ParticleSystemGradientMode.Color)
+            {
+                Color c = main.startColor.color;
+                c.a = Mathf.Clamp01(c.a * Mathf.Lerp(1.3f, 1f, weatherDensity));
+                main.startColor = c;
+            }
+            Debug.Log($"[날씨] 비 최적화 적용: 양 x{weatherDensity:0.##}, 최대 빗방울 {main.maxParticles}개, 넓이 {rainArea:0}m");
+        }
+
+        // FPS가 낮으면 비·눈 양을 서서히 줄이고, 좋아지면 천천히 되돌림
+        private void UpdateAdaptive()
+        {
+            smoothDt = Mathf.Lerp(smoothDt, Time.unscaledDeltaTime, 0.05f);
+            if (autoReduceBelowFps <= 0f || rainAmount < 0.05f) { adaptiveScale = Mathf.MoveTowards(adaptiveScale, 1f, Time.unscaledDeltaTime * 0.2f); return; }
+            float fps = 1f / Mathf.Max(0.0001f, smoothDt);
+            if (fps < autoReduceBelowFps) adaptiveScale = Mathf.MoveTowards(adaptiveScale, 0.35f, Time.unscaledDeltaTime * 0.25f);
+            else if (fps > autoReduceBelowFps + 12f) adaptiveScale = Mathf.MoveTowards(adaptiveScale, 1f, Time.unscaledDeltaTime * 0.05f);
+            if (adaptiveScale < 0.99f && Time.unscaledTime - lastPerfLog > 10f)
+            {
+                lastPerfLog = Time.unscaledTime;
+                Debug.Log($"[날씨] FPS {fps:0} → 비·눈 양 자동으로 x{adaptiveScale:0.00}");
+            }
         }
 
         // 화면에 보이는 계절 (블록·나무 모습 기준) → PV에서 Shift+F8로 모습만 겨울로 바꿔도 눈이 옴
@@ -233,6 +302,23 @@ namespace FarmingSystem.Weather
                 if (rate <= 1f) return; // 눈이 필요할 때 처음 한 번 만듦
                 snow = BuildSnow();
                 if (snow == null) return;
+            }
+            rate *= weatherDensity * adaptiveScale; // 최적화: 양 줄이기
+            if (!snowTuned)
+            {
+                snowTuned = true;
+                var sm = snow.main;
+                sm.maxParticles = Mathf.Max(500, maxSnowParticles);
+                var sr = snow.GetComponent<ParticleSystemRenderer>();
+                if (sr != null)
+                {
+                    sr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    sr.receiveShadows = false;
+                    sr.sortMode = ParticleSystemSortMode.None;
+                }
+                // 양이 줄어든 만큼 송이를 살짝 크게 → 덜 비어 보이게
+                float grow = Mathf.Lerp(1.35f, 1f, weatherDensity);
+                sm.startSize = new ParticleSystem.MinMaxCurve(snowSize.x * grow, snowSize.y * grow);
             }
             var emission = snow.emission;
             emission.rateOverTime = Mathf.Max(0f, rate);

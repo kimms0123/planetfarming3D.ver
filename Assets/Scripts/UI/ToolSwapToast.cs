@@ -7,7 +7,8 @@ using FarmingSystem.Save;
 
 namespace FarmingSystem.UI
 {
-    // 도구를 바꾸면 핫바 바로 위 가운데에 "[아이콘] 튼튼한 호미  87/120"이 잠깐 떴다 사라짐
+    // 지금 들고 있는 도구 표시: 핫바 왼쪽에 "[아이콘] 튼튼한 호미  87/120"이 계속 떠 있음 (Always Show)
+    // 도구를 바꾸면 통 튀며 강조. alwaysShow를 끄면 예전처럼 핫바 위 가운데에 잠깐 떴다 사라짐
     // 설치 필요 없음 - 게임이 시작되면 저절로 생김. 기존 스크립트는 안 고침 (InventoryManager.OnToolChanged만 구독)
     //
     // - 연달아 바꾸면 줄이 쌓이지 않고 같은 자리 내용만 바뀜 (휠을 굴려도 한 줄)
@@ -21,6 +22,8 @@ namespace FarmingSystem.UI
         private const float FadeIn = 0.1f, FadeOut = 0.3f;
         private const float BottomY = 150f;   // 화면 아래에서 (1920x1080 기준) - 핫바 바로 위
         private const float LowDurability = 0.2f; // 이 비율 밑이면 빨간 글씨
+        private static readonly bool AlwaysShow = true;    // true = 계속 표시 (핫바 왼쪽), false = 바꿀 때만 잠깐 (핫바 위)
+        private const float HotbarGap = 18f;      // 핫바 왼쪽 끝과의 간격
 
         private static readonly Color Fill = new Color(0.97f, 0.96f, 0.92f, 0.95f);
         private static readonly Color Outline = new Color32(0x5B, 0x4A, 0x3A, 0xFF);
@@ -35,6 +38,8 @@ namespace FarmingSystem.UI
         private Image icon;
         private TextMeshProUGUI label;
         private float age = 99f;
+        private float shown;                       // 계속 표시 모드의 보이는 정도 (0~1)
+        private RectTransform hotbarRect;           // 핫바 위치 (계속 표시 모드에서 그 왼쪽에 붙음)
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoCreate()
@@ -51,12 +56,14 @@ namespace FarmingSystem.UI
             InventoryManager inv = InventoryManager.Instance;
             if (inv != hooked)
             {
-                if (hooked != null) hooked.OnToolChanged -= HandleToolChanged;
+                if (hooked != null) { hooked.OnToolChanged -= HandleToolChanged; hooked.OnInventoryChanged -= HandleInventoryChanged; }
                 hooked = inv;
-                if (hooked != null) hooked.OnToolChanged += HandleToolChanged;
+                if (hooked != null) { hooked.OnToolChanged += HandleToolChanged; hooked.OnInventoryChanged += HandleInventoryChanged; }
+                if (AlwaysShow && hooked != null) { if (panel == null) Build(); Refresh(); age = 99f; }
             }
 
             if (group == null) return;
+            if (AlwaysShow) { UpdateAlwaysShow(); return; }
             age += Time.unscaledDeltaTime;
             float a = age < FadeIn ? age / FadeIn
                     : age < FadeIn + ShowSeconds ? 1f
@@ -70,9 +77,67 @@ namespace FarmingSystem.UI
             if (Covered()) { group.alpha = 0f; age = 99f; }
         }
 
+        // 계속 표시: 창이 열려 있거나 시작 화면이면 숨김, 도구를 바꾸면 통 튐
+        private void UpdateAlwaysShow()
+        {
+            age += Time.unscaledDeltaTime;
+            bool visible = hooked != null && !Covered();
+            shown = Mathf.MoveTowards(shown, visible ? 1f : 0f, Time.unscaledDeltaTime * 6f);
+            group.alpha = shown;
+            float pop = Mathf.Clamp01(1f - age / 0.25f);
+            panel.localScale = Vector3.one * (1f + 0.12f * pop * pop);
+            panel.anchoredPosition = AlwaysShowPosition();
+        }
+
+        // 핫바 왼쪽, 핫바와 같은 높이 (핫바를 못 찾으면 화면 왼쪽 아래)
+        private Vector2 AlwaysShowPosition()
+        {
+            RectTransform cr = (RectTransform)panel.parent;
+            if (hotbarRect == null)
+            {
+                HotbarUI hb = FindAnyObjectByType<HotbarUI>();
+                if (hb != null) hotbarRect = hb.transform as RectTransform;
+            }
+            if (hotbarRect != null && hotbarRect.gameObject.activeInHierarchy && SlotsLeftMiddle(out Vector2 screen)
+                && RectTransformUtility.ScreenPointToLocalPointInRectangle(cr, screen, null, out Vector2 local))
+            {
+                // 판은 아래 가운데 기준 → 오른쪽 끝이 핫바 왼쪽 끝에, 세로 가운데가 핫바 가운데에 오게
+                float x = local.x - HotbarGap - panel.sizeDelta.x * 0.5f;
+                float y = local.y + cr.rect.height * 0.5f - panel.sizeDelta.y * 0.5f;
+                return new Vector2(x, y);
+            }
+            return new Vector2(-cr.rect.width * 0.5f + 40f + panel.sizeDelta.x * 0.5f, 24f);
+        }
+
+        // 핫바 칸들 중 가장 왼쪽 칸의 왼쪽 가운데 (화면 좌표)
+        private bool SlotsLeftMiddle(out Vector2 screen)
+        {
+            screen = Vector2.zero;
+            ItemSlotUI[] slots = hotbarRect.GetComponentsInChildren<ItemSlotUI>();
+            if (slots.Length == 0) return false;
+            Canvas hc = hotbarRect.GetComponentInParent<Canvas>();
+            Camera hcam = hc != null && hc.renderMode != RenderMode.ScreenSpaceOverlay ? hc.worldCamera : null;
+            var corners = new Vector3[4];
+            float minX = float.MaxValue, midY = 0f;
+            foreach (ItemSlotUI sl in slots)
+            {
+                ((RectTransform)sl.transform).GetWorldCorners(corners); // 0 = 왼쪽 아래, 1 = 왼쪽 위
+                Vector2 bl = RectTransformUtility.WorldToScreenPoint(hcam, corners[0]);
+                Vector2 tl = RectTransformUtility.WorldToScreenPoint(hcam, corners[1]);
+                if (bl.x < minX) { minX = bl.x; midY = (bl.y + tl.y) * 0.5f; }
+            }
+            screen = new Vector2(minX, midY);
+            return true;
+        }
+
+        private void HandleInventoryChanged()
+        {
+            if (AlwaysShow && panel != null) Refresh(); // 내구도가 줄면 바로 반영
+        }
+
         private void OnDestroy()
         {
-            if (hooked != null) hooked.OnToolChanged -= HandleToolChanged;
+            if (hooked != null) { hooked.OnToolChanged -= HandleToolChanged; hooked.OnInventoryChanged -= HandleInventoryChanged; }
             if (instance == this) instance = null;
         }
 
@@ -82,8 +147,17 @@ namespace FarmingSystem.UI
 
         private void HandleToolChanged(ToolType type)
         {
-            if (hooked == null || Covered()) return;
+            if (hooked == null) return;
+            if (!AlwaysShow && Covered()) return;
             if (panel == null) Build();
+            Refresh();
+            age = 0f;
+        }
+
+        // 지금 도구 이름·아이콘·내구도로 내용 갱신
+        private void Refresh()
+        {
+            if (hooked == null || panel == null) return;
 
             ToolData tool = hooked.CurrentToolData;
             InventorySlotData slot = hooked.GetSlot(SlotArea.Tool, hooked.CurrentToolIndex);
@@ -106,7 +180,6 @@ namespace FarmingSystem.UI
             float iconW = icon.enabled ? 52f : 0f;
             panel.sizeDelta = new Vector2(24f + iconW + textW + 24f, 60f);
             label.rectTransform.anchoredPosition = new Vector2(24f + iconW, 0f);
-            age = 0f;
         }
 
         private void Build()

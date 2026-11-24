@@ -358,6 +358,7 @@ namespace FarmingSystem.Economy
             if (slot.item is CropData) return crops;
             if (slot.item is SeedData) return seeds;
             if (slot.item is FarmingSystem.Fishing.FishData) return true; // 물고기는 항상 팔 수 있음 (판매 포탈 포함)
+            if (slot.item is MaterialData) return true; // 목재 같은 재료는 항상 팔 수 있음
             return false;
         }
 
@@ -385,6 +386,7 @@ namespace FarmingSystem.Economy
             if (!IsSellable(slot)) return 0f;
             if (slot.item is SeedData seed) return GetSeedUnitPrice(seed); // 씨앗은 등급·특별 상품 보너스 없음
             if (slot.item is FarmingSystem.Fishing.FishData fish) return Mathf.Max(1, fish.basePrice); // 물고기는 정해진 값
+            if (slot.item is MaterialData mat) return Mathf.Max(1, mat.sellPrice); // 재료(목재 등)도 정해진 값
 
             CropData crop = (CropData)slot.item;
             // 쓰레기 등급은 작물·특별 상품 보너스와 상관없이 1벨 고정

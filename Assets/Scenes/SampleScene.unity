@@ -1885,6 +1885,10 @@ MonoBehaviour:
   typhoonSlant: 9
   rainArea: 80
   rainAhead: 25
+  weatherDensity: 0.45
+  maxRainParticles: 6000
+  maxSnowParticles: 4000
+  autoReduceBelowFps: 45
   snowInWinter: 1
   snow: {fileID: 0}
   snowRate: 450

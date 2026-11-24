@@ -11,6 +11,7 @@ namespace FarmingSystem.UI.Shop
     {
         [SerializeField] private TextMeshProUGUI bellsText;
         private bool isSubscribed = false;
+        private int shownBells = int.MinValue; // 화면에 지금 보이는 금액
 
         private void OnEnable()
         {
@@ -28,6 +29,14 @@ namespace FarmingSystem.UI.Shop
         {
             if (CurrencyManager.Instance != null)
                 CurrencyManager.Instance.OnBellsChanged -= HandleChanged;
+            isSubscribed = false; // 창을 닫았다 다시 열면 다시 구독하도록 (안 그러면 두 번째부터 금액이 안 바뀜)
+        }
+
+        // 안전장치: 이벤트를 놓쳐도(저장 불러오기 등) 금액이 다르면 바로 고침
+        private void LateUpdate()
+        {
+            if (!isSubscribed) TrySubscribe();
+            if (CurrencyManager.Instance != null && CurrencyManager.Instance.CurrentBells != shownBells) Refresh();
         }
 
         private void TrySubscribe()
@@ -44,7 +53,8 @@ namespace FarmingSystem.UI.Shop
         private void Refresh()
         {
             if (bellsText == null || CurrencyManager.Instance == null) return;
-            bellsText.text = $"{CurrencyManager.Instance.CurrentBells}벨";
+            shownBells = CurrencyManager.Instance.CurrentBells;
+            bellsText.text = $"{shownBells}벨";
         }
     }
 }

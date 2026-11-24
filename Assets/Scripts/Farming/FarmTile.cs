@@ -268,6 +268,50 @@ namespace FarmingSystem.Farming
         // 이 칸 땅의 실제 범위 (블록 콜라이더 기준, 작물·밭 모델 제외)
         // 블록 모델의 기준점(pivot)이 칸 가운데가 아닐 수 있어서 transform.position 대신 이걸 써야
         // 하이라이트 위치·거리 계산이 실제로 보이는 칸과 맞는다
+        // ---------- 언덕 ----------
+        // 언덕 = 섬의 기본 평지(가장 많은 칸이 있는 높이)보다 한 단 이상 높은 땅. 밭을 갈 수 없음
+        public static readonly bool HillsTillable = false;
+        private const float HillMargin = 0.4f;     // 기본 평지보다 이만큼(m) 넘게 높으면 언덕
+        private static float baseGroundTop = float.NaN;
+        private static UnityEngine.SceneManagement.Scene baseGroundScene;
+        private static float lastHillHint = -99f;
+
+        /// <summary>언덕(기본 평지보다 높은 땅)인지</summary>
+        /// <summary>섬의 기본 평지 높이 (못 구하면 NaN) - 나무 베기에서 평지 나무인지 볼 때도 씀</summary>
+        public static float BaseGroundHeight => BaseGroundTop();
+        /// <summary>이 높이가 언덕인지 (기본 평지보다 0.4m 넘게 높으면 언덕)</summary>
+        public static bool IsHillHeight(float y) { float b = BaseGroundTop(); return !float.IsNaN(b) && y > b + HillMargin; }
+
+        public bool IsHill
+        {
+            get
+            {
+                float b = BaseGroundTop();
+                return !float.IsNaN(b) && GetGroundBounds().max.y > b + HillMargin;
+            }
+        }
+
+        // 기본 평지 높이: 모든 칸의 윗면 높이 중 가장 흔한 값 (씬마다 한 번 계산)
+        private static float BaseGroundTop()
+        {
+            UnityEngine.SceneManagement.Scene scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            if (!float.IsNaN(baseGroundTop) && baseGroundScene.IsValid() && baseGroundScene == scene) return baseGroundTop;
+            var counts = new Dictionary<int, int>();
+            int bestKey = 0, bestCount = 0;
+            foreach (FarmTile t in FindObjectsByType<FarmTile>(FindObjectsInactive.Exclude))
+            {
+                int key = Mathf.RoundToInt(t.GetGroundBounds().max.y * 10f);
+                counts.TryGetValue(key, out int c);
+                counts[key] = ++c;
+                if (c > bestCount) { bestCount = c; bestKey = key; }
+            }
+            if (bestCount == 0) return float.NaN;
+            baseGroundTop = bestKey / 10f;
+            baseGroundScene = scene;
+            Debug.Log($"[언덕] 기본 평지 높이 {baseGroundTop:0.0}m (칸 {bestCount}개) - 이보다 {HillMargin}m 넘게 높은 칸은 밭을 갈 수 없음");
+            return baseGroundTop;
+        }
+
         public Bounds GetGroundBounds()
         {
             bool found = false;
@@ -337,6 +381,16 @@ namespace FarmingSystem.Farming
             if (state != TileState.Natural)
             {
                 Debug.Log($"[밭갈기 실패] {name} - 이미 Natural 상태가 아님 (현재: {state})");
+                return false;
+            }
+            if (!HillsTillable && IsHill)
+            {
+                Debug.Log($"[밭갈기 불가] {name} - 언덕(기본 평지보다 높은 땅)은 갈 수 없음");
+                if (Time.unscaledTime - lastHillHint > 1.5f)
+                {
+                    lastHillHint = Time.unscaledTime;
+                    FarmingSystem.NPC.IslandNotice.Show("언덕은 갈 수 없어요. 평평한 땅에서 농사지어요", this);
+                }
                 return false;
             }
 

@@ -392,7 +392,11 @@ namespace FarmingSystem.Fishing
                     Debug.Log($"[낚시] 클릭했지만 안 던짐 - 이유: {reason}");
                 return;
             }
-            if (!FindCastPoint(out Vector3 target))
+            bool found = FindCastPoint(out Vector3 target, out bool aimedAtWater);
+            // 땅을 가리키고 있고 거기서 할 농사 행동(씨앗 심기·수확·비료·잡초)이 있으면 농사가 먼저 - 낚시 안내도 안 띄움
+            // (물을 직접 가리켰으면 낚시가 먼저)
+            if (!aimedAtWater && farmActions != null && farmActions.HoveredAction != FarmActionType.None) return;
+            if (!found)
             {
                 if (logWhyNotCasting) Debug.Log($"[낚시] 클릭했지만 안 던짐 - 이유: {minCast}~{maxCast}m 안에 물을 못 찾음 (물 높이 {waterY:0.00}, 물 감지 {(waterReady ? "됨" : "안 됨")})");
                 FishCatchPopup.Hint("물가를 바라보고 던져 주세요");
@@ -413,9 +417,13 @@ namespace FarmingSystem.Fishing
         }
 
         // 십자선(또는 마우스)이 가리키는 물. 너무 멀거나 땅이면 바라보는 쪽 물을 찾음
-        private bool FindCastPoint(out Vector3 target)
+        private bool FindCastPoint(out Vector3 target) => FindCastPoint(out target, out _);
+
+        // aimedAtWater = 십자선(마우스)이 직접 물을 가리켰는지 (아니면 바라보는 쪽 물을 찾아서 던짐)
+        private bool FindCastPoint(out Vector3 target, out bool aimedAtWater)
         {
             target = Vector3.zero;
+            aimedAtWater = false;
             Camera cam = Camera.main;
             Vector3 pp = player.transform.position;
             Vector3 fwd = player.transform.forward;
@@ -431,7 +439,7 @@ namespace FarmingSystem.Fishing
                     Vector3 d = hit - pp;
                     d.y = 0f;
                     if (d.sqrMagnitude > 0.01f) fwd = d.normalized;
-                    if (d.magnitude >= minCast && d.magnitude <= maxCast && IsWater(hit)) { target = hit; return true; }
+                    if (d.magnitude >= minCast && d.magnitude <= maxCast && IsWater(hit)) { target = hit; aimedAtWater = true; return true; }
                 }
             }
             fwd.y = 0f;
@@ -586,19 +594,24 @@ namespace FarmingSystem.Fishing
                 hooked = null;
                 SpendRod();
                 GameAudio.PlayAt(SoundId.FishSplash, castTo);
-                bool isNew = FishCollection.Register(fish);
-                int notAdded = InventoryManager.Instance != null ? InventoryManager.Instance.AddItem(fish, 1) : 1;
-                Debug.Log($"[낚시] {fish.itemName} 잡음{(notAdded > 0 ? " (가방이 가득 차서 놓아줌)" : "")}");
+                // 가방에는 결과창이 뜰 때 넣음 (먼저 넣으면 물고기가 튀어 오르기 전에 핫바·획득 알림에 떠서 스포일러)
+                InventoryManager inv = InventoryManager.Instance;
+                bool full = inv == null || inv.GetAddableAmount(fish) < 1;
+                Debug.Log($"[낚시] {fish.itemName} 잡음{(full ? " (가방이 가득 차서 놓아줌)" : "")}");
                 if (animated)
                 {
                     if (anim.reelSuccess != null) yield return anim.PlayOnce(anim.reelSuccess); // Hook·FishOut → 물고기가 튀어 올라 매달림
-                    FishCatchPopup.Show(fish, isNew, notAdded > 0);
+                    bool isNew = FishCollection.Register(fish);
+                    FishCatchPopup.Show(fish, isNew, full);
+                    if (!full) inv.AddItem(fish, 1);
                     if (anim.celebrate != null) yield return anim.PlayOnce(anim.celebrate);
                 }
                 else
                 {
                     Ripple.Spawn(castTo, 1.1f);
-                    FishCatchPopup.Show(fish, isNew, notAdded > 0);
+                    bool isNew = FishCollection.Register(fish);
+                    FishCatchPopup.Show(fish, isNew, full);
+                    if (!full) inv.AddItem(fish, 1);
                 }
             }
             else
