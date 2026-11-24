@@ -994543,6 +994543,7 @@ MonoBehaviour:
   maxCast: 7
   logWhyNotCasting: 1
   reelMinigame: 1
+  repeatPenalty: 0.35
   noticeRange: 4
 --- !u!4 &1753388836
 Transform:

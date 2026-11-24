@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FarmingSystem.Fishing.FishData
   itemName: "\uBB34\uC9C0\uAC1C\uC6B0\uD30C\uB8E8\uD30C"
   category: 5
-  icon: {fileID: 0}
+  icon: {fileID: 854628672, guid: 329d6a25bbc23c24d93b9ce5189b1686, type: 3}
   maxStack: 99
   description: "\uBAA9 \uC606 \uC544\uAC00\uBBF8\uAC00 \uBB34\uC9C0\uAC1C\uBE5B \uAE43\uD138\uCC98\uB7FC
     \uD558\uB298\uAC70\uB9B0\uB2E4. \r\n\uC774\uB978 \uC544\uCE68 \uB9D1\uC740 \uAC15\uC5D0\uB9CC

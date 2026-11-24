@@ -107,6 +107,18 @@ namespace FarmingSystem.Save
 
         /// <summary>새 게임 오프닝 소리(안내음성)가 시작된 시각. 오프닝 카메라가 남은 음성 길이에 맞출 때 씀 (-1 = 오프닝 아님)</summary>
         public static float IntroVoiceStartTime = -1f;
+
+        // 오프닝 건너뛰기 (전시회 단축키 End)
+        private static TitleScreen current;
+        private bool inOpening, skipOpening;
+
+        /// <summary>새 게임 오프닝 중이면 건너뜀 (true = 건너뛰기 시작)</summary>
+        public static bool SkipOpening()
+        {
+            if (current == null || !current.inOpening || current.skipOpening) return false;
+            current.skipOpening = true;
+            return true;
+        }
         [Tooltip("오프닝 동안 위아래 검은 띠 (영화처럼). 끝나면 띠가 빠지며 게임 화면으로")]
         [SerializeField] private bool openingLetterbox = true;
 
@@ -505,6 +517,9 @@ namespace FarmingSystem.Save
         private IEnumerator NewGameSequence(IntroCameraPath opening)
         {
             state = State.Starting;
+            current = this;
+            inOpening = true;
+            skipOpening = false;
             FarmingSystem.Audio.GameAudio.SetIntro(true); // 오프닝 배경음
             IntroVoiceStartTime = Time.unscaledTime;
             uiRoot.blocksRaycasts = false;
@@ -523,18 +538,30 @@ namespace FarmingSystem.Save
             if (openingLetterbox) { barTop = Bar("LetterboxTop", 1f); barBottom = Bar("LetterboxBottom", 0f); }
             yield return Captions();
 
-            // 화면이 검은 동안: 우주선을 건물로 놓고 하늘에 올려 둠 + 캐릭터 숨김
             IntroShipLanding landing = FindAnyObjectByType<IntroShipLanding>();
+            if (skipOpening) { yield return SkipToGame(landing, barTop, barBottom); yield break; }
+
+            // 화면이 검은 동안: 우주선을 건물로 놓고 하늘에 올려 둠 + 캐릭터 숨김
             if (landing != null) landing.Prepare();
             IntroShipLanding.OnPlayerAppear += ShowPlayer;
 
             // 카메라 경로 재생 (1번 점으로 바로 이동한 뒤 화면을 밝힘)
-            Coroutine run = StartCoroutine(opening.Run());
+            bool runDone = false;
+            Coroutine run = StartCoroutine(RunOpening(opening, () => runDone = true));
             yield return null;
-            StartCoroutine(FadeFromBlack());
-            yield return run;
+            Coroutine fadeIn = StartCoroutine(FadeFromBlack());
+            while (!runDone && !skipOpening) yield return null;
 
             IntroShipLanding.OnPlayerAppear -= ShowPlayer;
+            if (!runDone)
+            {
+                // 건너뛰기: 카메라 연출을 멈추고 평소 카메라로
+                StopCoroutine(run);
+                if (fadeIn != null) StopCoroutine(fadeIn);
+                opening.ForceRelease();
+                yield return SkipToGame(landing, barTop, barBottom);
+                yield break;
+            }
             fade.color = Color.clear;
             fade.raycastTarget = false;
             // 띠가 위아래로 빠지며 게임 화면으로 (그동안 카메라는 평소 카메라로 부드럽게 이어짐)
@@ -548,7 +575,48 @@ namespace FarmingSystem.Save
                 }
             FarmingSystem.Audio.GameAudio.SetIntro(false); // → 평소 배경음으로 넘어감
             IntroVoiceStartTime = -1f;
+            inOpening = false;
             ExitTitle(); // 카메라는 오프닝이 평소 카메라로 넘겨줌
+        }
+
+        private static IEnumerator RunOpening(IntroCameraPath opening, Action done)
+        {
+            yield return opening.Run();
+            done();
+        }
+
+        // 오프닝 건너뛰기: 잠깐 까맣게 → 우주선을 착륙 자리에 바로 놓고 캐릭터를 내림 → 밝아지며 게임 시작
+        private IEnumerator SkipToGame(IntroShipLanding landing, RectTransform barTop, RectTransform barBottom)
+        {
+            Debug.Log("[오프닝] 건너뜀 - 우주선은 착륙 자리에 바로 놓음");
+            fade.raycastTarget = true;
+            float a0 = fade.color.a;
+            for (float t = 0f; t < 0.2f; t += Time.unscaledDeltaTime)
+            {
+                fade.color = new Color(0f, 0f, 0f, Mathf.Lerp(a0, 1f, t / 0.2f));
+                yield return null;
+            }
+            fade.color = Color.black;
+
+            if (landing != null) landing.LandNow();
+            ShowPlayer();
+            if (rig != null) rig.EndShot(); // 평소 카메라가 캐릭터 뒤로
+            if (barTop != null) Destroy(barTop.gameObject);
+            if (barBottom != null) Destroy(barBottom.gameObject);
+            FarmingSystem.Audio.GameAudio.SetIntro(false);
+            IntroVoiceStartTime = -1f;
+            yield return Wait(0.3f); // 카메라가 캐릭터 쪽으로 자리 잡을 시간
+
+            for (float t = 0f; t < 0.5f; t += Time.unscaledDeltaTime)
+            {
+                fade.color = new Color(0f, 0f, 0f, 1f - Smooth(t / 0.5f));
+                yield return null;
+            }
+            fade.color = Color.clear;
+            fade.raycastTarget = false;
+            inOpening = false;
+            skipOpening = false;
+            ExitTitle();
         }
 
         private const float BarHeight = 120f; // 1080 기준 (화면의 약 11%)
@@ -581,14 +649,14 @@ namespace FarmingSystem.Save
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
             rt.anchoredPosition = new Vector2(0f, BarHeight + 140f);
             yield return Wait(0.8f);
-            for (int i = 0; i < openingCaptions.Length; i++)
+            for (int i = 0; i < openingCaptions.Length && !skipOpening; i++)
             {
                 string line = openingCaptions[i];
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 float seconds = captionSecondsPerLine != null && i < captionSecondsPerLine.Length && captionSecondsPerLine[i] > 0f
                     ? captionSecondsPerLine[i] : captionSeconds;
                 t.text = line.Replace("{번호}", id).Replace("\\n", "\n");
-                for (float s = 0f; s < seconds; s += Time.unscaledDeltaTime)
+                for (float s = 0f; s < seconds && !skipOpening; s += Time.unscaledDeltaTime)
                 {
                     float a = Mathf.Min(Smooth(s / 0.5f), Smooth((seconds - s) / 0.5f));
                     t.color = new Color(1f, 1f, 1f, a);
@@ -598,7 +666,7 @@ namespace FarmingSystem.Save
                 if (captionGap > 0f && i < openingCaptions.Length - 1) yield return Wait(captionGap);
             }
             Destroy(t.gameObject);
-            yield return Wait(0.6f);
+            if (!skipOpening) yield return Wait(0.6f);
         }
 
         private static IEnumerator Wait(float seconds)

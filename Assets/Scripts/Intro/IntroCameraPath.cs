@@ -96,6 +96,13 @@ namespace FarmingSystem.Intro
             IsPlaying = true;
         }
 
+        /// <summary>오프닝 건너뛰기: 카메라를 바로 평소 카메라에 넘겨줌 (Run을 돌리던 쪽이 코루틴을 먼저 멈춘 뒤 부름)</summary>
+        public void ForceRelease()
+        {
+            routine = null;
+            Release();
+        }
+
         private void Release()
         {
             if (!IsPlaying) return;

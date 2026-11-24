@@ -289,19 +289,36 @@ namespace FarmingSystem.Intro
 
             // 4) 캐릭터 등장
             yield return new WaitForSeconds(playerDelay);
-            PlayerController pc = FindAnyObjectByType<PlayerController>();
-            if (pc != null && exitPoint != null)
-            {
-                // 우주선에서 밖으로 나오는 방향을 보게
-                Vector3 outward = exitPoint.position - landPos;
-                outward.y = 0f;
-                Quaternion face = outward.sqrMagnitude > 0.01f ? Quaternion.LookRotation(outward.normalized, Vector3.up) : exitPoint.rotation;
-                IntroCameraPath.PlacePlayerOnGround(pc.transform, exitPoint.position, face); // 발이 땅에 닿게
-            }
+            PlacePlayerAtExit();
             SetPlayerVisible(true);
             OnPlayerAppear?.Invoke();
             IsLanding = false;
             if (SaveManager.Instance != null && SaveManager.Instance.IsPlaying) SaveManager.Instance.Save(); // 우주선 자리 바로 저장
+        }
+
+        /// <summary>오프닝 건너뛰기: 연출 없이 우주선을 착륙 자리에 바로 놓고 캐릭터를 내림 (우주선 자리·저장은 연출과 똑같음)</summary>
+        public void LandNow()
+        {
+            if (!Prepare()) return;
+            StopAllCoroutines();
+            ship.transform.SetPositionAndRotation(landPos, Quaternion.identity);
+            IntroCameraPath.ExternalShake = 0f;
+            PlacePlayerAtExit();
+            SetPlayerVisible(true);
+            IsLanding = false;
+            OnPlayerAppear?.Invoke();
+            if (SaveManager.Instance != null && SaveManager.Instance.IsPlaying) SaveManager.Instance.Save();
+        }
+
+        // 캐릭터를 내리는 자리(ExitPoint)에, 우주선에서 밖으로 나오는 방향을 보게 놓음
+        private void PlacePlayerAtExit()
+        {
+            PlayerController pc = FindAnyObjectByType<PlayerController>();
+            if (pc == null || exitPoint == null) return;
+            Vector3 outward = exitPoint.position - landPos;
+            outward.y = 0f;
+            Quaternion face = outward.sqrMagnitude > 0.01f ? Quaternion.LookRotation(outward.normalized, Vector3.up) : exitPoint.rotation;
+            IntroCameraPath.PlacePlayerOnGround(pc.transform, exitPoint.position, face); // 발이 땅에 닿게
         }
 
         private IEnumerator ShakeRoutine()

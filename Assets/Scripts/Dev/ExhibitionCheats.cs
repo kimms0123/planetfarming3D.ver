@@ -19,6 +19,7 @@
 //   F11 상인 지금 오게 하기 (우주선 착륙 + 오늘의 특별 상품, 원래 머무는 날짜만큼 있다가 떠남)
 //   F12 10,000벨 받기
 //   Shift+F12 임무창 초기화 (모든 임무를 안 한 상태로 · 실수로 안 눌리게 Shift 필요)
+//   End 새 게임 오프닝 건너뛰기 (우주선은 오프닝에서 착륙하던 자리에 바로 놓임)
 #if !NO_EXHIBITION_CHEATS
 using System.Collections.Generic;
 using System.Linq;
@@ -65,6 +66,7 @@ namespace FarmingSystem.DevTools
             if (kb == null) return;
 
             if (kb.f1Key.wasPressedThisFrame) ToggleHelp();
+            if (kb.endKey.wasPressedThisFrame && TitleScreen.SkipOpening()) Debug.Log("[전시회 단축키] 오프닝 건너뛰기");
 
             if (TitleScreen.IsShowing || UIInputBlocker.IsBlocked) return;
             bool shift = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
@@ -287,7 +289,7 @@ namespace FarmingSystem.DevTools
             var rt = (RectTransform)bg.transform;
             rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1f, 1f);
             rt.anchoredPosition = new Vector2(-30f, -30f);
-            rt.sizeDelta = new Vector2(620f, 640f);
+            rt.sizeDelta = new Vector2(620f, 680f);
             var img = bg.GetComponent<Image>();
             img.color = new Color(0f, 0f, 0f, 0.72f);
             img.raycastTarget = false;
@@ -316,6 +318,7 @@ namespace FarmingSystem.DevTools
             sb.AppendLine("F10 1시간 지나기  (Shift 3시간)");
             sb.AppendLine("F11 상인 지금 오게 하기");
             sb.AppendLine("F12 10,000벨  (Shift 임무창 초기화)");
+            sb.AppendLine("End 오프닝 건너뛰기");
             t.text = sb.ToString();
             helpPanel = canvasGo;
             helpPanel.SetActive(false);
