@@ -51,6 +51,10 @@ namespace FarmingSystem.UI
             new Mission { id = "harvest_good", text = "수확 리듬게임에서 상급 이상 받기" },
             new Mission { id = "bargain",      text = "상인과 흥정해서 판매하기" },
             new Mission { id = "fish",         text = "낚시로 물고기 잡기" },
+            new Mission { id = "house",        text = "주민 집 설치하기" },
+            new Mission { id = "box",          text = "보관 상자 설치하기" },
+            new Mission { id = "portal",       text = "판매 포탈 설치하기" },
+            new Mission { id = "talk",         text = "주민과 대화해 보기" },
         };
 
         private class QuestRow
@@ -88,6 +92,10 @@ namespace FarmingSystem.UI
         // 지켜보는 값
         private FarmTile[] tiles;
         private int lastTilled, lastCrops, lastWatered, lastHarvest, lastGood, lastFish, lastBargain;
+        private int lastHouses = -1, lastBoxes = -1, lastPortals = -1; // 설치한 건물 수 (-1 = 아직 안 셈)
+        private bool lastTalking;
+        private NPCDialogue[] npcs;
+        private float npcScanTime;
         private float pollTimer;
         private InventoryManager watchedInv;
         private GameClock watchedClock;
@@ -275,6 +283,31 @@ namespace FarmingSystem.UI
                 }
             int bargain = BargainHistory.Successes;
 
+            // 설치한 건물 수 (공사 중인 것도 셈) - 주민 집 / 보관 상자 / 판매 포탈
+            int houses = 0, boxes = 0, portals = 0;
+            FarmingSystem.Building.BuildingSystem bsys = FarmingSystem.Building.BuildingSystem.Instance;
+            if (bsys != null)
+                foreach (FarmingSystem.Building.PlacedBuilding b in bsys.Buildings)
+                {
+                    if (b == null || b.Data == null) continue;
+                    switch (b.Data.function)
+                    {
+                        case FarmingSystem.Building.BuildingFunction.Storage: boxes++; break;
+                        case FarmingSystem.Building.BuildingFunction.SellPortal: portals++; break;
+                        default: houses++; break; // 기능 없는 건물 = 집
+                    }
+                }
+
+            // 주민과 대화 중인지 (상인은 빼고)
+            if (npcs == null || Time.unscaledTime > npcScanTime)
+            {
+                npcs = FindObjectsByType<NPCDialogue>(FindObjectsInactive.Exclude);
+                npcScanTime = Time.unscaledTime + 3f;
+            }
+            bool talking = false;
+            foreach (NPCDialogue n in npcs)
+                if (n != null && n.IsTalking && !IsMerchant(n)) { talking = true; break; }
+
             if (Ready)
             {
                 bool fromChest = ContainerWindow.IsOpen; // 상자에서 꺼낸 건 제외
@@ -286,10 +319,28 @@ namespace FarmingSystem.UI
                 if (good > lastGood && !fromChest) Complete("harvest_good");
                 if (fish > lastFish && !fromChest) Complete("fish");
                 if (bargain > lastBargain) Complete("bargain");
+                if (lastHouses >= 0 && houses > lastHouses) Complete("house");
+                if (lastBoxes >= 0 && boxes > lastBoxes) Complete("box");
+                if (lastPortals >= 0 && portals > lastPortals) Complete("portal");
+                if (talking && !lastTalking) Complete("talk");
             }
             PollQuests();
             lastTilled = tilled; lastCrops = crops; lastWatered = watered;
             lastHarvest = harvest; lastGood = good; lastFish = fish; lastBargain = bargain;
+            if (bsys != null) { lastHouses = houses; lastBoxes = boxes; lastPortals = portals; }
+            lastTalking = talking;
+        }
+
+        // 여우 상인처럼 상점 기능이 붙은 NPC는 "주민"이 아님
+        private static bool IsMerchant(NPCDialogue n)
+        {
+            foreach (MonoBehaviour c in n.GetComponentsInParent<MonoBehaviour>(true))
+            {
+                if (c == null) continue;
+                string t = c.GetType().Name;
+                if (t.Contains("Merchant") || t.Contains("Shop")) return true;
+            }
+            return false;
         }
 
         // 퀘스트: 진행 중인 것 + 방금 끝낸 것. 내용이 바뀌면 다시 그림

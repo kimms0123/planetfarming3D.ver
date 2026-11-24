@@ -272,6 +272,37 @@ namespace FarmingSystem.DevTools
             helpPanel.SetActive(!helpPanel.activeSelf);
         }
 
+        // 게임에 있는 TMP 폰트 중 text의 글자가 가장 많이(되도록 전부) 들어 있는 폰트
+        // (아무 글자 폰트나 빌려 쓰면 숫자 전용·영문 폰트가 걸려서 한글이 □로 깨짐)
+        private static TMP_FontAsset PickFontFor(string text, TMP_FontAsset exclude)
+        {
+            var candidates = new List<TMP_FontAsset>();
+            TMP_FontAsset korean = UIFont.FindKorean();
+            if (korean != null) candidates.Add(korean);
+            foreach (TMP_Text x in FindObjectsByType<TMP_Text>(FindObjectsInactive.Include))
+                if (x.font != null && x.font != exclude && !candidates.Contains(x.font)) candidates.Add(x.font);
+            foreach (TMP_FontAsset f in Resources.FindObjectsOfTypeAll<TMP_FontAsset>())
+                if (f != null && f != exclude && !candidates.Contains(f)) candidates.Add(f);
+
+            string probe = new string(System.Text.RegularExpressions.Regex.Replace(text, "<[^>]+>", "")
+                .Where(c => !char.IsWhiteSpace(c)).Distinct().ToArray());
+            TMP_FontAsset best = null;
+            int bestMissing = int.MaxValue;
+            foreach (TMP_FontAsset f in candidates)
+            {
+                f.HasCharacters(probe, out uint[] missing, true, true);
+                int m = missing != null ? missing.Length : 0;
+                if (m < bestMissing) { best = f; bestMissing = m; }
+                if (m == 0) break;
+            }
+            Debug.Log(best == null
+                ? "[전시회 단축키] 쓸 수 있는 TMP 폰트를 못 찾음"
+                : bestMissing == 0
+                    ? $"[전시회 단축키] 도움말 폰트: {best.name}"
+                    : $"[전시회 단축키] 도움말 폰트: {best.name} (그래도 없는 글자 {bestMissing}개 - 한글 폰트 에셋의 글자 범위를 확인해 주세요)");
+            return best;
+        }
+
         private void BuildHelp()
         {
             var canvasGo = new GameObject("ExhibitionHelp", typeof(Canvas), typeof(CanvasScaler));
@@ -300,8 +331,6 @@ namespace FarmingSystem.DevTools
             trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
             trt.offsetMin = new Vector2(28f, 20f); trt.offsetMax = new Vector2(-28f, -20f);
             var t = textGo.GetComponent<TextMeshProUGUI>();
-            TextMeshProUGUI any = FindAnyObjectByType<TextMeshProUGUI>(); // 게임에서 쓰는 한글 폰트를 빌려 씀
-            if (any != null && any != t) t.font = any.font;
             t.fontSize = 28f;
             t.color = Color.white;
             t.raycastTarget = false;
@@ -320,6 +349,8 @@ namespace FarmingSystem.DevTools
             sb.AppendLine("F12 10,000벨  (Shift 임무창 초기화)");
             sb.AppendLine("End 오프닝 건너뛰기");
             t.text = sb.ToString();
+            TMP_FontAsset font = PickFontFor(t.text, t.font); // 도움말 글자가 전부 들어 있는 한글 폰트를 골라 씀
+            if (font != null) t.font = font;
             helpPanel = canvasGo;
             helpPanel.SetActive(false);
         }
