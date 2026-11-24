@@ -21,6 +21,8 @@ namespace FarmingSystem.UI
 {
     // 튜토리얼 임무창 (화면 오른쪽, 폰 메뉴와 같은 홀로그램 패널)
     // - 게임을 시작하면 자동으로 생김 (씬에 놓을 필요 없음). J = 접기/펼치기
+    // - 접으면 화면 오른쪽에 동그란 "!" 배지만 남음 (할 게 남아 있으면 살짝 두근거림)
+    //   임무를 끝내거나 새 부탁을 받으면 잠깐 저절로 펼쳐서 보여 주고 다시 접힘. 새 게임은 처음 8초 펼쳐 둠
     // - 다른 스크립트는 건드리지 않고, 게임 상태 변화를 지켜보다가 완료 처리
     //   (밭 칸 상태·가방 아이템 수·흥정 성공 횟수·도구 변경·날짜 변경)
     // - 완료하면 글자에 가운데 줄 + 회색 반투명. 진행은 저장 칸마다 따로 기억 (missions_1.json ~), 새 게임이면 처음부터
@@ -75,6 +77,12 @@ namespace FarmingSystem.UI
         private int activeSlot = -1;
         private float readyTime;
         private bool expanded = true;
+        private float peekUntil = -1f;   // 이 시각이 지나면 저절로 다시 접음 (잠깐 펼쳐 보여 줄 때)
+        private float expandK = 1f;      // 0 = 배지 / 1 = 패널 (애니메이션)
+        private RectTransform root, badge;
+        private CanvasGroup panelGroup, badgeGroup;
+        private TextMeshProUGUI badgeMark;
+        private const float PanelX = -24f, PanelY = 60f, BadgeSize = 76f;
         private float allDoneTime = -1f;
 
         // 지켜보는 값
@@ -127,7 +135,9 @@ namespace FarmingSystem.UI
             if (slot != activeSlot) Activate(slot);
             if (activeSlot < 0) { SetVisible(false); return; }
 
-            if (Keyboard.current != null && Keyboard.current.jKey.wasPressedThisFrame && !UIInputBlocker.IsBlocked) SetExpanded(!expanded);
+            if (Keyboard.current != null && Keyboard.current.jKey.wasPressedThisFrame && !UIInputBlocker.IsBlocked) { peekUntil = -1f; SetExpanded(!expanded); }
+            if (peekUntil > 0f && Time.unscaledTime > peekUntil) { peekUntil = -1f; SetExpanded(false); }
+            AnimateExpand();
 
             bool hide = TitleScreen.IsShowing || UIInputBlocker.IsBlocked
                         || (HarvestRhythmGame.Instance != null && HarvestRhythmGame.Instance.IsPlaying);
@@ -138,11 +148,7 @@ namespace FarmingSystem.UI
             if (pollTimer <= 0f) { pollTimer = 0.4f; Poll(); }
 
             AnimateRows();
-            if (allDoneTime > 0f && expanded && Time.unscaledTime - allDoneTime > 4f)
-            {
-                if (VisibleQuests().Count == 0) SetExpanded(false); // 진행 중인 부탁이 있으면 펼친 채로
-                allDoneTime = -2f;
-            }
+            if (allDoneTime > 0f && Time.unscaledTime - allDoneTime > 4f) allDoneTime = -2f;
         }
 
         // ───────────── 칸 시작·저장 ─────────────
@@ -161,8 +167,9 @@ namespace FarmingSystem.UI
             BuildUI();
             readyTime = Time.unscaledTime + WarmUp;
             allDoneTime = AllDone() ? -2f : -1f;
-            expanded = true;
-            SetExpanded(expanded);
+            SetExpanded(!AllDone());
+            peekUntil = expanded ? Time.unscaledTime + 8f : -1f; // 처음엔 잠깐 펼쳐서 보여 주고 접음
+            expandK = expanded ? 1f : 0f;
             Refresh();
         }
 
@@ -293,8 +300,15 @@ namespace FarmingSystem.UI
             if (allQuests == null || allQuests.Count == 0)
             {
                 // QuestManager가 들고 있는 퀘스트들. 진행 상태는 이름으로 기억하므로 같은 이름은 하나만 (복사본·중복 에셋이 두 줄로 뜨지 않게)
+                // 이름이 같은 퀘스트가 여러 개면 NPC 대사가 실제로 쓰는 쪽을 고름 (대사 속 {item}과 같은 아이템이 보이게)
                 allQuests = new List<QuestData>();
                 var names = new HashSet<string>();
+                foreach (NPCDialogue npc in FindObjectsByType<NPCDialogue>(FindObjectsInactive.Include))
+                {
+                    if (npc == null || npc.Dialogue == null || npc.Dialogue.entries == null) continue;
+                    foreach (DialogueEntry e in npc.Dialogue.entries)
+                        if (e != null && e.quest != null && names.Add(e.quest.name)) allQuests.Add(e.quest);
+                }
                 foreach (QuestData q in Resources.FindObjectsOfTypeAll<QuestData>())
                     if (q != null && names.Add(q.name)) allQuests.Add(q);
             }
@@ -302,7 +316,7 @@ namespace FarmingSystem.UI
             {
                 if (q == null) continue;
                 QuestState st = qm.GetState(q);
-                if (st == QuestState.Active) seenActive.Add(q);
+                if (st == QuestState.Active && seenActive.Add(q) && Ready) Peek(4f); // 새 부탁을 받으면 잠깐 펼쳐서 보여 줌
                 else if (st == QuestState.Completed && seenActive.Remove(q)) questDoneTime[q] = Time.unscaledTime; // 지금 막 끝냄
             }
             var sb = new System.Text.StringBuilder();
@@ -350,6 +364,7 @@ namespace FarmingSystem.UI
                 IslandNotice.Show("모든 임무를 완료했어요!", this);
             }
             else IslandNotice.Show($"임무 완료! {m.text}", this);
+            Peek(4f);
             Refresh();
         }
 
@@ -388,12 +403,38 @@ namespace FarmingSystem.UI
             TMP_FontAsset font = UIFont.FindKorean();
             roundedSprite = rounded; ringSprite = ring; uiFont = font;
 
-            panel = NewRect("Missions", go.transform);
-            panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(1f, 0.5f);
-            panel.anchoredPosition = new Vector2(-24f, 60f);
-            group = panel.gameObject.AddComponent<CanvasGroup>();
+            root = Fill(NewRect("Root", go.transform), 0f);
+            group = root.gameObject.AddComponent<CanvasGroup>();
             group.blocksRaycasts = false;
             group.interactable = false;
+
+            // 접었을 때: 동그란 "!" 배지
+            Sprite circle = RoundRect(128, 64f, false), circleRing = RoundRect(128, 64f, true);
+            badge = NewRect("Badge", root);
+            badge.anchorMin = badge.anchorMax = new Vector2(1f, 0.5f);
+            badge.pivot = new Vector2(0.5f, 0.5f);
+            badge.anchoredPosition = new Vector2(PanelX - BadgeSize * 0.5f, PanelY);
+            badge.sizeDelta = new Vector2(BadgeSize, BadgeSize);
+            badgeGroup = badge.gameObject.AddComponent<CanvasGroup>();
+            Img(Fill(NewRect("Glow", badge), -14f), circle, new Color(Holo.r, Holo.g, Holo.b, 0.1f));
+            Img(Fill(NewRect("Fill", badge), 0f), circle, new Color(Holo.r * 0.4f, Holo.g * 0.6f, Holo.b * 0.8f, 0.6f));
+            Img(Fill(NewRect("Border", badge), 0f), circleRing, new Color(Holo.r, Holo.g, Holo.b, 0.95f));
+            badgeMark = Text(badge, font, 46f, TextAlignmentOptions.Center);
+            badgeMark.fontStyle = FontStyles.Bold;
+            badgeMark.text = "!";
+            Fill(badgeMark.rectTransform, 0f);
+            var key = Text(badge, font, 18f, TextAlignmentOptions.Center);
+            key.text = "J";
+            key.alpha = 0.6f;
+            key.rectTransform.anchorMin = key.rectTransform.anchorMax = new Vector2(0.5f, 0f);
+            key.rectTransform.anchoredPosition = new Vector2(0f, -16f);
+            key.rectTransform.sizeDelta = new Vector2(60f, 24f);
+
+            // 펼쳤을 때: 임무 패널
+            panel = NewRect("Missions", root);
+            panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(1f, 0.5f);
+            panel.anchoredPosition = new Vector2(PanelX, PanelY);
+            panelGroup = panel.gameObject.AddComponent<CanvasGroup>();
 
             // 바탕 (폰 메뉴처럼: 은은한 빛 → 반투명 바탕 → 줄무늬 → 테두리)
             Img(Fill(NewRect("Glow", panel), -24f), rounded, new Color(Holo.r, Holo.g, Holo.b, 0.07f));
@@ -507,7 +548,7 @@ namespace FarmingSystem.UI
                 Place(r.rt, ref y, RowH);
             }
 
-            panel.sizeDelta = new Vector2(Width, expanded ? HeaderH - y + 16f : HeaderH + 6f);
+            panel.sizeDelta = new Vector2(Width, HeaderH - y + 16f);
             if (scan != null) scan.uvRect = new Rect(0f, 0f, 1f, panel.sizeDelta.y / 6f); // 6px마다 가로줄
             header.text = AllDone() ? (quests.Count > 0 ? $"임무  부탁 {quests.Count}" : "임무 완료!") : $"임무  {DoneCount()}/{missions.Count}";
         }
@@ -566,8 +607,32 @@ namespace FarmingSystem.UI
         {
             expanded = on;
             if (panel == null) return;
-            list.gameObject.SetActive(on);
             Refresh(); // Layout()이 패널 높이를 맞춤
+        }
+
+        // 접혀 있으면 잠깐 펼쳐서 보여 주고 seconds 뒤 다시 접음 (사용자가 직접 펼친 상태면 그대로)
+        private void Peek(float seconds)
+        {
+            if (expanded && peekUntil < 0f) return;
+            SetExpanded(true);
+            peekUntil = Time.unscaledTime + seconds;
+        }
+
+        // 배지 ↔ 패널: 패널이 오른쪽에서 밀려 나오고 배지는 사라짐
+        private void AnimateExpand()
+        {
+            if (panel == null) return;
+            expandK = Mathf.MoveTowards(expandK, expanded ? 1f : 0f, Time.unscaledDeltaTime * 5f);
+            float e = 1f - (1f - expandK) * (1f - expandK);
+            panel.anchoredPosition = new Vector2(Mathf.Lerp(Width + 60f, PanelX, e), PanelY);
+            panelGroup.alpha = e;
+            badgeGroup.alpha = 1f - e;
+
+            // 할 게 남았으면 배지가 살짝 두근거림, 다 했으면 흐리게
+            bool todo = !AllDone() || VisibleQuests().Count > 0;
+            float beat = todo ? 1f + 0.06f * Mathf.Max(0f, Mathf.Sin(Time.unscaledTime * 4f)) : 1f;
+            badge.localScale = Vector3.one * beat * Mathf.Lerp(1f, 0.6f, e);
+            badgeMark.color = todo ? new Color(1f, 0.92f, 0.5f, 1f) : new Color(1f, 1f, 1f, 0.45f);
         }
 
         private void SetVisible(bool on)

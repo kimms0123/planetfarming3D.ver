@@ -58,6 +58,10 @@ namespace FarmingSystem.Fishing
         [SerializeField] private bool logWhyNotCasting = true;
         [Tooltip("찌를 물고 클릭한 뒤 릴 감기 미니게임 (반원 게이지의 초록 칸에서 클릭). 끄면 예전처럼 바로 잡힘")]
         [SerializeField] private bool reelMinigame = true;
+        [Tooltip("같은 물고기가 연달아 나오지 않게: 최근에 나온 물고기는 확률에 이 값을 곱함 (최근 4마리 안에 2번이면 두 번 곱함). 1 = 끔")]
+        [SerializeField, Range(0.05f, 1f)] private float repeatPenalty = 0.35f;
+        private const int RecentCount = 4;
+        private readonly List<FishData> recentPicks = new List<FishData>();
         [Tooltip("찌 근처 이 거리 안의 물고기가 다가옴 (m)")]
         [SerializeField] private float noticeRange = 4f;
 
@@ -204,16 +208,27 @@ namespace FarmingSystem.Fishing
             GameClock clock = GameClock.Instance;
             float total = 0f;
             var pool = new List<FishData>();
+            var weights = new List<float>();
             foreach (FishData f in AllFish())
             {
                 if (f.habitat != FishHabitat.Any && f.habitat != where) continue;
                 if (clock != null && (!f.InSeason(clock.CurrentSeason) || !f.InTime(clock.CurrentHour))) continue;
+                // 최근에 나온 물고기일수록 덜 나오게 (한 종류만 계속 나오는 것 방지)
+                float w = f.Weight;
+                foreach (FishData r in recentPicks) if (r == f) w *= repeatPenalty;
                 pool.Add(f);
-                total += f.Weight;
+                weights.Add(w);
+                total += w;
             }
+            FishData pick = pool.Count > 0 ? pool[pool.Count - 1] : null;
             float roll = Random.value * total;
-            foreach (FishData f in pool) { roll -= f.Weight; if (roll <= 0f) return f; }
-            return pool.Count > 0 ? pool[pool.Count - 1] : null;
+            for (int i = 0; i < pool.Count; i++) { roll -= weights[i]; if (roll <= 0f) { pick = pool[i]; break; } }
+            if (pick != null)
+            {
+                recentPicks.Add(pick);
+                if (recentPicks.Count > RecentCount) recentPicks.RemoveAt(0);
+            }
+            return pick;
         }
 
         private void UpdateShadows(float dt)

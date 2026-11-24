@@ -251,6 +251,8 @@ namespace FarmingSystem.NPC
             promptLabel.text = text;
         }
 
+        private const float MarkFontSize = 54f;   // "!" "?" 크기 (예전 44)
+        private const float MarkThickness = 0.35f; // 획 두께 (0 = 보통, 0.5까지 두꺼워짐)
         private static readonly Color NewMarkColor = new Color(0.93f, 0.2f, 0.2f);    // "!" 빨강 (새 퀘스트)
         private static readonly Color ReadyMarkColor = new Color(0.2f, 0.72f, 0.3f);  // "?" 초록 (건네줄 수 있음)
 
@@ -267,10 +269,12 @@ namespace FarmingSystem.NPC
             img.raycastTarget = false;
             tg.icon = rt;
             tg.iconBg = img;
-            tg.iconText = MakeText(go.transform, "!", 44f, NewMarkColor, FontStyles.Bold);
+            tg.iconText = MakeText(go.transform, "!", MarkFontSize, NewMarkColor, FontStyles.Bold);
             tg.iconText.textWrappingMode = TextWrappingModes.NoWrap;
             tg.iconText.overflowMode = TextOverflowModes.Overflow;
-            tg.iconText.outlineWidth = 0.28f;   // 어떤 배경에서도 보이게 흰 테두리
+            // 글자 획을 두껍게 (TMP 글자 재질의 Face Dilate) + 흰 테두리 (어떤 배경에서도 보이게)
+            tg.iconText.fontMaterial.SetFloat(ShaderUtilities.ID_FaceDilate, MarkThickness);
+            tg.iconText.outlineWidth = 0.22f;
             tg.iconText.outlineColor = new Color32(255, 255, 255, 255);
         }
 
